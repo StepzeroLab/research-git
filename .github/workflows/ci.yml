@@ -16,10 +16,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      # setup-python provides the interpreter on PATH; --system installs into it,
+      # so the very same `python` runs the tests (no managed-vs-system mismatch).
       - name: Install (with dev extras)
         run: uv pip install --system -e ".[dev]"
       - name: Run tests
