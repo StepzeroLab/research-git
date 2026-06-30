@@ -1,0 +1,71 @@
+from rgit.segmenter import HeuristicSegmenter, MockSegmenter, segment_diff
+from rgit.store.store import Store
+
+
+def test_segment_diff_creates_open_proposal(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    candidate = {
+        "name": "double-forward", "intent": "scale forward output by 2",
+        "code_slices": [{"file": "model.py", "symbol": "forward",
+                         "anchor": "L1-L2", "code": "return x * 2", "kind": "wrap"}],
+        "knobs": {}, "data_assumptions": None,
+        "resurrection_guide": "multiply forward() output by 2", "confidence": 0.9,
+    }
+    seg = MockSegmenter([candidate])
+    pid = segment_diff(store, trigger="manual", segmenter=seg, run_id=None)
+    prop = store.get_proposal(pid)
+    assert prop.status == "open"
+    assert prop.candidates[0]["name"] == "double-forward"
+    assert prop.diff_ref  # diff was stored as an object
+
+
+def test_mock_segmenter_sees_symbol_map(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    seg = MockSegmenter([])
+    segment_diff(store, trigger="manual", segmenter=seg, run_id=None)
+    assert seg.last_symbols == [{"file": "model.py", "symbol": "forward"}]
+
+
+def test_heuristic_segmenter_groups_symbols_per_file():
+    diff = (
+        "diff --git a/model.py b/model.py\n"
+        "--- a/model.py\n+++ b/model.py\n"
+        "@@ -1,2 +1,2 @@\n-    return x\n+    return x * 2\n"
+    )
+    symbols = [{"file": "model.py", "symbol": "forward"},
+               {"file": "model.py", "symbol": "compute_loss"}]
+    cands = HeuristicSegmenter().segment(diff, symbols)
+    assert len(cands) == 1                                   # one candidate per file
+    assert cands[0]["confidence"] < 0.5                      # flagged as crude/heuristic
+    assert {s["symbol"] for s in cands[0]["code_slices"]} == {"forward", "compute_loss"}
+    assert all(s["file"] == "model.py" for s in cands[0]["code_slices"])
+    assert "return x * 2" in cands[0]["code_slices"][0]["code"]  # carries the diff context
+
+
+def test_heuristic_segmenter_no_symbols_yields_no_candidates():
+    assert HeuristicSegmenter().segment("", []) == []
+
+
+def test_segment_diff_records_toggle_event(git_repo):
+    import subprocess
+    from rgit.segmenter import segment_diff, HeuristicSegmenter
+    from rgit.store.store import Store
+    from rgit.store.models import Capsule, CodeSlice
+    store = Store.init(git_repo)
+    (git_repo / "train.py").write_text(
+        "def loss(x):\n    return entropy(x)\n    return 0\n")
+    subprocess.run(["git", "add", "."], cwd=git_repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "add train"], cwd=git_repo,
+                   check=True, capture_output=True)
+    fid = store.add_feature(Capsule(
+        id="", name="entropy", intent="entropy loss", status="approved",
+        base_commit="abc", knobs={}, data_assumptions=None, resurrection_guide="...",
+        result_summary=None, payload_hash=None,
+        code_slices=[CodeSlice("train.py", "loss", None, "code", "wrap")]))
+    (git_repo / "train.py").write_text(
+        "def loss(x):\n    # return entropy(x)\n    return 0\n")
+    segment_diff(store, "manual", HeuristicSegmenter(), run_id=None, now="t9")
+    latest = store.latest_event(fid)
+    assert latest is not None and latest.kind == "deactivate"

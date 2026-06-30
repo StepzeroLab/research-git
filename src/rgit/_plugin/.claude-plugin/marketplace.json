@@ -1,0 +1,15 @@
+{
+  "name": "research-git",
+  "metadata": {
+    "description": "A memory system for the code you're exploring — capture each idea as a semantic Feature Capsule, then recall and regenerate it onto today's codebase. Agentic segmentation/regeneration via natively-dispatched subagents (no paid API); MCP serves the graph read-only for sharing."
+  },
+  "owner": {
+    "name": "Stepzero Lab"
+  },
+  "plugins": [
+    {
+      "name": "research-git",
+      "source": "./"
+    }
+  ]
+}

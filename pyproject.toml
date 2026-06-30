@@ -1,0 +1,52 @@
+[project]
+name = "research-git"
+version = "0.0.1"
+description = "A memory system that captures code ideas as semantic capsules you can regenerate onto today's codebase"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Stepzero Lab" }]
+requires-python = ">=3.11"
+keywords = ["research", "idea-memory", "code-memory", "knowledge-graph", "feature-capsule"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+dependencies = [
+    "libcst>=1.1",
+    "mcp>=1.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/StepzeroLab/research-git"
+Repository = "https://github.com/StepzeroLab/research-git"
+Issues = "https://github.com/StepzeroLab/research-git/issues"
+
+[project.scripts]
+rgit = "rgit.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+rgit = [
+    "_plugin/agents/*.md",
+    "_plugin/skills/*/*.md",
+    "_plugin/.claude-plugin/*.json",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
