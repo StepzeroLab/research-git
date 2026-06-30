@@ -28,6 +28,20 @@ def test_mock_segmenter_sees_symbol_map(git_repo):
     assert seg.last_symbols == [{"file": "model.py", "symbol": "forward"}]
 
 
+def test_segment_diff_skips_empty_diff(git_repo):
+    store = Store.init(git_repo)
+    seg = MockSegmenter([])
+    assert segment_diff(store, trigger="manual", segmenter=seg, run_id=None) is None
+    assert store.list_proposals("open") == []
+
+
+def test_segment_diff_survives_non_utf8_python_file(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "latin.py").write_bytes(b"def cafe():\n    return 'caf\xe9'\n")
+    pid = segment_diff(store, trigger="manual", segmenter=MockSegmenter([]), run_id=None)
+    assert pid is not None
+
+
 def test_heuristic_segmenter_groups_symbols_per_file():
     diff = (
         "diff --git a/model.py b/model.py\n"

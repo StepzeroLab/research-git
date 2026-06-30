@@ -82,7 +82,7 @@ class HeuristicSegmenter:
 
 def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
                  run_id: Optional[str], from_features: Optional[list[str]] = None,
-                 now: str = "") -> str:
+                 now: str = "") -> Optional[str]:
     """Diff the working tree vs HEAD, segment it, store an open Proposal, and
     record comment-in/out toggle events against the capsules they touch.
 
@@ -91,9 +91,11 @@ def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
     """
     from .toggles import detect_toggles, map_to_capsules
     diff = diff_since(store.root, "HEAD")
+    if not diff.strip():
+        return None
     symbols = changed_symbols(diff, store.root)
     candidates = segmenter.segment(diff, symbols)
-    diff_ref = store.objects.put(diff.encode())
+    diff_ref = store.objects.put(diff.encode("utf-8", errors="replace"))
     pid = store.add_proposal(Proposal(
         id="", trigger=trigger, diff_ref=diff_ref,
         candidates=candidates, status="open", run_id=run_id,

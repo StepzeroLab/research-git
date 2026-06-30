@@ -37,6 +37,18 @@ def test_install_never_clobbers_foreign_hook(git_repo):
     assert hook.read_text() == "#!/bin/sh\necho mine\n"   # left byte-identical
 
 
+def test_marker_substring_does_not_make_foreign_hook_ours(git_repo):
+    hook = _hook(git_repo)
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    text = f"#!/bin/sh\n# user note mentioning {MARKER}\necho mine\n"
+    hook.write_text(text)
+    res = install_hooks(git_repo)
+    assert res["action"] == "skipped_foreign"
+    assert hook.read_text() == text
+    assert uninstall_hooks(git_repo)["action"] == "skipped_foreign"
+    assert hook.read_text() == text
+
+
 def test_dry_run_writes_nothing(git_repo):
     res = install_hooks(git_repo, dry_run=True)
     assert res["action"] == "would_install"

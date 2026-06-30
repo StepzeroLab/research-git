@@ -67,7 +67,7 @@ def changed_symbols(diff: str, repo: Path) -> list[dict]:
             continue
         try:
             wrapper = MetadataWrapper(cst.parse_module(_read_python_source(path)))
-        except cst.ParserSyntaxError:
+        except (cst.ParserSyntaxError, UnicodeDecodeError):
             continue
         finder = _SymbolFinder(ranges)
         wrapper.visit(finder)
@@ -83,7 +83,7 @@ def read_symbol_source(repo: Path, file: str, symbol: str) -> Optional[str]:
         return None
     try:
         module = cst.parse_module(_read_python_source(path))
-    except cst.ParserSyntaxError:
+    except (cst.ParserSyntaxError, UnicodeDecodeError):
         return None
     for stmt in module.body:
         if isinstance(stmt, (cst.FunctionDef, cst.ClassDef)) and stmt.name.value == symbol:
@@ -98,7 +98,7 @@ def symbol_at_line(repo: Path, file: str, line: int) -> Optional[str]:
         return None
     try:
         wrapper = MetadataWrapper(cst.parse_module(_read_python_source(path)))
-    except cst.ParserSyntaxError:
+    except (cst.ParserSyntaxError, UnicodeDecodeError):
         return None
     finder = _SymbolFinder([(line, line)])
     wrapper.visit(finder)
