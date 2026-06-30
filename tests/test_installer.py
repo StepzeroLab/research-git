@@ -213,7 +213,7 @@ def test_uninstall_claude_code_keeps_guidance_when_cli_command_fails(
         fake_home, monkeypatch):
     guidance = fake_home / ".claude" / "CLAUDE.md"
     guidance.parent.mkdir(parents=True)
-    guidance.write_text(agent_guidance.render_global_block())
+    guidance.write_text(agent_guidance.render_global_block(), encoding="utf-8")
 
     def fail(plan):
         return [{"cmd": plan[0], "rc": 1, "out": "remove failed"}]
@@ -224,7 +224,7 @@ def test_uninstall_claude_code_keeps_guidance_when_cli_command_fails(
 
     assert res["guidance"]["action"] == "skipped_error"
     assert "uninstall commands failed" in res["guidance"]["error"]
-    assert agent_guidance.START in guidance.read_text()
+    assert agent_guidance.START in guidance.read_text(encoding="utf-8")
 
 
 def test_install_codex_writes_guidance_and_symlinks_under_fake_home(fake_home):
@@ -234,7 +234,7 @@ def test_install_codex_writes_guidance_and_symlinks_under_fake_home(fake_home):
     assert (fake_home / ".agents" / "skills" / "rgit-capture").is_symlink()
     guidance = fake_home / ".codex" / "AGENTS.md"
     assert guidance.exists()
-    assert guidance.read_text().count(agent_guidance.START) == 1
+    assert guidance.read_text(encoding="utf-8").count(agent_guidance.START) == 1
     assert res["guidance"]["action"] == "created"
 
 
@@ -243,7 +243,7 @@ def test_install_codex_is_idempotent_for_guidance(fake_home):
     res = installer.install("codex")
 
     guidance = fake_home / ".codex" / "AGENTS.md"
-    assert guidance.read_text().count(agent_guidance.START) == 1
+    assert guidance.read_text(encoding="utf-8").count(agent_guidance.START) == 1
     assert res["guidance"]["action"] == "unchanged"
 
 
@@ -251,12 +251,12 @@ def test_uninstall_codex_removes_only_managed_guidance(fake_home):
     guidance = fake_home / ".codex" / "AGENTS.md"
     block = agent_guidance.render_global_block()
     guidance.parent.mkdir(parents=True)
-    guidance.write_text("before\n" + block + "\nafter\n")
+    guidance.write_text("before\n" + block + "\nafter\n", encoding="utf-8")
 
     res = installer.uninstall("codex")
 
     assert res["guidance"]["action"] == "removed"
-    text = guidance.read_text()
+    text = guidance.read_text(encoding="utf-8")
     assert "before\n" in text
     assert "after\n" in text
     assert agent_guidance.START not in text
@@ -308,7 +308,7 @@ def test_edge_judge_agent_is_packaged():
 
 def test_capture_skill_uses_cli_not_mcp_write_tools():
     from rgit import installer
-    skill = (installer.plugin_dir() / "skills" / "rgit-capture" / "SKILL.md").read_text()
+    skill = (installer.plugin_dir() / "skills" / "rgit-capture" / "SKILL.md").read_text(encoding="utf-8")
     assert "rgit pending" in skill
     assert "rgit resegment" in skill
     assert "pending_captures" not in skill     # MCP write tools are gone

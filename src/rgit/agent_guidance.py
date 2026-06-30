@@ -163,7 +163,10 @@ def _dry_action(action: str) -> str:
 
 def _atomic_write(path: Path, text: str) -> None:
     tmp = path.with_name(f".{path.name}.research-git.tmp")
-    tmp.write_text(text, encoding="utf-8")
+    # newline="" disables newline translation so the user's exact text (LF) is
+    # preserved byte-for-byte — on Windows write_text would otherwise rewrite
+    # every "\n" to "\r\n" and corrupt the surrounding user content.
+    tmp.write_text(text, encoding="utf-8", newline="")
     if path.exists():
         os.chmod(tmp, path.stat().st_mode)
     tmp.replace(path)

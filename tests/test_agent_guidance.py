@@ -20,7 +20,7 @@ def test_upsert_creates_parent_and_file(tmp_path):
 
     assert res["action"] == "created"
     assert res["path"] == str(path)
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     assert text.count(agent_guidance.START) == 1
     assert text.count(agent_guidance.END) == 1
 
@@ -28,12 +28,12 @@ def test_upsert_creates_parent_and_file(tmp_path):
 def test_upsert_appends_without_changing_existing_text(tmp_path):
     path = tmp_path / "AGENTS.md"
     original = "# Project notes\n\nKeep tests focused.\n"
-    path.write_text(original)
+    path.write_text(original, encoding="utf-8")
 
     res = agent_guidance.upsert_managed_block(path)
 
     assert res["action"] == "appended"
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     assert text.startswith(original)
     assert text.count(agent_guidance.START) == 1
     assert "Current mode: default" in text
@@ -44,13 +44,14 @@ def test_upsert_replaces_existing_managed_block_without_duplication(tmp_path):
     path.write_text(
         "before\n"
         f"{agent_guidance.START}\nold unique phrase\n{agent_guidance.END}\n"
-        "after\n"
+        "after\n",
+        encoding="utf-8",
     )
 
     res = agent_guidance.upsert_managed_block(path)
 
     assert res["action"] == "updated"
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     assert "before\n" in text
     assert "after\n" in text
     assert "old unique phrase" not in text
@@ -92,13 +93,14 @@ def test_remove_managed_block_preserves_user_text(tmp_path):
     path.write_text(
         "before\n"
         f"{agent_guidance.START}\nmanaged\n{agent_guidance.END}\n"
-        "after\n"
+        "after\n",
+        encoding="utf-8",
     )
 
     res = agent_guidance.remove_managed_block(path)
 
     assert res["action"] == "removed"
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     assert "before\n" in text
     assert "after\n" in text
     assert agent_guidance.START not in text
@@ -110,9 +112,9 @@ def test_remove_reports_absent_for_missing_file_or_no_block(tmp_path):
     assert agent_guidance.remove_managed_block(missing)["action"] == "absent"
 
     plain = tmp_path / "plain.md"
-    plain.write_text("user text\n")
+    plain.write_text("user text\n", encoding="utf-8")
     assert agent_guidance.remove_managed_block(plain)["action"] == "absent"
-    assert plain.read_text() == "user text\n"
+    assert plain.read_text(encoding="utf-8") == "user text\n"
 
 
 def test_manual_uninstall_status_does_not_tell_user_to_add_block():
