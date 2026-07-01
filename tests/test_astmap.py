@@ -1,4 +1,8 @@
-from rgit.astmap import changed_symbols, read_symbol_source
+import os
+
+import pytest
+
+from rgit.astmap import changed_symbols, read_symbol_source, symbol_at_line
 
 
 def test_changed_symbols_finds_enclosing_function(git_repo):
@@ -11,6 +15,68 @@ def test_changed_symbols_finds_enclosing_function(git_repo):
     )
     syms = changed_symbols(diff, git_repo)
     assert {"file": "model.py", "symbol": "b"} in syms
+
+
+def test_changed_symbols_handles_diff_header_timestamp_and_spaces(git_repo):
+    path = git_repo / "nested dir" / "file with spaces.py"
+    path.parent.mkdir()
+    path.write_text("def spaced():\n    return 2\n")
+    diff = (
+        "diff --git a/nested dir/file with spaces.py b/nested dir/file with spaces.py\n"
+        "--- a/nested dir/file with spaces.py\n"
+        "+++ b/nested dir/file with spaces.py\t2026-01-01\n"
+        "@@ -1,2 +1,2 @@\n"
+        "-    return 1\n+    return 2\n"
+    )
+    syms = changed_symbols(diff, git_repo)
+    assert {"file": "nested dir/file with spaces.py", "symbol": "spaced"} in syms
+
+
+def test_changed_symbols_handles_c_quoted_diff_path(git_repo):
+    path = git_repo / "line\nbreak.py"
+    path.write_text("def odd():\n    return 2\n")
+    diff = (
+        "diff --git \"a/line\\nbreak.py\" \"b/line\\nbreak.py\"\n"
+        "--- \"a/line\\nbreak.py\"\n"
+        "+++ \"b/line\\nbreak.py\"\n"
+        "@@ -1,2 +1,2 @@\n"
+        "-    return 1\n+    return 2\n"
+    )
+    syms = changed_symbols(diff, git_repo)
+    assert {"file": "line\nbreak.py", "symbol": "odd"} in syms
+
+
+def test_changed_symbols_does_not_reuse_file_after_dev_null(git_repo):
+    (git_repo / "keep.py").write_text("def keep():\n    return 2\n")
+    diff = (
+        "diff --git a/keep.py b/keep.py\n"
+        "--- a/keep.py\n+++ b/keep.py\n"
+        "@@ -1,2 +1,2 @@\n-    return 1\n+    return 2\n"
+        "diff --git a/gone.py b/gone.py\n"
+        "--- a/gone.py\n+++ /dev/null\n"
+        "@@ -1,2 +0,0 @@\n-def gone():\n-    return 1\n"
+    )
+    syms = changed_symbols(diff, git_repo)
+    assert syms == [{"file": "keep.py", "symbol": "keep"}]
+
+
+def test_python_symbol_reads_skip_external_symlink(git_repo):
+    outside = git_repo.parent / "secret-symbols.py"
+    outside.write_text("def TRACKED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
+    try:
+        os.symlink(outside, git_repo / "linked.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    diff = (
+        "diff --git a/linked.py b/linked.py\n"
+        "--- a/linked.py\n+++ b/linked.py\n"
+        "@@ -0,0 +1,2 @@\n"
+        "+def linked():\n+    return 1\n"
+    )
+    assert changed_symbols(diff, git_repo) == []
+    assert read_symbol_source(git_repo, "linked.py",
+                              "TRACKED_SECRET_SYMBOL_TOKEN") is None
+    assert symbol_at_line(git_repo, "linked.py", 1) is None
 
 
 def test_changed_symbols_handles_utf8_bom(git_repo):

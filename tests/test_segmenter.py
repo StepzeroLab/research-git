@@ -42,6 +42,70 @@ def test_segment_diff_survives_non_utf8_python_file(git_repo):
     assert pid is not None
 
 
+def test_segment_diff_maps_unicode_path_with_quotepath_true(git_repo):
+    import subprocess
+    store = Store.init(git_repo)
+    subprocess.run(["git", "config", "core.quotePath", "true"], cwd=git_repo,
+                   check=True)
+    (git_repo / "数据处理.py").write_text("def clean():\n    return 1\n")
+    pid = segment_diff(store, trigger="manual", segmenter=HeuristicSegmenter(),
+                       run_id=None)
+    prop = store.get_proposal(pid)
+    assert prop.candidates
+    assert prop.candidates[0]["code_slices"][0]["file"] == "数据处理.py"
+
+
+def test_segment_diff_skips_tracked_external_symlink_without_leaking(git_repo):
+    import os
+    import pytest
+    store = Store.init(git_repo)
+    outside = git_repo.parent / "secret-target.py"
+    outside.write_text("def TRACKED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
+    try:
+        (git_repo / "model.py").unlink()
+        os.symlink(outside, git_repo / "model.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+
+    pid = segment_diff(store, trigger="manual", segmenter=HeuristicSegmenter(),
+                       run_id=None)
+    prop = store.get_proposal(pid)
+    diff = store.objects.get(prop.diff_ref).decode(errors="replace")
+    assert "research-git: skipped tracked file 'model.py'" in diff
+    assert "secret-target" not in diff
+    assert "TRACKED_SECRET_SYMBOL_TOKEN" not in diff
+    assert prop.candidates == []
+
+
+def test_segment_diff_skips_old_tracked_external_symlink_without_leaking(git_repo):
+    import os
+    import subprocess
+    import pytest
+    store = Store.init(git_repo)
+    outside = git_repo.parent / "old-secret-target.py"
+    outside.write_text("def OLD_SECRET_SYMBOL_TOKEN():\n    return 1\n")
+    try:
+        (git_repo / "model.py").unlink()
+        os.symlink(outside, git_repo / "model.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
+                   cwd=git_repo, check=True, capture_output=True)
+
+    (git_repo / "model.py").unlink()
+    (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
+    pid = segment_diff(store, trigger="manual", segmenter=HeuristicSegmenter(),
+                       run_id=None)
+    prop = store.get_proposal(pid)
+    diff = store.objects.get(prop.diff_ref).decode(errors="replace")
+    assert "research-git: skipped tracked file 'model.py'" in diff
+    assert "old-secret-target" not in diff
+    assert "OLD_SECRET_SYMBOL_TOKEN" not in diff
+    assert prop.candidates == []
+
+
 def test_heuristic_segmenter_groups_symbols_per_file():
     diff = (
         "diff --git a/model.py b/model.py\n"
@@ -56,6 +120,33 @@ def test_heuristic_segmenter_groups_symbols_per_file():
     assert {s["symbol"] for s in cands[0]["code_slices"]} == {"forward", "compute_loss"}
     assert all(s["file"] == "model.py" for s in cands[0]["code_slices"])
     assert "return x * 2" in cands[0]["code_slices"][0]["code"]  # carries the diff context
+
+
+def test_heuristic_segmenter_maps_diff_for_spaced_path():
+    diff = (
+        "diff --git a/nested dir/file with spaces.py b/nested dir/file with spaces.py\n"
+        "--- a/nested dir/file with spaces.py\n"
+        "+++ b/nested dir/file with spaces.py\t2026-01-01\n"
+        "@@ -1,2 +1,2 @@\n-    return 1\n+    return 2\n"
+    )
+    symbols = [{"file": "nested dir/file with spaces.py", "symbol": "spaced"}]
+    cands = HeuristicSegmenter().segment(diff, symbols)
+    assert len(cands) == 1
+    assert "return 2" in cands[0]["code_slices"][0]["code"]
+
+
+def test_heuristic_segmenter_does_not_put_notices_in_code_slice():
+    diff = (
+        "diff --git a/model.py b/model.py\n"
+        "--- a/model.py\n+++ b/model.py\n"
+        "@@ -1,2 +1,2 @@\n-    return 1\n+    return 2\n"
+        "research-git: skipped untracked file 'blob.bin' (binary file)\n"
+    )
+    symbols = [{"file": "model.py", "symbol": "forward"}]
+    cands = HeuristicSegmenter().segment(diff, symbols)
+    code = cands[0]["code_slices"][0]["code"]
+    assert "return 2" in code
+    assert "research-git: skipped" not in code
 
 
 def test_heuristic_segmenter_no_symbols_yields_no_candidates():

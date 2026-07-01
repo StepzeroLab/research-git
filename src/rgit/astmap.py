@@ -6,8 +6,9 @@ from typing import Optional
 import libcst as cst
 from libcst.metadata import MetadataWrapper, PositionProvider
 
+from .gitutil import _within, parse_git_diff_header
+
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
-_FILE = re.compile(r"^\+\+\+ b/(.+)$", re.M)
 
 
 def _read_python_source(path: Path) -> str:
@@ -17,15 +18,27 @@ def _read_python_source(path: Path) -> str:
     return path.read_text(encoding="utf-8-sig")
 
 
+def _python_source_path(repo: Path, file: str) -> Optional[Path]:
+    """Repo-contained regular Python file, without following external symlinks."""
+    path = repo / file
+    if path.suffix != ".py" or not _within(repo, path):
+        return None
+    try:
+        return path if path.is_file() else None
+    except OSError:
+        return None
+
+
 def _changed_line_ranges(diff: str) -> dict[str, list[tuple[int, int]]]:
     """file -> list of (start, end) line ranges touched on the new side."""
     result: dict[str, list[tuple[int, int]]] = {}
     current: Optional[str] = None
     for line in diff.splitlines():
-        m = _FILE.match(line)
-        if m:
-            current = m.group(1)
-            result.setdefault(current, [])
+        matched, path = parse_git_diff_header(line, "+++")
+        if matched:
+            current = path
+            if current is not None:
+                result.setdefault(current, [])
             continue
         h = _HUNK.match(line)
         if h and current:
@@ -62,8 +75,8 @@ def changed_symbols(diff: str, repo: Path) -> list[dict]:
     """[{file, symbol}] for each top-level def/class overlapping a diff hunk."""
     out: list[dict] = []
     for file, ranges in _changed_line_ranges(diff).items():
-        path = repo / file
-        if not path.suffix == ".py" or not path.exists() or not ranges:
+        path = _python_source_path(repo, file)
+        if path is None or not ranges:
             continue
         try:
             wrapper = MetadataWrapper(cst.parse_module(_read_python_source(path)))
@@ -78,8 +91,8 @@ def changed_symbols(diff: str, repo: Path) -> list[dict]:
 
 def read_symbol_source(repo: Path, file: str, symbol: str) -> Optional[str]:
     """Current source text of a top-level def/class, or None if absent."""
-    path = repo / file
-    if not path.exists():
+    path = _python_source_path(repo, file)
+    if path is None:
         return None
     try:
         module = cst.parse_module(_read_python_source(path))
@@ -93,8 +106,8 @@ def read_symbol_source(repo: Path, file: str, symbol: str) -> Optional[str]:
 
 def symbol_at_line(repo: Path, file: str, line: int) -> Optional[str]:
     """Name of the top-level def/class enclosing `line` (1-based), or None."""
-    path = repo / file
-    if path.suffix != ".py" or not path.exists():
+    path = _python_source_path(repo, file)
+    if path is None:
         return None
     try:
         wrapper = MetadataWrapper(cst.parse_module(_read_python_source(path)))

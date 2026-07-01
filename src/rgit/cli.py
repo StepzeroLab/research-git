@@ -71,6 +71,23 @@ def _run_exit_code(returncode: int) -> int:
     return returncode if returncode > 0 else 1
 
 
+def _diff_text(store: Store, diff_ref: Optional[str]) -> str:
+    return store.objects.get(diff_ref).decode(errors="replace") if diff_ref else ""
+
+
+def _skip_notices(diff: str) -> list[str]:
+    return [line for line in diff.splitlines()
+            if line.startswith("research-git: skipped ")]
+
+
+def _print_skip_summary(diff: str, indent: str = "") -> None:
+    notices = _skip_notices(diff)
+    if not notices:
+        return
+    print(f"{indent}warning: skipped {len(notices)} file(s); "
+          "run `rgit pending --json` for details")
+
+
 def _print_run_result(result, store: Store) -> None:
     prop_id = result.proposal_id
     if prop_id is None:
@@ -78,6 +95,7 @@ def _print_run_result(result, store: Store) -> None:
     else:
         prop = store.get_proposal(prop_id)
         print(f"run {result.run_id} recorded; proposal {prop_id} awaiting review")
+        _print_skip_summary(_diff_text(store, prop.diff_ref), indent="  ")
         if not prop.candidates:
             print("  note: proposal has 0 candidates; run `rgit pending --json`, "
                   "then `rgit resegment <proposal_id> --from-json <path>`")
@@ -283,6 +301,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 0
         prop = store.get_proposal(pid)
         print(f"proposal {pid} created")
+        _print_skip_summary(_diff_text(store, prop.diff_ref))
         if not prop.candidates:
             print("note: proposal has 0 candidates; run `rgit pending --json`, "
                   "then `rgit resegment <proposal_id> --from-json <path>`")
@@ -314,6 +333,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             else:
                 print(f"{p.id}  [{p.trigger}]  0 candidate(s); "
                       "resegment before approving")
+            _print_skip_summary(_diff_text(store, p.diff_ref), indent="  ")
         return 0
 
     if args.cmd == "features":
@@ -349,7 +369,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.cmd == "pending":
         items = []
         for p in store.list_proposals("open"):
-            diff = store.objects.get(p.diff_ref).decode(errors="replace") if p.diff_ref else ""
+            diff = _diff_text(store, p.diff_ref)
             items.append({"proposal_id": p.id, "trigger": p.trigger,
                           "diff": diff, "candidates": p.candidates})
         if args.json:
@@ -361,6 +381,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             for it in items:
                 print(f"{it['proposal_id']}  [{it['trigger']}]  "
                       f"{len(it['candidates'])} candidate(s)")
+                _print_skip_summary(it["diff"], indent="  ")
         return 0
 
     if args.cmd == "resegment":
@@ -377,7 +398,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         if args.once:
             snap = watchmod.snapshot(store)
             _, pid = watchmod.tick(store, snap, _now())
-            print(f"staged proposal {pid}" if pid else "nothing to capture")
+            if pid:
+                prop = store.get_proposal(pid)
+                print(f"staged proposal {pid}")
+                _print_skip_summary(_diff_text(store, prop.diff_ref))
+                if not prop.candidates:
+                    print("note: proposal has 0 candidates; run `rgit pending --json`, "
+                          "then `rgit resegment <proposal_id> --from-json <path>`")
+            else:
+                print("nothing to capture")
             return 0
         watchmod.loop(store, interval=args.interval, idle=args.idle, now_fn=_now)
         return 0

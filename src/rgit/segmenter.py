@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Protocol
 
 from .astmap import changed_symbols
-from .gitutil import diff_since
+from .gitutil import diff_since, parse_git_diff_header
 from .store.models import Proposal
 from .store.store import Store
 
@@ -33,6 +33,12 @@ def _diff_by_file(diff: str) -> dict[str, str]:
     current: Optional[str] = None
     lines: list[str] = []
     for line in diff.splitlines():
+        if line.startswith("research-git: skipped "):
+            if current is not None:
+                sections[current] = "\n".join(lines)
+            lines = []
+            current = None
+            continue
         if line.startswith("diff --git"):
             if current is not None:
                 sections[current] = "\n".join(lines)
@@ -40,8 +46,9 @@ def _diff_by_file(diff: str) -> dict[str, str]:
             current = None
         else:
             lines.append(line)
-            if line.startswith("+++ b/"):
-                current = line[len("+++ b/"):].strip()
+            matched, path = parse_git_diff_header(line, "+++")
+            if matched:
+                current = path
     if current is not None:
         sections[current] = "\n".join(lines)
     return sections

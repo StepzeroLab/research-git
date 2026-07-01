@@ -4,7 +4,14 @@ import tarfile
 
 import pytest
 
-from rgit.gitutil import current_commit, diff_since, freeze_worktree, materialize
+from rgit.gitutil import (
+    MAX_UNTRACKED_DIFF_BYTES,
+    current_commit,
+    diff_since,
+    freeze_worktree,
+    materialize,
+    parse_git_diff_path,
+)
 from rgit.store.objects import ObjectStore
 
 
@@ -26,6 +33,64 @@ def test_diff_since_includes_untracked_new_file(git_repo):
     assert "newmod.py" in diff and "brand_new" in diff
 
 
+def test_diff_since_includes_untracked_unicode_path_when_quotepath_true(git_repo):
+    import subprocess
+    subprocess.run(["git", "config", "core.quotePath", "true"], cwd=git_repo,
+                   check=True)
+    (git_repo / "数据处理.py").write_text("def clean():\n    return 1\n")
+    diff = diff_since(git_repo, "HEAD")
+    assert "数据处理.py" in diff
+    assert "def clean" in diff
+
+
+def test_diff_since_handles_untracked_path_with_newline(git_repo):
+    name = "line\nbreak.py"
+    (git_repo / name).write_text("def odd():\n    return 1\n")
+    diff = diff_since(git_repo, "HEAD")
+    assert "def odd" in diff
+
+
+def test_diff_since_skips_large_untracked_text_with_notice(git_repo):
+    big = "x" * (MAX_UNTRACKED_DIFF_BYTES + 1)
+    (git_repo / "large_notes.txt").write_text(big)
+    diff = diff_since(git_repo, "HEAD")
+    assert "research-git: skipped untracked file 'large_notes.txt'" in diff
+    assert "exceeds" in diff
+    assert big[:1000] not in diff
+
+
+def test_diff_since_skips_untracked_binary_with_notice(git_repo):
+    (git_repo / "blob.bin").write_bytes(b"\x00\x01\x02binary")
+    diff = diff_since(git_repo, "HEAD")
+    assert "research-git: skipped untracked file 'blob.bin' (binary file)" in diff
+    assert "Binary files" not in diff
+
+
+def test_diff_since_skips_untracked_late_binary_with_notice(git_repo):
+    (git_repo / "late.bin").write_bytes(b"a" * 9000 + b"\0SECRET_AFTER_SNIFF")
+    diff = diff_since(git_repo, "HEAD")
+    assert "research-git: skipped untracked file 'late.bin' (binary file)" in diff
+    assert "SECRET_AFTER_SNIFF" not in diff
+
+
+def test_diff_since_skips_untracked_non_utf8_with_notice(git_repo):
+    (git_repo / "latin.txt").write_bytes(b"caf\xe9\n")
+    diff = diff_since(git_repo, "HEAD")
+    assert ("research-git: skipped untracked file 'latin.txt' "
+            "(binary or non-UTF-8 file)") in diff
+
+
+def test_diff_since_skips_untracked_non_regular_with_notice(git_repo):
+    fifo = git_repo / "pipe.txt"
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo unavailable")
+    os.mkfifo(fifo)
+    diff = diff_since(git_repo, "HEAD")
+    if "pipe.txt" not in diff:
+        pytest.skip("git ls-files does not report fifos on this platform")
+    assert "research-git: skipped untracked file 'pipe.txt' (not a regular file)" in diff
+
+
 def test_diff_since_skips_untracked_symlink_outside_repo(git_repo):
     outside = git_repo.parent / "secret-target.txt"
     try:
@@ -34,9 +99,80 @@ def test_diff_since_skips_untracked_symlink_outside_repo(git_repo):
         pytest.skip("symlink creation unavailable")
     outside.write_text("TOKEN=outside\n")
     diff = diff_since(git_repo, "HEAD")
-    assert "leak.txt" not in diff
+    assert "research-git: skipped untracked file 'leak.txt'" in diff
     assert "secret-target" not in diff
     assert "TOKEN=outside" not in diff
+
+
+def test_diff_since_skips_tracked_symlink_outside_repo(git_repo):
+    outside = git_repo.parent / "secret-target.py"
+    outside.write_text("def TRACKED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
+    try:
+        (git_repo / "model.py").unlink()
+        os.symlink(outside, git_repo / "model.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    diff = diff_since(git_repo, "HEAD")
+    assert ("research-git: skipped tracked file 'model.py' "
+            "(symlink points outside the repo)") in diff
+    assert "secret-target" not in diff
+    assert "TRACKED_SECRET_SYMBOL_TOKEN" not in diff
+
+
+def test_diff_since_skips_deleted_tracked_external_symlink(git_repo):
+    import subprocess
+    outside = git_repo.parent / "deleted-secret-target.py"
+    outside.write_text("def DELETED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
+    try:
+        (git_repo / "model.py").unlink()
+        os.symlink(outside, git_repo / "model.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
+                   cwd=git_repo, check=True, capture_output=True)
+
+    (git_repo / "model.py").unlink()
+    diff = diff_since(git_repo, "HEAD")
+    assert ("research-git: skipped tracked file 'model.py' "
+            "(symlink points outside the repo)") in diff
+    assert "deleted-secret-target" not in diff
+    assert "DELETED_SECRET_SYMBOL_TOKEN" not in diff
+
+
+def test_diff_since_skips_replaced_tracked_external_symlink(git_repo):
+    import subprocess
+    outside = git_repo.parent / "replaced-secret-target.py"
+    outside.write_text("def REPLACED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
+    try:
+        (git_repo / "model.py").unlink()
+        os.symlink(outside, git_repo / "model.py")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
+                   cwd=git_repo, check=True, capture_output=True)
+
+    (git_repo / "model.py").unlink()
+    (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
+    diff = diff_since(git_repo, "HEAD")
+    assert ("research-git: skipped tracked file 'model.py' "
+            "(symlink points outside the repo)") in diff
+    assert "replaced-secret-target" not in diff
+    assert "REPLACED_SECRET_SYMBOL_TOKEN" not in diff
+
+
+def test_parse_git_diff_path_handles_timestamp_and_c_quoted_path():
+    assert parse_git_diff_path("+++ b/dir/file with spaces.py\t2026-01-01", "+++") == (
+        "dir/file with spaces.py")
+    assert parse_git_diff_path('+++ "b/line\\nbreak.py"', "+++") == "line\nbreak.py"
+    assert parse_git_diff_path('+++ "b/\\346\\225\\260\\346\\215\\256.py"', "+++") == "数据.py"
+    assert parse_git_diff_path("+++ /dev/null", "+++") is None
+    assert parse_git_diff_path("+++ /dev/null\t2026-01-01", "+++") is None
+    assert parse_git_diff_path('+++ "b/a\\ab\\bf\\fv\\v.py"', "+++") == (
+        "a\ab\bf\fv\v.py")
 
 
 def test_freeze_is_deterministic_and_materializes(git_repo, tmp_path):
