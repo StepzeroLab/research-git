@@ -128,3 +128,40 @@ def test_read_symbol_source_returns_none_for_unparseable_file(git_repo):
     from rgit.astmap import read_symbol_source
     (git_repo / "broken.py").write_text("def loss(x):\n    # only a comment\n")
     assert read_symbol_source(git_repo, "broken.py", "loss") is None
+
+
+def test_changed_symbols_excludes_context_only_neighbor(git_repo):
+    # issue #10: a neighbouring symbol that only appears as unified-diff context
+    # must not be reported as changed.
+    src = ("def old_context():\n    return 1\n\n\n"
+           "def untouched_neighbor():\n    return 2\n\n\n"
+           "def new_feature():\n    return 3\n")
+    (git_repo / "m.py").write_text(src)
+    diff = (
+        "diff --git a/m.py b/m.py\n--- a/m.py\n+++ b/m.py\n"
+        "@@ -4,3 +4,7 @@ def old_context():\n"
+        " \n"
+        " def untouched_neighbor():\n"
+        "     return 2\n"
+        "+\n"
+        "+\n"
+        "+def new_feature():\n"
+        "+    return 3\n"
+    )
+    syms = changed_symbols(diff, git_repo)
+    assert {"file": "m.py", "symbol": "new_feature"} in syms
+    assert {"file": "m.py", "symbol": "untouched_neighbor"} not in syms
+
+
+def test_changed_symbols_flags_symbol_with_only_deletions(git_repo):
+    # a pure deletion inside a surviving function must still flag that function.
+    (git_repo / "d.py").write_text("def keep():\n    a = 1\n")
+    diff = (
+        "diff --git a/d.py b/d.py\n--- a/d.py\n+++ b/d.py\n"
+        "@@ -1,3 +1,2 @@\n"
+        " def keep():\n"
+        "     a = 1\n"
+        "-    b = 2\n"
+    )
+    syms = changed_symbols(diff, git_repo)
+    assert {"file": "d.py", "symbol": "keep"} in syms

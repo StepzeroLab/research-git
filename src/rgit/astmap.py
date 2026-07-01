@@ -30,21 +30,49 @@ def _python_source_path(repo: Path, file: str) -> Optional[Path]:
 
 
 def _changed_line_ranges(diff: str) -> dict[str, list[tuple[int, int]]]:
-    """file -> list of (start, end) line ranges touched on the new side."""
+    """file -> list of (start, end) ranges of *actually changed* new-side lines.
+
+    Only added lines — plus the new-side anchor of a deletion — count; unified-diff
+    context lines are walked to advance the new-side line counter but never recorded.
+    Using the whole hunk span (header length) would treat untouched neighbouring
+    symbols that merely appear as context as changed (issue #10).
+    """
     result: dict[str, list[tuple[int, int]]] = {}
     current: Optional[str] = None
+    in_hunk = False
+    new_line = 0
+    hunk_start = 0
     for line in diff.splitlines():
         matched, path = parse_git_diff_header(line, "+++")
         if matched:
             current = path
+            in_hunk = False
             if current is not None:
                 result.setdefault(current, [])
             continue
         h = _HUNK.match(line)
-        if h and current:
-            start = int(h.group(1))
-            length = int(h.group(2) or "1")
-            result[current].append((start, start + max(length, 1) - 1))
+        if h:
+            new_line = hunk_start = int(h.group(1))
+            in_hunk = current is not None
+            continue
+        if not in_hunk:
+            continue
+        if not line:                      # empty context line
+            new_line += 1
+            continue
+        tag = line[0]
+        if tag == "+":                    # added line -> genuinely changed
+            result[current].append((new_line, new_line))
+            new_line += 1
+        elif tag == "-":                  # deletion -> anchor to the surviving line
+            anchor = new_line - 1 if new_line > hunk_start else new_line
+            result[current].append((anchor, anchor))
+        elif tag == " ":                  # context -> advance, do not record
+            new_line += 1
+        elif tag == "\\":                 # "\ No newline at end of file"
+            continue
+        else:                             # non-body line ends the hunk (e.g. next `diff --git`)
+            in_hunk = False
     return result
 
 
