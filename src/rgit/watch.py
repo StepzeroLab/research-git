@@ -13,7 +13,7 @@ def snapshot(store: Store) -> dict:
     for rel in _snapshot_paths(store.root, exclude_root=store.dir):
         p = store.root / rel
         try:
-            snap[rel] = p.stat().st_mtime_ns
+            snap[rel] = p.lstat().st_mtime_ns
         except FileNotFoundError:
             continue
     return snap

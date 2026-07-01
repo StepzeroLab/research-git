@@ -44,6 +44,50 @@ def test_detect_activate():
     assert [t["kind"] for t in toggles] == ["activate"]
 
 
+def test_detect_toggle_handles_timestamp_and_spaces():
+    diff = """diff --git a/nested dir/train file.py b/nested dir/train file.py
+--- a/nested dir/train file.py
++++ b/nested dir/train file.py\t2026-01-01
+@@ -1,3 +1,3 @@
+ def loss(x):
+-    return entropy(x)
++    # return entropy(x)
+     return 0
+"""
+    toggles = detect_toggles(diff)
+    assert toggles == [{"file": "nested dir/train file.py", "line": 2,
+                        "kind": "deactivate", "text": "    # return entropy(x)"}]
+
+
+def test_detect_toggle_handles_c_quoted_path():
+    diff = """diff --git \"a/line\\nbreak.py\" \"b/line\\nbreak.py\"
+--- \"a/line\\nbreak.py\"
++++ \"b/line\\nbreak.py\"
+@@ -1,3 +1,3 @@
+ def loss(x):
+-    # return entropy(x)
++    return entropy(x)
+     return 0
+"""
+    toggles = detect_toggles(diff)
+    assert toggles == [{"file": "line\nbreak.py", "line": 2,
+                        "kind": "activate", "text": "    return entropy(x)"}]
+
+
+def test_detect_toggle_resets_on_dev_null():
+    diff = DEACTIVATE_DIFF + """diff --git a/gone.py b/gone.py
+--- a/gone.py
++++ /dev/null\t2026-01-01
+@@ -1,3 +0,0 @@
+-def old(x):
+-    return entropy(x)
+-    return 0
+"""
+    assert detect_toggles(diff) == [{"file": "train.py", "line": 2,
+                                     "kind": "deactivate",
+                                     "text": "    # return entropy(x)"}]
+
+
 def test_non_toggle_edit_is_ignored():
     assert detect_toggles(NON_TOGGLE_DIFF) == []
 

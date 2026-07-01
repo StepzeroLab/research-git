@@ -4,6 +4,7 @@ from pathlib import Path
 
 import rgit.cli as cli
 from rgit.cli import main
+from rgit.gitutil import MAX_UNTRACKED_DIFF_BYTES
 from rgit.segmenter import MockSegmenter
 from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice, Run
@@ -113,6 +114,28 @@ def test_capture_empty_diff_is_friendly(git_repo, monkeypatch, capsys):
     assert Store.open(git_repo).list_proposals("open") == []
 
 
+def test_capture_skip_notice_warns_and_json_stays_clean(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "large_notes.txt").write_text(
+        "x" * (MAX_UNTRACKED_DIFF_BYTES + 1))
+    assert cli.main(["capture", "--trigger", "manual"]) == 0
+    out = capsys.readouterr().out
+    assert "warning: skipped 1 file(s)" in out
+    assert "proposal has 0 candidates" in out
+
+    assert cli.main(["pending"]) == 0
+    pending = capsys.readouterr().out
+    assert "warning: skipped 1 file(s)" in pending
+
+    assert cli.main(["pending", "--json"]) == 0
+    raw = capsys.readouterr().out
+    items = json.loads(raw)
+    assert "warning:" not in raw
+    assert "research-git: skipped untracked file 'large_notes.txt'" in items[0]["diff"]
+
+
 def test_review_empty_candidates_is_friendly(git_repo, monkeypatch, capsys):
     monkeypatch.chdir(git_repo)
     store = Store.init(git_repo)
@@ -196,6 +219,19 @@ def test_watch_once_stages_proposal(git_repo, monkeypatch, capsys):
     (git_repo / "model.py").write_text("def forward(x):\n    return x + 1\n")
     cli.main(["watch", "--once"])
     assert "staged proposal" in capsys.readouterr().out
+
+
+def test_watch_once_skip_notice_warns(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "large_notes.txt").write_text(
+        "x" * (MAX_UNTRACKED_DIFF_BYTES + 1))
+    assert cli.main(["watch", "--once"]) == 0
+    out = capsys.readouterr().out
+    assert "staged proposal" in out
+    assert "warning: skipped 1 file(s)" in out
+    assert "proposal has 0 candidates" in out
 
 
 def test_pending_and_review_empty_state_message(git_repo, monkeypatch, capsys):

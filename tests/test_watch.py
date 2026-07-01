@@ -49,3 +49,28 @@ def test_tick_decodes_existing_proposal_diff_tolerantly(git_repo):
     snap = snapshot(store)
     _, pid = tick(store, snap, now="t1")
     assert pid is not None
+
+
+def test_snapshot_does_not_follow_external_symlink(git_repo):
+    import os
+    import pytest
+    store = Store.init(git_repo)
+    outside = git_repo.parent / "external-target.txt"
+    outside.write_text("first\n")
+    try:
+        os.symlink(outside, git_repo / "leak.txt")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+
+    before = snapshot(store)
+    if "leak.txt" not in before:
+        pytest.skip("git does not report this symlink in the worktree snapshot")
+    old = outside.stat().st_mtime_ns
+    try:
+        os.utime(outside, ns=(old + 10_000_000_000, old + 10_000_000_000))
+    except (OSError, ValueError, NotImplementedError) as e:
+        pytest.skip(f"filesystem cannot set nanosecond mtimes: {e}")
+    after = snapshot(store)
+    if "leak.txt" not in after:
+        pytest.skip("git stopped reporting this symlink in the worktree snapshot")
+    assert before["leak.txt"] == after["leak.txt"]
