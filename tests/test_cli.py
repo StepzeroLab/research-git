@@ -51,7 +51,7 @@ def test_run_from_links_variant_and_refreshes_guide(git_repo, monkeypatch, tmp_p
     assert cli.main(["run", "--from", src, "--refresh-guide-file", str(gfile),
                      "--", sys.executable, "train.py"]) == 0
     after = Store.open(git_repo)
-    assert after.neighbors(src, "produced")                       # lineage edge created
+    assert after.neighbors(src, "produced") == []                 # lineage is not a result edge
     assert after.get_feature(src).resurrection_guide == "REFRESHED GUIDE"
 
 

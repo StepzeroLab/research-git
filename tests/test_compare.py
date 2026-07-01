@@ -39,6 +39,24 @@ def test_compare_ranks_variant_cluster_by_direction(git_repo):
     assert by_name["label-smoothing"]["delta"] == -0.08
 
 
+def test_compare_does_not_credit_regenerated_run_to_source_variant(git_repo):
+    store = Store.init(git_repo)
+    store.set_metric_direction("accuracy", "higher")
+    v1 = store.add_feature(_cap("a-v1"))
+    v2 = store.add_feature(_cap("a-v2"))
+    store.add_edge(v2, v1, "variant_of")
+    r1 = _run_with(store, {"accuracy": 0.5}, "2026-01-01T00:00:00")
+    r2 = _run_with(store, {"accuracy": 0.9}, "2026-01-02T00:00:00")
+    store.add_edge(v1, r1, "produced")
+    store.add_edge(v2, r2, "produced")
+
+    rows = {r["feature"]: r for r in compare(store, v1, metric="accuracy")["rows"]}
+
+    assert rows["a-v1"]["value"] == 0.5
+    assert rows["a-v2"]["value"] == 0.9
+    assert rows["a-v2"]["winner"]
+
+
 def test_compare_by_symbol_gathers_touchers(git_repo):
     store = Store.init(git_repo)
     store.add_feature(_cap("a"))
