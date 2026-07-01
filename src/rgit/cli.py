@@ -60,6 +60,42 @@ def _now() -> str:
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 
+def _brief(text: str, limit: int = 1200) -> str:
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[-limit:]
+
+
+def _run_exit_code(returncode: int) -> int:
+    return returncode if returncode > 0 else 1
+
+
+def _print_run_result(result, store: Store) -> None:
+    prop_id = result.proposal_id
+    if prop_id is None:
+        print(f"run {result.run_id} recorded; no code changes to capture")
+    else:
+        prop = store.get_proposal(prop_id)
+        print(f"run {result.run_id} recorded; proposal {prop_id} awaiting review")
+        if not prop.candidates:
+            print("  note: proposal has 0 candidates; run `rgit pending --json`, "
+                  "then `rgit resegment <proposal_id> --from-json <path>`")
+    if result.metrics:
+        metrics = ", ".join(f"{k}={v}" for k, v in result.metrics.items())
+        print(f"  metrics: {metrics}")
+    if result.returncode != 0:
+        print(f"  command exited with status {result.returncode}")
+        err = _brief(result.stderr)
+        out = _brief(result.stdout)
+        if err:
+            print("  stderr:")
+            print(err)
+        if out:
+            print("  stdout:")
+            print(out)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rgit")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -215,6 +251,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.cmd == "run":
         cmd = args.rest[1:] if args.rest and args.rest[0] == "--" else args.rest
+        if not cmd:
+            print("no command provided; use `rgit run -- <command>`")
+            return 1
         active = None
         if args.active:
             # accept repeated --with and comma-separated names/ids; resolve to ids
@@ -224,22 +263,29 @@ def main(argv: Optional[list[str]] = None) -> int:
             except KeyError as e:
                 print(str(e).strip('"'))
                 return 1
-        run_id, prop_id = run_experiment(store, cmd, _segmenter(), now=_now(),
-                                         from_features=args.from_features,
-                                         active=active)
+        result = run_experiment(store, cmd, _segmenter(), now=_now(),
+                                from_features=args.from_features,
+                                active=active)
         if args.refresh_guide_file and args.from_features:
             from pathlib import Path
             guide = Path(args.refresh_guide_file).read_text(encoding="utf-8")
             for src in args.from_features:
                 store.update_capsule(src, resurrection_guide=guide)
-        print(f"run {run_id} recorded; proposal {prop_id} awaiting review")
+        _print_run_result(result, store)
         if args.from_features:
             print(f"  linked as variant_of: {', '.join(args.from_features)}")
-        return 0
+        return 0 if result.returncode == 0 else _run_exit_code(result.returncode)
 
     if args.cmd == "capture":
         pid = segment_diff(store, args.trigger, _segmenter(), run_id=None, now=_now())
+        if pid is None:
+            print("nothing to capture (working tree has no diff)")
+            return 0
+        prop = store.get_proposal(pid)
         print(f"proposal {pid} created")
+        if not prop.candidates:
+            print("note: proposal has 0 candidates; run `rgit pending --json`, "
+                  "then `rgit resegment <proposal_id> --from-json <path>`")
         return 0
 
     if args.cmd == "review":
@@ -248,12 +294,26 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"dismissed {args.dismiss}")
             return 0
         if args.approve:
-            fid = approve(store, args.approve, args.index, args.name)
+            try:
+                fid = approve(store, args.approve, args.index, args.name)
+            except (KeyError, ValueError) as e:
+                print(str(e))
+                print("hint: inspect with `rgit pending --json`; if there are "
+                      "0 candidates, resegment before approving.")
+                return 1
             print(f"approved -> feature {fid}")
             return 0
-        for p in store.list_proposals("open"):
+        proposals = store.list_proposals("open")
+        if not proposals:
+            print("no pending proposals")
+            return 0
+        for p in proposals:
             names = ", ".join(c["name"] for c in p.candidates)
-            print(f"{p.id}  [{p.trigger}]  candidates: {names}")
+            if names:
+                print(f"{p.id}  [{p.trigger}]  candidates: {names}")
+            else:
+                print(f"{p.id}  [{p.trigger}]  0 candidate(s); "
+                      "resegment before approving")
         return 0
 
     if args.cmd == "features":
@@ -289,12 +349,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.cmd == "pending":
         items = []
         for p in store.list_proposals("open"):
-            diff = store.objects.get(p.diff_ref).decode() if p.diff_ref else ""
+            diff = store.objects.get(p.diff_ref).decode(errors="replace") if p.diff_ref else ""
             items.append({"proposal_id": p.id, "trigger": p.trigger,
                           "diff": diff, "candidates": p.candidates})
         if args.json:
             print(json.dumps(items, indent=2, ensure_ascii=False))
         else:
+            if not items:
+                print("no pending proposals")
+                return 0
             for it in items:
                 print(f"{it['proposal_id']}  [{it['trigger']}]  "
                       f"{len(it['candidates'])} candidate(s)")

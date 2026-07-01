@@ -80,6 +80,30 @@ def test_failed_run_records_nonzero_returncode(git_repo):
     from rgit.segmenter import HeuristicSegmenter
     from rgit.store.store import Store
     store = Store.init(git_repo)
-    run_id, _ = run_experiment(store, [sys.executable, "-c", "import sys; sys.exit(3)"],
-                               HeuristicSegmenter(), now="t")
+    result = run_experiment(store, [sys.executable, "-c", "import sys; sys.exit(3)"],
+                            HeuristicSegmenter(), now="t")
+    run_id, _ = result
     assert store.get_run(run_id).returncode == 3
+    assert result.returncode == 3
+
+
+def test_missing_command_records_127_not_traceback(git_repo):
+    store = Store.init(git_repo)
+    result = run_experiment(store, ["definitely-not-a-real-rgit-command-xyz"],
+                            MockSegmenter([]), now="t")
+    run = store.get_run(result.run_id)
+    assert result.returncode == 127
+    assert run.returncode == 127
+    assert "command not found" in result.stderr
+
+
+def test_run_decodes_invalid_utf8_output_with_replacement(git_repo):
+    store = Store.init(git_repo)
+    result = run_experiment(
+        store,
+        [sys.executable, "-c",
+         "import sys; sys.stdout.buffer.write(b'bad\\xffout\\n')"],
+        MockSegmenter([]), now="t")
+    assert result.returncode == 0
+    assert "bad" in result.stdout
+    assert "\ufffd" in result.stdout

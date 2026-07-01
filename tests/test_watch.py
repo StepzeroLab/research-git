@@ -1,5 +1,6 @@
 from rgit.watch import snapshot, tick
 from rgit.store.store import Store
+from rgit.store.models import Proposal
 
 
 def _dirty(repo):
@@ -35,3 +36,16 @@ def test_tick_idle_clean_tree_stages_nothing(git_repo):
     snap = snapshot(store)
     _, pid = tick(store, snap, now="t1")
     assert pid is None
+
+
+def test_tick_decodes_existing_proposal_diff_tolerantly(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "latin.py").write_bytes(b"def cafe():\n    return 'caf\xe9'\n")
+    # Simulate an older/corrupt proposal object with non-UTF-8 bytes. The watch
+    # dedupe pass must not crash before it can stage the current diff.
+    diff_ref = store.objects.put(b"diff with invalid byte \xff")
+    store.add_proposal(Proposal(id="", trigger="manual", diff_ref=diff_ref,
+                                candidates=[]))
+    snap = snapshot(store)
+    _, pid = tick(store, snap, now="t1")
+    assert pid is not None
