@@ -25,9 +25,15 @@ def mcp_config() -> dict:
 def _run(plan: list[list[str]]) -> list[dict]:
     results = []
     for cmd in plan:
-        p = subprocess.run(cmd, capture_output=True, text=True)
+        # Decode as UTF-8 (the agent CLIs emit UTF-8 glyphs like ✓ and curly
+        # quotes on every platform); without this, text=True uses the locale
+        # codepage (GBK on Chinese Windows) and the reader thread dies on a
+        # UnicodeDecodeError, leaving p.stdout None (issue #11). errors="replace"
+        # plus the `or ""` guards keep a half-installed plan from crashing.
+        p = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
         results.append({"cmd": cmd, "rc": p.returncode,
-                        "out": (p.stdout + p.stderr).strip()})
+                        "out": ((p.stdout or "") + (p.stderr or "")).strip()})
     return results
 
 

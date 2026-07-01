@@ -4,6 +4,7 @@ from pathlib import Path
 
 import rgit.cli as cli
 from rgit.cli import main
+from rgit.gitutil import MAX_UNTRACKED_DIFF_BYTES
 from rgit.segmenter import MockSegmenter
 from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice, Run
@@ -79,6 +80,88 @@ def test_run_then_review_then_features(git_repo, monkeypatch, capsys):
     assert "triple" in capsys.readouterr().out
 
 
+def test_run_failed_command_is_visible_and_nonzero(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    rc = cli.main(["run", "--", sys.executable, "-c",
+                   "import sys; print('before fail'); "
+                   "print('bad stderr', file=sys.stderr); sys.exit(7)"])
+    out = capsys.readouterr().out
+    assert rc == 7
+    assert "run " in out and "recorded" in out
+    assert "no code changes to capture" in out
+    assert "command exited with status 7" in out
+    assert "before fail" in out
+    assert "bad stderr" in out
+
+
+def test_run_missing_command_is_friendly(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    rc = cli.main(["run", "--", "definitely-not-a-real-rgit-command-xyz"])
+    out = capsys.readouterr().out
+    assert rc == 127
+    assert "command exited with status 127" in out
+    assert "command not found" in out
+
+
+def test_capture_empty_diff_is_friendly(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["capture", "--trigger", "manual"]) == 0
+    out = capsys.readouterr().out
+    assert "nothing to capture" in out
+    assert Store.open(git_repo).list_proposals("open") == []
+
+
+def test_capture_skip_notice_warns_and_json_stays_clean(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "large_notes.txt").write_text(
+        "x" * (MAX_UNTRACKED_DIFF_BYTES + 1))
+    assert cli.main(["capture", "--trigger", "manual"]) == 0
+    out = capsys.readouterr().out
+    assert "warning: skipped 1 file(s)" in out
+    assert "proposal has 0 candidates" in out
+
+    assert cli.main(["pending"]) == 0
+    pending = capsys.readouterr().out
+    assert "warning: skipped 1 file(s)" in pending
+
+    assert cli.main(["pending", "--json"]) == 0
+    raw = capsys.readouterr().out
+    items = json.loads(raw)
+    assert "warning:" not in raw
+    assert "research-git: skipped untracked file 'large_notes.txt'" in items[0]["diff"]
+
+
+def test_review_empty_candidates_is_friendly(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store = Store.init(git_repo)
+    from rgit.store.models import Proposal
+    diff_ref = store.objects.put(b"diff")
+    pid = store.add_proposal(Proposal(id="", trigger="manual", diff_ref=diff_ref,
+                                      candidates=[]))
+    assert cli.main(["review"]) == 0
+    assert "0 candidate(s)" in capsys.readouterr().out
+    rc = cli.main(["review", "--approve", pid, "--name", "x"])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "has no candidates" in out
+    assert "resegment" in out
+
+
+def test_review_unknown_proposal_is_friendly(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    rc = cli.main(["review", "--approve", "prop_nope", "--name", "x"])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "prop_nope" in out
+    assert "pending --json" in out
+
+
 def test_pending_and_resegment_roundtrip(git_repo, monkeypatch, capsys, tmp_path):
     import json
     from rgit.store.store import Store
@@ -136,6 +219,28 @@ def test_watch_once_stages_proposal(git_repo, monkeypatch, capsys):
     (git_repo / "model.py").write_text("def forward(x):\n    return x + 1\n")
     cli.main(["watch", "--once"])
     assert "staged proposal" in capsys.readouterr().out
+
+
+def test_watch_once_skip_notice_warns(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "large_notes.txt").write_text(
+        "x" * (MAX_UNTRACKED_DIFF_BYTES + 1))
+    assert cli.main(["watch", "--once"]) == 0
+    out = capsys.readouterr().out
+    assert "staged proposal" in out
+    assert "warning: skipped 1 file(s)" in out
+    assert "proposal has 0 candidates" in out
+
+
+def test_pending_and_review_empty_state_message(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["pending"]) == 0
+    assert "no pending proposals" in capsys.readouterr().out
+    assert cli.main(["review"]) == 0
+    assert "no pending proposals" in capsys.readouterr().out
 
 
 def _cap(store, name):

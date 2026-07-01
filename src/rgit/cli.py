@@ -60,6 +60,60 @@ def _now() -> str:
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 
+def _brief(text: str, limit: int = 1200) -> str:
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[-limit:]
+
+
+def _run_exit_code(returncode: int) -> int:
+    return returncode if returncode > 0 else 1
+
+
+def _diff_text(store: Store, diff_ref: Optional[str]) -> str:
+    return store.objects.get(diff_ref).decode(errors="replace") if diff_ref else ""
+
+
+def _skip_notices(diff: str) -> list[str]:
+    return [line for line in diff.splitlines()
+            if line.startswith("research-git: skipped ")]
+
+
+def _print_skip_summary(diff: str, indent: str = "") -> None:
+    notices = _skip_notices(diff)
+    if not notices:
+        return
+    print(f"{indent}warning: skipped {len(notices)} file(s); "
+          "run `rgit pending --json` for details")
+
+
+def _print_run_result(result, store: Store) -> None:
+    prop_id = result.proposal_id
+    if prop_id is None:
+        print(f"run {result.run_id} recorded; no code changes to capture")
+    else:
+        prop = store.get_proposal(prop_id)
+        print(f"run {result.run_id} recorded; proposal {prop_id} awaiting review")
+        _print_skip_summary(_diff_text(store, prop.diff_ref), indent="  ")
+        if not prop.candidates:
+            print("  note: proposal has 0 candidates; run `rgit pending --json`, "
+                  "then `rgit resegment <proposal_id> --from-json <path>`")
+    if result.metrics:
+        metrics = ", ".join(f"{k}={v}" for k, v in result.metrics.items())
+        print(f"  metrics: {metrics}")
+    if result.returncode != 0:
+        print(f"  command exited with status {result.returncode}")
+        err = _brief(result.stderr)
+        out = _brief(result.stdout)
+        if err:
+            print("  stderr:")
+            print(err)
+        if out:
+            print("  stdout:")
+            print(out)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rgit")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -161,7 +215,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _force_utf8_stdio() -> None:
+    """Make stdout/stderr UTF-8 so non-ASCII output can't raise UnicodeEncodeError.
+
+    On Windows the console/pipe defaults to the locale codepage (e.g. cp936),
+    which can't encode glyphs we emit (•, box-drawing, arrows) or arbitrary
+    unicode in capsule names/intents. Kept in its own function so it does not
+    depend on `main`'s local `import sys`.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: Optional[list[str]] = None) -> int:
+    _force_utf8_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -215,6 +285,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.cmd == "run":
         cmd = args.rest[1:] if args.rest and args.rest[0] == "--" else args.rest
+        if not cmd:
+            print("no command provided; use `rgit run -- <command>`")
+            return 1
         active = None
         if args.active:
             # accept repeated --with and comma-separated names/ids; resolve to ids
@@ -224,22 +297,30 @@ def main(argv: Optional[list[str]] = None) -> int:
             except KeyError as e:
                 print(str(e).strip('"'))
                 return 1
-        run_id, prop_id = run_experiment(store, cmd, _segmenter(), now=_now(),
-                                         from_features=args.from_features,
-                                         active=active)
+        result = run_experiment(store, cmd, _segmenter(), now=_now(),
+                                from_features=args.from_features,
+                                active=active)
         if args.refresh_guide_file and args.from_features:
             from pathlib import Path
             guide = Path(args.refresh_guide_file).read_text(encoding="utf-8")
             for src in args.from_features:
                 store.update_capsule(src, resurrection_guide=guide)
-        print(f"run {run_id} recorded; proposal {prop_id} awaiting review")
+        _print_run_result(result, store)
         if args.from_features:
             print(f"  linked as variant_of: {', '.join(args.from_features)}")
-        return 0
+        return 0 if result.returncode == 0 else _run_exit_code(result.returncode)
 
     if args.cmd == "capture":
         pid = segment_diff(store, args.trigger, _segmenter(), run_id=None, now=_now())
+        if pid is None:
+            print("nothing to capture (working tree has no diff)")
+            return 0
+        prop = store.get_proposal(pid)
         print(f"proposal {pid} created")
+        _print_skip_summary(_diff_text(store, prop.diff_ref))
+        if not prop.candidates:
+            print("note: proposal has 0 candidates; run `rgit pending --json`, "
+                  "then `rgit resegment <proposal_id> --from-json <path>`")
         return 0
 
     if args.cmd == "review":
@@ -248,12 +329,27 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"dismissed {args.dismiss}")
             return 0
         if args.approve:
-            fid = approve(store, args.approve, args.index, args.name)
+            try:
+                fid = approve(store, args.approve, args.index, args.name)
+            except (KeyError, ValueError) as e:
+                print(str(e))
+                print("hint: inspect with `rgit pending --json`; if there are "
+                      "0 candidates, resegment before approving.")
+                return 1
             print(f"approved -> feature {fid}")
             return 0
-        for p in store.list_proposals("open"):
+        proposals = store.list_proposals("open")
+        if not proposals:
+            print("no pending proposals")
+            return 0
+        for p in proposals:
             names = ", ".join(c["name"] for c in p.candidates)
-            print(f"{p.id}  [{p.trigger}]  candidates: {names}")
+            if names:
+                print(f"{p.id}  [{p.trigger}]  candidates: {names}")
+            else:
+                print(f"{p.id}  [{p.trigger}]  0 candidate(s); "
+                      "resegment before approving")
+            _print_skip_summary(_diff_text(store, p.diff_ref), indent="  ")
         return 0
 
     if args.cmd == "features":
@@ -289,21 +385,33 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.cmd == "pending":
         items = []
         for p in store.list_proposals("open"):
-            diff = store.objects.get(p.diff_ref).decode() if p.diff_ref else ""
+            diff = _diff_text(store, p.diff_ref)
             items.append({"proposal_id": p.id, "trigger": p.trigger,
                           "diff": diff, "candidates": p.candidates})
         if args.json:
             print(json.dumps(items, indent=2, ensure_ascii=False))
         else:
+            if not items:
+                print("no pending proposals")
+                return 0
             for it in items:
                 print(f"{it['proposal_id']}  [{it['trigger']}]  "
                       f"{len(it['candidates'])} candidate(s)")
+                _print_skip_summary(it["diff"], indent="  ")
         return 0
 
     if args.cmd == "resegment":
         import sys
         from pathlib import Path
-        raw = sys.stdin.read() if args.from_json == "-" else Path(args.from_json).read_text(encoding="utf-8")
+        if args.from_json == "-":
+            # Read stdin as bytes and decode UTF-8: the host agent pipes UTF-8
+            # JSON, but sys.stdin.read() would decode with the locale codepage
+            # (cp936 on Windows), corrupting non-ASCII intents/names. Fall back to
+            # sys.stdin.read() when there is no binary buffer (e.g. patched stdin).
+            _buf = getattr(sys.stdin, "buffer", None)
+            raw = _buf.read().decode("utf-8") if _buf is not None else sys.stdin.read()
+        else:
+            raw = Path(args.from_json).read_text(encoding="utf-8")
         candidates = json.loads(raw)
         store.set_proposal_candidates(args.proposal_id, candidates)
         print(f"resegmented {args.proposal_id}: {len(candidates)} candidate(s)")
@@ -314,7 +422,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         if args.once:
             snap = watchmod.snapshot(store)
             _, pid = watchmod.tick(store, snap, _now())
-            print(f"staged proposal {pid}" if pid else "nothing to capture")
+            if pid:
+                prop = store.get_proposal(pid)
+                print(f"staged proposal {pid}")
+                _print_skip_summary(_diff_text(store, prop.diff_ref))
+                if not prop.candidates:
+                    print("note: proposal has 0 candidates; run `rgit pending --json`, "
+                          "then `rgit resegment <proposal_id> --from-json <path>`")
+            else:
+                print("nothing to capture")
             return 0
         watchmod.loop(store, interval=args.interval, idle=args.idle, now_fn=_now)
         return 0
@@ -413,5 +529,6 @@ def _find_root():
     import subprocess
     from pathlib import Path
     out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                         capture_output=True, text=True, check=True)
+                         capture_output=True, text=True, check=True,
+                         encoding="utf-8", errors="replace")
     return Path(out.stdout.strip())

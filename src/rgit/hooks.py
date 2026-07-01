@@ -5,6 +5,7 @@ from pathlib import Path
 MARKER = "# installed by research-git"
 CAPTURE_LINE = "rgit capture --trigger commit"
 _POST_COMMIT = f"#!/bin/sh\n{MARKER}\n{CAPTURE_LINE} || true\n"
+_POST_COMMIT_BYTES = _POST_COMMIT.encode("utf-8")
 
 
 def _hook_path(repo: Path) -> Path:
@@ -12,15 +13,16 @@ def _hook_path(repo: Path) -> Path:
 
 
 def _classify(hook: Path) -> str:
-    """absent | ours | foreign — based on presence and the rgit marker.
+    """absent | ours | foreign — based on exact managed-hook bytes.
 
     Reads bytes, not text: a foreign hook can be a binary/non-UTF-8 file, and
     decoding it would raise — defeating the whole 'never clobber, never
-    traceback' guarantee. An undecodable hook is, by definition, not ours.
+    traceback' guarantee. A hook that merely contains our marker is still
+    foreign; otherwise a user comment could make us overwrite their hook.
     """
     if not hook.exists():
         return "absent"
-    return "ours" if MARKER.encode() in hook.read_bytes() else "foreign"
+    return "ours" if hook.read_bytes() == _POST_COMMIT_BYTES else "foreign"
 
 
 def install_hooks(repo: Path, *, dry_run: bool = False) -> dict:

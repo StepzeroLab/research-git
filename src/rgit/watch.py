@@ -13,7 +13,7 @@ def snapshot(store: Store) -> dict:
     for rel in _snapshot_paths(store.root, exclude_root=store.dir):
         p = store.root / rel
         try:
-            snap[rel] = p.stat().st_mtime_ns
+            snap[rel] = p.lstat().st_mtime_ns
         except FileNotFoundError:
             continue
     return snap
@@ -33,7 +33,7 @@ def tick(store: Store, last_snapshot: dict, now: str) -> tuple[dict, Optional[st
     if not diff.strip():
         return cur, None                                  # idle but nothing to capture
     for p in store.list_proposals("open"):
-        if p.diff_ref and store.objects.get(p.diff_ref).decode() == diff:
+        if p.diff_ref and store.objects.get(p.diff_ref).decode(errors="replace") == diff:
             return cur, None                              # this exact state already staged
     pid = segment_diff(store, "watch", HeuristicSegmenter(), run_id=None, now=now)
     return cur, pid

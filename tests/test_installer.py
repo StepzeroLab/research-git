@@ -313,3 +313,29 @@ def test_capture_skill_uses_cli_not_mcp_write_tools():
     assert "rgit resegment" in skill
     assert "pending_captures" not in skill     # MCP write tools are gone
     assert "resegment(" not in skill
+
+
+def test_run_decodes_non_utf8_output_without_crashing():
+    # A child emitting bytes the locale codec can't strict-decode (the 0x94 from
+    # issue #11) must not crash _run: UTF-8 + errors="replace" keeps it robust
+    # instead of raising UnicodeDecodeError mid-plan.
+    import sys
+    plan = [[sys.executable, "-c",
+             r"import sys; sys.stdout.buffer.write(b'ok\x94done')"]]
+    results = installer._run(plan)
+    assert results[0]["rc"] == 0
+    assert "ok" in results[0]["out"] and "done" in results[0]["out"]
+
+
+def test_run_tolerates_none_stdout_from_dead_reader_thread(monkeypatch):
+    # On Windows a decode error in the stdout reader thread leaves p.stdout None;
+    # _run must not do `None + str` (the TypeError that aborted install in #11).
+    class _P:
+        returncode = 0
+        stdout = None
+        stderr = "partial output"
+
+    monkeypatch.setattr(installer.subprocess, "run", lambda *a, **k: _P())
+    results = installer._run([["claude", "--version"]])
+    assert results[0]["rc"] == 0
+    assert results[0]["out"] == "partial output"

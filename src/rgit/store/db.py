@@ -70,6 +70,4 @@ def init_schema(conn: sqlite3.Connection) -> None:
     rcols = {r[1] for r in conn.execute("PRAGMA table_info(runs)")}
     if "returncode" not in rcols:
         conn.execute("ALTER TABLE runs ADD COLUMN returncode INTEGER")
-    # rename the old conflicts_with edge type to the neutral 'overlaps'
-    conn.execute("UPDATE edges SET type='overlaps' WHERE type='conflicts_with'")
     conn.commit()

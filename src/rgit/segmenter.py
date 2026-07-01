@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Protocol
 
 from .astmap import changed_symbols
-from .gitutil import diff_since
+from .gitutil import diff_since, parse_git_diff_header
 from .store.models import Proposal
 from .store.store import Store
 
@@ -33,6 +33,12 @@ def _diff_by_file(diff: str) -> dict[str, str]:
     current: Optional[str] = None
     lines: list[str] = []
     for line in diff.splitlines():
+        if line.startswith("research-git: skipped "):
+            if current is not None:
+                sections[current] = "\n".join(lines)
+            lines = []
+            current = None
+            continue
         if line.startswith("diff --git"):
             if current is not None:
                 sections[current] = "\n".join(lines)
@@ -40,8 +46,9 @@ def _diff_by_file(diff: str) -> dict[str, str]:
             current = None
         else:
             lines.append(line)
-            if line.startswith("+++ b/"):
-                current = line[len("+++ b/"):].strip()
+            matched, path = parse_git_diff_header(line, "+++")
+            if matched:
+                current = path
     if current is not None:
         sections[current] = "\n".join(lines)
     return sections
@@ -82,7 +89,7 @@ class HeuristicSegmenter:
 
 def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
                  run_id: Optional[str], from_features: Optional[list[str]] = None,
-                 now: str = "") -> str:
+                 now: str = "") -> Optional[str]:
     """Diff the working tree vs HEAD, segment it, store an open Proposal, and
     record comment-in/out toggle events against the capsules they touch.
 
@@ -91,9 +98,11 @@ def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
     """
     from .toggles import detect_toggles, map_to_capsules
     diff = diff_since(store.root, "HEAD")
+    if not diff.strip():
+        return None
     symbols = changed_symbols(diff, store.root)
     candidates = segmenter.segment(diff, symbols)
-    diff_ref = store.objects.put(diff.encode())
+    diff_ref = store.objects.put(diff.encode("utf-8", errors="replace"))
     pid = store.add_proposal(Proposal(
         id="", trigger=trigger, diff_ref=diff_ref,
         candidates=candidates, status="open", run_id=run_id,

@@ -2,9 +2,9 @@ from __future__ import annotations
 import re
 
 from .astmap import symbol_at_line
+from .gitutil import parse_git_diff_header
 from .store.store import Store
 
-_FILE = re.compile(r"^\+\+\+ b/(.+)$")
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 _COMMENT = re.compile(r"^(\s*)#\s?(.*)$")
 
@@ -32,9 +32,13 @@ def detect_toggles(diff: str) -> list[dict]:
     removed_code: set[str] = set()       # stripped code bodies removed in this hunk
     removed_comment_bodies: set[str] = set()
     for raw in diff.splitlines():
-        mf = _FILE.match(raw)
-        if mf:
-            file = mf.group(1)
+        matched, path = parse_git_diff_header(raw, "+++")
+        if matched:
+            file = path
+            removed_code, removed_comment_bodies = set(), set()
+            continue
+        if raw.startswith("research-git: skipped "):
+            file = None
             removed_code, removed_comment_bodies = set(), set()
             continue
         mh = _HUNK.match(raw)
