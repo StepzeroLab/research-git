@@ -65,13 +65,13 @@ def test_run_survives_malformed_metric_and_still_freezes(git_repo):
     assert run.metrics is None        # bad metric skipped, not crashed
 
 
-def test_run_from_links_lineage_and_carries_to_proposal(git_repo):
+def test_run_from_carries_lineage_without_claiming_source_produced_run(git_repo):
     store = Store.init(git_repo)
     src = _seed_capsule(store)
     (git_repo / "train.py").write_text("print('hi')\n")
     run_id, prop_id = run_experiment(store, [sys.executable, "train.py"], MockSegmenter([]),
                                      now="2026-06-16T00:00:00", from_features=[src])
-    assert store.neighbors(src, "produced") == [run_id]           # source -> this run
+    assert store.neighbors(src, "produced") == []
     assert store.get_proposal(prop_id).from_features == [src]      # lineage for approval
 
 

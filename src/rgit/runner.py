@@ -18,9 +18,8 @@ def run_experiment(store: Store, cmd: list[str], segmenter: Segmenter,
 
     Returns (run_id, proposal_id). `now` is an ISO timestamp injected by the
     caller (keeps the function deterministic for tests). `from_features` marks this
-    run as a regeneration of those capsule(s): each gets a `produced` edge to the
-    new run (immediate results link), and the proposal carries the lineage so
-    approval establishes `variant_of`.
+    run as a regeneration of those capsule(s): the proposal carries the lineage
+    so approval establishes `variant_of`.
 
     `active` declares which approved capsules were active in the working tree for
     this run; each gets a `run -active-> capsule` edge so `rgit ablation` can group
@@ -39,8 +38,6 @@ def run_experiment(store: Store, cmd: list[str], segmenter: Segmenter,
     run_id = store.add_run(Run(
         id="", cmd=" ".join(cmd), artifact_hash=artifact, metrics=metrics,
         base_commit=base, env=env, created_at=now, returncode=proc.returncode))
-    for src in (from_features or []):
-        store.add_edge(src, run_id, "produced")     # source capsule's lineage -> this run
     for cap_id in (active or []):
         store.add_edge(run_id, cap_id, "active")    # this run -> active capsule
     prop_id = segment_diff(store, trigger="run", segmenter=segmenter, run_id=run_id,
