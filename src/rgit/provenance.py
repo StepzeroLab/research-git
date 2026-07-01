@@ -11,15 +11,31 @@ from .tables import render_diff
 
 
 def _symbol_from_text(text: str, symbol: str) -> Optional[str]:
-    """Source of a top-level def/class in `text`, or None (mirrors astmap)."""
+    """Source of the def/class addressed by `symbol` in `text`, or None.
+
+    `symbol` may be a top-level name ("foo") or a dotted path into a class
+    ("Ctx.invoke", "Outer.Inner.method"). Each segment is resolved against the
+    enclosing class body, so a nested method that is genuinely present is not
+    misreported as missing.
+    """
     try:
         module = cst.parse_module(text)
     except cst.ParserSyntaxError:
         return None
-    for stmt in module.body:
-        if isinstance(stmt, (cst.FunctionDef, cst.ClassDef)) and stmt.name.value == symbol:
-            return module.code_for_node(stmt)
-    return None
+    body = list(module.body)
+    node: Optional[cst.CSTNode] = None
+    parts = symbol.split(".")
+    for i, part in enumerate(parts):
+        node = next((s for s in body
+                     if isinstance(s, (cst.FunctionDef, cst.ClassDef))
+                     and s.name.value == part), None)
+        if node is None:
+            return None
+        if i < len(parts) - 1:
+            if not isinstance(node, cst.ClassDef):
+                return None
+            body = list(node.body.body)
+    return module.code_for_node(node) if node is not None else None
 
 
 def _artifact_files(store: Store, artifact_hash: str) -> dict[str, bytes]:
