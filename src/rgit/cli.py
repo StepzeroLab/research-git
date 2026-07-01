@@ -529,5 +529,6 @@ def _find_root():
     import subprocess
     from pathlib import Path
     out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                         capture_output=True, text=True, check=True)
+                         capture_output=True, text=True, check=True,
+                         encoding="utf-8", errors="replace")
     return Path(out.stdout.strip())
