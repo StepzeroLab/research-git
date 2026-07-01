@@ -98,3 +98,54 @@ def test_approve_out_of_range_candidate_has_clear_error(git_repo):
     pid = _seed_proposal(store)
     with pytest.raises(ValueError, match="candidate index 2 out of range"):
         approve(store, pid, candidate_index=2)
+
+
+def test_approve_rejects_already_resolved_proposal(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_proposal(store)
+    approve(store, pid, 0, name="double-forward")
+    before = len(store.list_features())
+    with pytest.raises(ValueError):
+        approve(store, pid, 0, name="double-forward")     # second approval refused
+    assert len(store.list_features()) == before           # no duplicate capsule
+
+
+def test_approve_with_unmatched_name_fails_instead_of_index_zero(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_proposal(store)
+    with pytest.raises(ValueError):
+        approve(store, pid, 0, name="typo-that-matches-nothing")
+    assert store.get_proposal(pid).status == "open"        # not silently approved
+
+
+def test_dismiss_rejects_non_open_proposal(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_proposal(store)
+    dismiss(store, pid)
+    with pytest.raises(ValueError):
+        dismiss(store, pid)
+
+
+def test_validate_candidates_accepts_wellformed_and_rejects_malformed():
+    from rgit.curation import validate_candidates
+    validate_candidates([])                                # empty is a valid 0-candidate set
+    validate_candidates([{"name": "n", "intent": "i", "code_slices": [
+        {"file": "m.py", "symbol": None, "anchor": None, "code": "x", "kind": "add"}]}])
+    with pytest.raises(ValueError):
+        validate_candidates({"not": "a list"})
+    with pytest.raises(ValueError):
+        validate_candidates([{"intent": "i", "code_slices": []}])          # missing name
+    with pytest.raises(ValueError):
+        validate_candidates([{"name": "n", "code_slices": []}])            # missing intent
+    with pytest.raises(ValueError):
+        validate_candidates([{"name": "n", "intent": "i"}])                # missing code_slices
+    with pytest.raises(ValueError):
+        validate_candidates([{"name": "n", "intent": "i",
+                              "code_slices": [{"file": "m.py"}]}])          # slice missing fields
+    with pytest.raises(ValueError):
+        validate_candidates([{"name": "n", "intent": "i", "code_slices": [
+            {"file": "m.py", "symbol": None, "anchor": None, "code": "x",
+             "kind": "add", "bogus": 1}]}])                                 # slice extra field

@@ -169,13 +169,18 @@ class Store:
         return [self.get_proposal(r["id"]) for r in rows]
 
     def set_proposal_status(self, pid: str, status: str) -> None:
-        self.conn.execute("UPDATE proposals SET status=? WHERE id=?", (status, pid))
+        cur = self.conn.execute("UPDATE proposals SET status=? WHERE id=?",
+                                (status, pid))
+        if cur.rowcount == 0:                       # unknown id must not look like success
+            raise KeyError(pid)
         self.conn.commit()
 
     def set_proposal_candidates(self, pid: str, candidates: list[dict]) -> None:
         """Replace a proposal's candidate list (used by host-agent re-segmentation)."""
-        self.conn.execute("UPDATE proposals SET candidates=? WHERE id=?",
-                          (json.dumps(candidates), pid))
+        cur = self.conn.execute("UPDATE proposals SET candidates=? WHERE id=?",
+                                (json.dumps(candidates), pid))
+        if cur.rowcount == 0:
+            raise KeyError(pid)
         self.conn.commit()
 
     # ---- events -------------------------------------------------------

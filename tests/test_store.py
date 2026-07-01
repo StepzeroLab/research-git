@@ -117,3 +117,17 @@ def test_open_migrates_legacy_v1_db(git_repo):
     rid = store.add_run(Run(id="", cmd="x", artifact_hash="h", metrics=None,
                             base_commit="b", env=None, created_at="t", returncode=2))
     assert store.get_run(rid).returncode == 2
+
+
+def test_set_proposal_status_unknown_id_raises(git_repo):
+    import pytest
+    store = Store.init(git_repo)
+    with pytest.raises(KeyError):
+        store.set_proposal_status("prop_does_not_exist", "resolved")
+
+
+def test_set_proposal_candidates_unknown_id_raises(git_repo):
+    import pytest
+    store = Store.init(git_repo)
+    with pytest.raises(KeyError):
+        store.set_proposal_candidates("prop_does_not_exist", [])

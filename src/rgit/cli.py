@@ -325,7 +325,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.cmd == "review":
         if args.dismiss:
-            dismiss(store, args.dismiss)
+            try:
+                dismiss(store, args.dismiss)
+            except (KeyError, ValueError) as e:
+                print(str(e))
+                return 1
             print(f"dismissed {args.dismiss}")
             return 0
         if args.approve:
@@ -412,8 +416,17 @@ def main(argv: Optional[list[str]] = None) -> int:
             raw = _buf.read().decode("utf-8") if _buf is not None else sys.stdin.read()
         else:
             raw = Path(args.from_json).read_text(encoding="utf-8")
-        candidates = json.loads(raw)
-        store.set_proposal_candidates(args.proposal_id, candidates)
+        from .curation import validate_candidates
+        try:
+            candidates = json.loads(raw)
+            validate_candidates(candidates)
+            store.set_proposal_candidates(args.proposal_id, candidates)
+        except json.JSONDecodeError as e:
+            print(f"invalid JSON: {e}")
+            return 1
+        except (KeyError, ValueError) as e:
+            print(str(e))
+            return 1
         print(f"resegmented {args.proposal_id}: {len(candidates)} candidate(s)")
         return 0
 

@@ -177,9 +177,12 @@ def test_pending_and_resegment_roundtrip(git_repo, monkeypatch, capsys, tmp_path
     assert out[0]["diff"] == "some diff text"
 
     payload = tmp_path / "caps.json"
-    payload.write_text(json.dumps([{"name": "refined", "intent": "better"}]))
+    refined = {"name": "refined", "intent": "better", "code_slices": [
+        {"file": "model.py", "symbol": "forward", "anchor": None,
+         "code": "x", "kind": "wrap"}]}
+    payload.write_text(json.dumps([refined]))
     cli.main(["resegment", pid, "--from-json", str(payload)])
-    assert store.get_proposal(pid).candidates == [{"name": "refined", "intent": "better"}]
+    assert store.get_proposal(pid).candidates == [refined]
 
 
 def test_edges_apply_writes_overlaps_and_emits_pairs(git_repo, monkeypatch, capsys):
@@ -518,3 +521,31 @@ def test_graph_dot_and_mermaid_mutually_exclusive(git_repo, monkeypatch):
     cli.main(["init"])
     with pytest.raises(SystemExit):
         cli.main(["graph", "--dot", "--mermaid"])
+
+
+def test_resegment_unknown_proposal_id_errors(git_repo, monkeypatch, tmp_path, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    jf = tmp_path / "cands.json"
+    jf.write_text("[]", encoding="utf-8")
+    rc = cli.main(["resegment", "prop_does_not_exist", "--from-json", str(jf)])
+    assert rc == 1
+    assert "prop_does_not_exist" in capsys.readouterr().out
+
+
+def test_resegment_rejects_malformed_candidate(git_repo, monkeypatch, tmp_path, capsys):
+    from rgit.segmenter import segment_diff
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    store = Store.open(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    good = {"name": "keep", "intent": "i", "code_slices": [
+        {"file": "model.py", "symbol": "forward", "anchor": None,
+         "code": "x", "kind": "wrap"}]}
+    pid = segment_diff(store, "manual", MockSegmenter([good]), None)
+    jf = tmp_path / "bad.json"
+    jf.write_text('[{"intent": "i", "code_slices": []}]', encoding="utf-8")  # missing name
+    rc = cli.main(["resegment", pid, "--from-json", str(jf)])
+    assert rc == 1
+    assert "name" in capsys.readouterr().out.lower()
+    assert Store.open(git_repo).get_proposal(pid).candidates[0]["name"] == "keep"  # untouched
