@@ -1,6 +1,6 @@
 [project]
 name = "research-git"
-version = "0.0.2"
+version = "0.0.3"
 description = "A memory system that captures code ideas as semantic capsules you can regenerate onto today's codebase"
 readme = "README.md"
 license = "MIT"
