@@ -1,5 +1,6 @@
 import io
 import os
+import subprocess
 import tarfile
 
 import pytest
@@ -13,6 +14,31 @@ from rgit.gitutil import (
     parse_git_diff_path,
 )
 from rgit.store.objects import ObjectStore
+
+
+def _write_or_skip(path, text: str) -> None:
+    try:
+        path.write_text(text)
+    except OSError as e:
+        pytest.skip(f"filesystem does not support this test path: {e}")
+
+
+def _skip_unless_git_sees_symlink(repo, rel: str) -> None:
+    raw = subprocess.run(["git", "diff", "--raw", "HEAD", "--", rel], cwd=repo,
+                         check=True, capture_output=True).stdout
+    if b"120000" not in raw:
+        pytest.skip("git does not report symlinks as symlinks on this platform")
+
+
+def _commit_tracked_symlink_or_skip(repo, rel: str) -> None:
+    subprocess.run(["git", "add", rel], cwd=repo, check=True,
+                   capture_output=True)
+    mode = subprocess.run(["git", "ls-files", "-s", rel], cwd=repo, check=True,
+                          capture_output=True, text=True).stdout
+    if not mode.startswith("120000 "):
+        pytest.skip("git does not store symlinks as symlinks on this platform")
+    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
+                   cwd=repo, check=True, capture_output=True)
 
 
 def test_current_commit_returns_sha(git_repo):
@@ -45,7 +71,7 @@ def test_diff_since_includes_untracked_unicode_path_when_quotepath_true(git_repo
 
 def test_diff_since_handles_untracked_path_with_newline(git_repo):
     name = "line\nbreak.py"
-    (git_repo / name).write_text("def odd():\n    return 1\n")
+    _write_or_skip(git_repo / name, "def odd():\n    return 1\n")
     diff = diff_since(git_repo, "HEAD")
     assert "def odd" in diff
 
@@ -84,7 +110,10 @@ def test_diff_since_skips_untracked_non_regular_with_notice(git_repo):
     fifo = git_repo / "pipe.txt"
     if not hasattr(os, "mkfifo"):
         pytest.skip("mkfifo unavailable")
-    os.mkfifo(fifo)
+    try:
+        os.mkfifo(fifo)
+    except OSError as e:
+        pytest.skip(f"mkfifo unavailable on this filesystem: {e}")
     diff = diff_since(git_repo, "HEAD")
     if "pipe.txt" not in diff:
         pytest.skip("git ls-files does not report fifos on this platform")
@@ -112,6 +141,7 @@ def test_diff_since_skips_tracked_symlink_outside_repo(git_repo):
         os.symlink(outside, git_repo / "model.py")
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation unavailable")
+    _skip_unless_git_sees_symlink(git_repo, "model.py")
     diff = diff_since(git_repo, "HEAD")
     assert ("research-git: skipped tracked file 'model.py' "
             "(symlink points outside the repo)") in diff
@@ -120,7 +150,6 @@ def test_diff_since_skips_tracked_symlink_outside_repo(git_repo):
 
 
 def test_diff_since_skips_deleted_tracked_external_symlink(git_repo):
-    import subprocess
     outside = git_repo.parent / "deleted-secret-target.py"
     outside.write_text("def DELETED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
     try:
@@ -128,10 +157,7 @@ def test_diff_since_skips_deleted_tracked_external_symlink(git_repo):
         os.symlink(outside, git_repo / "model.py")
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation unavailable")
-    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
-                   capture_output=True)
-    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
-                   cwd=git_repo, check=True, capture_output=True)
+    _commit_tracked_symlink_or_skip(git_repo, "model.py")
 
     (git_repo / "model.py").unlink()
     diff = diff_since(git_repo, "HEAD")
@@ -142,7 +168,6 @@ def test_diff_since_skips_deleted_tracked_external_symlink(git_repo):
 
 
 def test_diff_since_skips_replaced_tracked_external_symlink(git_repo):
-    import subprocess
     outside = git_repo.parent / "replaced-secret-target.py"
     outside.write_text("def REPLACED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
     try:
@@ -150,10 +175,7 @@ def test_diff_since_skips_replaced_tracked_external_symlink(git_repo):
         os.symlink(outside, git_repo / "model.py")
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation unavailable")
-    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
-                   capture_output=True)
-    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
-                   cwd=git_repo, check=True, capture_output=True)
+    _commit_tracked_symlink_or_skip(git_repo, "model.py")
 
     (git_repo / "model.py").unlink()
     (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
@@ -232,6 +254,10 @@ def test_materialize_allows_ordinary_colon_name(tmp_path):
 
     h = _tar_hash(objs, build)
     dest = tmp_path / "restored"
+    if os.name == "nt":
+        with pytest.raises(ValueError):
+            materialize(objs, h, dest)
+        return
     materialize(objs, h, dest)
     assert (dest / "notes:draft.py").read_text() == "ok\n"
 

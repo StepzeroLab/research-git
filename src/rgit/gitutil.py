@@ -307,7 +307,7 @@ def _within(base: Path, target: Path) -> bool:
     try:
         target.resolve().relative_to(base.resolve())
         return True
-    except ValueError:
+    except (ValueError, OSError, RuntimeError):
         return False
 
 
@@ -317,8 +317,9 @@ def materialize(objects: ObjectStore, artifact_hash: str, dest: Path) -> None:
     `freeze_worktree` only ever writes regular files, so we extract member-by-member
     and refuse anything that would escape `dest` (`..`, absolute paths) or that
     isn't a plain file or directory (symlinks/hardlinks/devices — the vectors for
-    a malicious archive to write outside the destination). Ordinary names with
-    characters like ``:`` stay allowed; only genuinely unsafe entries are rejected.
+    a malicious archive to write outside the destination). POSIX-only characters
+    like ``:`` stay allowed except on Windows, where they are not ordinary
+    filesystem names.
     """
     dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
@@ -346,6 +347,8 @@ def materialize(objects: ObjectStore, artifact_hash: str, dest: Path) -> None:
 def _validate_member(dest: Path, member: tarfile.TarInfo) -> None:
     if not _within(dest, dest / member.name):
         raise ValueError(f"refusing unsafe path in artifact: {member.name!r}")
+    if os.name == "nt" and _unsafe_windows_member_name(member.name):
+        raise ValueError(f"refusing Windows-unsafe path in artifact: {member.name!r}")
     if member.issym():
         target = Path(member.linkname)
         if target.is_absolute():
@@ -356,3 +359,27 @@ def _validate_member(dest: Path, member: tarfile.TarInfo) -> None:
         return
     if not (member.isfile() or member.isdir()):
         raise ValueError(f"refusing non-regular tar entry: {member.name!r}")
+
+
+_WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+_WINDOWS_FORBIDDEN_CHARS = set('<>:"|?*')
+
+
+def _unsafe_windows_member_name(name: str) -> bool:
+    """True for names Windows cannot materialize as ordinary files."""
+    parts = name.replace("\\", "/").split("/")
+    for part in parts:
+        if not part:
+            return True
+        if part.endswith((" ", ".")):
+            return True
+        if any(ord(ch) < 32 or ch in _WINDOWS_FORBIDDEN_CHARS for ch in part):
+            return True
+        stem = part.split(".", 1)[0].upper()
+        if stem in _WINDOWS_RESERVED_NAMES:
+            return True
+    return False

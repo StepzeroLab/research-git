@@ -5,6 +5,13 @@ import pytest
 from rgit.astmap import changed_symbols, read_symbol_source, symbol_at_line
 
 
+def _write_or_skip(path, text: str) -> None:
+    try:
+        path.write_text(text)
+    except OSError as e:
+        pytest.skip(f"filesystem does not support this test path: {e}")
+
+
 def test_changed_symbols_finds_enclosing_function(git_repo):
     src = "def a():\n    return 1\n\ndef b():\n    return 2\n"
     (git_repo / "model.py").write_text(src)
@@ -34,7 +41,7 @@ def test_changed_symbols_handles_diff_header_timestamp_and_spaces(git_repo):
 
 def test_changed_symbols_handles_c_quoted_diff_path(git_repo):
     path = git_repo / "line\nbreak.py"
-    path.write_text("def odd():\n    return 2\n")
+    _write_or_skip(path, "def odd():\n    return 2\n")
     diff = (
         "diff --git \"a/line\\nbreak.py\" \"b/line\\nbreak.py\"\n"
         "--- \"a/line\\nbreak.py\"\n"

@@ -2,6 +2,28 @@ from rgit.segmenter import HeuristicSegmenter, MockSegmenter, segment_diff
 from rgit.store.store import Store
 
 
+def _skip_unless_git_sees_symlink(repo, rel: str) -> None:
+    import subprocess
+    import pytest
+    raw = subprocess.run(["git", "diff", "--raw", "HEAD", "--", rel], cwd=repo,
+                         check=True, capture_output=True).stdout
+    if b"120000" not in raw:
+        pytest.skip("git does not report symlinks as symlinks on this platform")
+
+
+def _commit_tracked_symlink_or_skip(repo, rel: str) -> None:
+    import subprocess
+    import pytest
+    subprocess.run(["git", "add", rel], cwd=repo, check=True,
+                   capture_output=True)
+    mode = subprocess.run(["git", "ls-files", "-s", rel], cwd=repo, check=True,
+                          capture_output=True, text=True).stdout
+    if not mode.startswith("120000 "):
+        pytest.skip("git does not store symlinks as symlinks on this platform")
+    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
+                   cwd=repo, check=True, capture_output=True)
+
+
 def test_segment_diff_creates_open_proposal(git_repo):
     store = Store.init(git_repo)
     (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
@@ -66,6 +88,7 @@ def test_segment_diff_skips_tracked_external_symlink_without_leaking(git_repo):
         os.symlink(outside, git_repo / "model.py")
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation unavailable")
+    _skip_unless_git_sees_symlink(git_repo, "model.py")
 
     pid = segment_diff(store, trigger="manual", segmenter=HeuristicSegmenter(),
                        run_id=None)
@@ -89,10 +112,7 @@ def test_segment_diff_skips_old_tracked_external_symlink_without_leaking(git_rep
         os.symlink(outside, git_repo / "model.py")
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation unavailable")
-    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
-                   capture_output=True)
-    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
-                   cwd=git_repo, check=True, capture_output=True)
+    _commit_tracked_symlink_or_skip(git_repo, "model.py")
 
     (git_repo / "model.py").unlink()
     (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
