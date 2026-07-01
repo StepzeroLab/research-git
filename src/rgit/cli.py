@@ -215,7 +215,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _force_utf8_stdio() -> None:
+    """Make stdout/stderr UTF-8 so non-ASCII output can't raise UnicodeEncodeError.
+
+    On Windows the console/pipe defaults to the locale codepage (e.g. cp936),
+    which can't encode glyphs we emit (•, box-drawing, arrows) or arbitrary
+    unicode in capsule names/intents. Kept in its own function so it does not
+    depend on `main`'s local `import sys`.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: Optional[list[str]] = None) -> int:
+    _force_utf8_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -387,7 +403,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.cmd == "resegment":
         import sys
         from pathlib import Path
-        raw = sys.stdin.read() if args.from_json == "-" else Path(args.from_json).read_text(encoding="utf-8")
+        if args.from_json == "-":
+            # Read stdin as bytes and decode UTF-8: the host agent pipes UTF-8
+            # JSON, but sys.stdin.read() would decode with the locale codepage
+            # (cp936 on Windows), corrupting non-ASCII intents/names. Fall back to
+            # sys.stdin.read() when there is no binary buffer (e.g. patched stdin).
+            _buf = getattr(sys.stdin, "buffer", None)
+            raw = _buf.read().decode("utf-8") if _buf is not None else sys.stdin.read()
+        else:
+            raw = Path(args.from_json).read_text(encoding="utf-8")
         candidates = json.loads(raw)
         store.set_proposal_candidates(args.proposal_id, candidates)
         print(f"resegmented {args.proposal_id}: {len(candidates)} candidate(s)")
