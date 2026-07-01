@@ -100,7 +100,7 @@ def test_segment_diff_skips_tracked_external_symlink_without_leaking(git_repo):
     assert prop.candidates == []
 
 
-def test_segment_diff_skips_old_tracked_external_symlink_without_leaking(git_repo):
+def test_segment_diff_captures_replaced_external_symlink_without_leaking(git_repo):
     import os
     import subprocess
     import pytest
@@ -120,10 +120,11 @@ def test_segment_diff_skips_old_tracked_external_symlink_without_leaking(git_rep
                        run_id=None)
     prop = store.get_proposal(pid)
     diff = store.objects.get(prop.diff_ref).decode(errors="replace")
-    assert "research-git: skipped tracked file 'model.py'" in diff
+    # the new regular-file content is captured add-only...
+    assert "def replacement" in diff
+    # ...while the removed external symlink's target never leaks
     assert "old-secret-target" not in diff
     assert "OLD_SECRET_SYMBOL_TOKEN" not in diff
-    assert prop.candidates == []
 
 
 def test_heuristic_segmenter_groups_symbols_per_file():

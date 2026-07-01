@@ -10,6 +10,33 @@ from .store.objects import ObjectStore
 
 MAX_UNTRACKED_DIFF_BYTES = 1_000_000
 
+# Windows caps an entire command line near 32 KiB, so a change touching thousands
+# of files would overflow `git diff -- <paths>`. Batch the pathspecs to keep each
+# invocation's arguments comfortably under that ceiling.
+_MAX_DIFF_PATHSPEC_BYTES = 7500
+
+
+def _batch_pathspecs(paths, budget=None):
+    """Yield lists of paths whose encoded lengths stay within `budget` bytes.
+
+    A single path longer than the budget still gets its own batch -- splitting a
+    pathspec would corrupt it -- so the guarantee is "at most one oversize path
+    per batch", which is all ARG_MAX cares about.
+    """
+    if budget is None:
+        budget = _MAX_DIFF_PATHSPEC_BYTES
+    batch: list[str] = []
+    used = 0
+    for p in paths:
+        cost = len(os.fsencode(p)) + 1
+        if batch and used + cost > budget:
+            yield batch
+            batch, used = [], 0
+        batch.append(p)
+        used += cost
+    if batch:
+        yield batch
+
 
 def _git(repo: Path, *args: str) -> str:
     out = subprocess.run(["git", *args], cwd=repo, check=True,
@@ -68,7 +95,10 @@ def _binary_skip_reason(path: Path) -> Optional[str]:
         with path.open("rb") as f:
             chunk = f.read(MAX_UNTRACKED_DIFF_BYTES + 1)
     except OSError:
-        return None
+        # Unreadable (permissions, races, special files): skip with a notice
+        # rather than returning None, which would let the caller feed it to
+        # `git diff --no-index` and silently drop it with no explanation.
+        return "could not read file"
     if len(chunk) > MAX_UNTRACKED_DIFF_BYTES:
         return f"exceeds {MAX_UNTRACKED_DIFF_BYTES} byte diff cap"
     if b"\0" in chunk:
@@ -168,23 +198,67 @@ def _symlink_target_within(repo: Path, file: str, linkname: str) -> bool:
     return _within(repo, resolved)
 
 
-def _external_tracked_symlink_reason(repo: Path, entry: dict[str, str]) -> Optional[str]:
+def _tracked_change_disposition(
+        repo: Path, entry: dict[str, str]) -> tuple[str, Optional[str]]:
+    """How to render a tracked change without leaking external symlink targets.
+
+    Returns (action, reason):
+      "include"  -- safe for the normal `git diff`.
+      "add_only" -- the old side was a symlink pointing outside the repo but the
+                    new side is a regular file; capture the new content add-only
+                    so the removed link's outside target never lands in the diff.
+      "skip"     -- drop entirely, emitting a notice with `reason`.
+    """
     file = entry["path"]
-    if entry["old_mode"] == "120000":
-        linkname = os.fsdecode(_git_blob(repo, entry["old_sha"]))
-        if not _symlink_target_within(repo, file, linkname):
-            return "symlink points outside the repo"
     if entry["new_mode"] == "120000":
         path = repo / file
         try:
             linkname = os.readlink(path)
         except OSError:
-            if set(entry["new_sha"]) == {"0"}:
-                return None
-            linkname = os.fsdecode(_git_blob(repo, entry["new_sha"]))
-        if not _symlink_target_within(repo, file, linkname):
-            return "symlink points outside the repo"
-    return None
+            linkname = ("" if set(entry["new_sha"]) == {"0"}
+                        else os.fsdecode(_git_blob(repo, entry["new_sha"])))
+        if linkname and not _symlink_target_within(repo, file, linkname):
+            return "skip", "symlink points outside the repo"
+    old_external = (
+        entry["old_mode"] == "120000"
+        and not _symlink_target_within(
+            repo, file, os.fsdecode(_git_blob(repo, entry["old_sha"]))))
+    if old_external:
+        # Including the raw diff would emit the removed symlink target as a `-`
+        # line. If the new side is a real file, capture it add-only instead of
+        # losing the change; otherwise (deletion, or a new in-repo symlink) skip.
+        if entry["new_mode"] != "120000" and (repo / file).is_file():
+            return "add_only", None
+        return "skip", "symlink points outside the repo"
+    return "include", None
+
+
+def _capture_new_file(repo: Path, relpath: str) -> Optional[str]:
+    """Add-only diff of a new/replaced regular file, a skip notice, or None.
+
+    Shared by untracked-file capture and the external-symlink replacement path
+    so both apply the same size/binary guards and never inline a huge or binary
+    blob. Returns None when git produces no output.
+    """
+    path = repo / relpath
+    if not path.is_file():
+        return _notice(relpath, "not a regular file")
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return _notice(relpath, "could not stat file")
+    if size > MAX_UNTRACKED_DIFF_BYTES:
+        return _notice(
+            relpath, f"{size} bytes exceeds {MAX_UNTRACKED_DIFF_BYTES} byte diff cap")
+    reason = _binary_skip_reason(path)
+    if reason:
+        return _notice(relpath, reason)
+    # --no-index exits 1 when the files differ, so do not check the return code.
+    res = subprocess.run(["git", "-c", "core.quotePath=false", "diff",
+                          "--no-index", "--", "/dev/null", relpath],
+                         cwd=repo, capture_output=True, text=True,
+                         encoding="utf-8", errors="replace")
+    return res.stdout or None
 
 
 def parse_git_diff_path(line: str, marker: str) -> Optional[str]:
@@ -204,14 +278,19 @@ def diff_since(repo: Path, base: str = "HEAD") -> str:
     parts: list[str] = []
     included_tracked: list[str] = []
     for entry in _git_diff_entries_z(repo, base):
-        reason = _external_tracked_symlink_reason(repo, entry)
-        if reason:
+        action, reason = _tracked_change_disposition(repo, entry)
+        if action == "skip":
             parts.append(_notice(entry["path"], reason, kind="tracked file"))
-            continue
-        included_tracked.append(entry["path"])
-    if included_tracked:
+        elif action == "add_only":
+            captured = _capture_new_file(repo, entry["path"])
+            if captured:
+                parts.append(captured)
+        else:
+            included_tracked.append(entry["path"])
+    # Chunk the pathspecs so a very large changeset can't overflow ARG_MAX.
+    for batch in _batch_pathspecs(included_tracked):
         tracked = _git(repo, "-c", "core.quotePath=false", "diff", base, "--",
-                       *included_tracked)
+                       *batch)
         if tracked:
             parts.append(tracked)
     for f in _untracked_files(repo):
@@ -223,29 +302,9 @@ def diff_since(repo: Path, base: str = "HEAD") -> str:
             if not _within(repo, resolved):
                 parts.append(_notice(f, "symlink points outside the repo"))
                 continue
-        if not path.is_file():
-            parts.append(_notice(f, "not a regular file"))
-            continue
-        try:
-            size = path.stat().st_size
-        except OSError:
-            parts.append(_notice(f, "could not stat file"))
-            continue
-        if size > MAX_UNTRACKED_DIFF_BYTES:
-            parts.append(_notice(
-                f, f"{size} bytes exceeds {MAX_UNTRACKED_DIFF_BYTES} byte diff cap"))
-            continue
-        reason = _binary_skip_reason(path)
-        if reason:
-            parts.append(_notice(f, reason))
-            continue
-        # --no-index exits 1 when the files differ, so do not check the return code.
-        res = subprocess.run(["git", "-c", "core.quotePath=false", "diff",
-                              "--no-index", "--", "/dev/null", f],
-                             cwd=repo, capture_output=True, text=True,
-                             encoding="utf-8", errors="replace")
-        if res.stdout:
-            parts.append(res.stdout)
+        captured = _capture_new_file(repo, f)
+        if captured:
+            parts.append(captured)
     return "\n".join(parts)
 
 

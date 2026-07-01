@@ -167,7 +167,9 @@ def test_diff_since_skips_deleted_tracked_external_symlink(git_repo):
     assert "DELETED_SECRET_SYMBOL_TOKEN" not in diff
 
 
-def test_diff_since_skips_replaced_tracked_external_symlink(git_repo):
+def test_diff_since_captures_replaced_external_symlink_without_leaking(git_repo):
+    # Replacing a tracked external symlink with a real file must capture the new
+    # content (add-only) while never leaking the old link's outside target.
     outside = git_repo.parent / "replaced-secret-target.py"
     outside.write_text("def REPLACED_SECRET_SYMBOL_TOKEN():\n    return 1\n")
     try:
@@ -180,10 +182,67 @@ def test_diff_since_skips_replaced_tracked_external_symlink(git_repo):
     (git_repo / "model.py").unlink()
     (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
     diff = diff_since(git_repo, "HEAD")
-    assert ("research-git: skipped tracked file 'model.py' "
-            "(symlink points outside the repo)") in diff
+    assert "def replacement" in diff and "model.py" in diff
     assert "replaced-secret-target" not in diff
     assert "REPLACED_SECRET_SYMBOL_TOKEN" not in diff
+
+
+def test_binary_skip_reason_reports_unreadable_path():
+    # A path that cannot be opened (here, a directory) must yield a skip reason,
+    # not None -- returning None would let diff_since silently omit the file.
+    from rgit.gitutil import _binary_skip_reason
+    import pathlib
+    assert _binary_skip_reason(pathlib.Path(".")) == "could not read file"
+
+
+def test_diff_since_skips_unreadable_untracked_with_notice(git_repo):
+    secret = git_repo / "unreadable.py"
+    secret.write_text("def hidden_secret():\n    return 1\n")
+    try:
+        secret.chmod(0o000)
+    except OSError:
+        pytest.skip("chmod unavailable")
+    if os.access(secret, os.R_OK):  # root, or a filesystem that ignores perms
+        secret.chmod(0o644)
+        pytest.skip("cannot make a file unreadable in this environment")
+    try:
+        diff = diff_since(git_repo, "HEAD")
+    finally:
+        secret.chmod(0o644)
+    assert ("research-git: skipped untracked file 'unreadable.py' "
+            "(could not read file)") in diff
+    assert "hidden_secret" not in diff
+
+
+def test_batch_pathspecs_covers_all_paths_within_budget():
+    from rgit.gitutil import _batch_pathspecs
+    paths = [f"file_{i}.py" for i in range(10)]  # each 9 bytes
+    batches = list(_batch_pathspecs(paths, budget=20))
+    assert [p for b in batches for p in b] == paths  # every path, in order
+    assert len(batches) > 1  # the tiny budget forces multiple batches
+    for b in batches:
+        cost = sum(len(p.encode()) + 1 for p in b)
+        assert cost <= 20 or len(b) == 1  # a lone oversize path is its own batch
+
+
+def test_diff_since_batches_many_tracked_files(git_repo, monkeypatch):
+    import rgit.gitutil as gitutil
+    names = [f"mod_{i}.py" for i in range(8)]
+    for n in names:
+        (git_repo / n).write_text(f"# {n}\n")
+    subprocess.run(["git", "add", "."], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "many"], cwd=git_repo,
+                   check=True, capture_output=True)
+    for n in names:
+        (git_repo / n).write_text(f"# {n}\nchanged = True\n")
+    # Force many tiny git-diff batches so the argv-splitting path is exercised
+    # end to end; every changed file must still appear exactly once.
+    monkeypatch.setattr(gitutil, "_MAX_DIFF_PATHSPEC_BYTES", 12)
+    diff = diff_since(git_repo, "HEAD")
+    for n in names:
+        assert n in diff
+    assert diff.count("changed = True") == len(names)
 
 
 def test_parse_git_diff_path_handles_timestamp_and_c_quoted_path():
