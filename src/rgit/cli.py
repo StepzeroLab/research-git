@@ -2,10 +2,20 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import os
 import sys
 from typing import Optional
 
 GUIDANCE_MODES = ("default", "manual-only", "none")
+_GUIDANCE_OPTIONS = [
+    ("default", "consider capture after meaningful changes (recommended)"),
+    ("manual-only", "only when you explicitly ask"),
+    ("none", "install skills + MCP only, write no guidance"),
+]
+
+
+class _InteractivePromptUnavailable(Exception):
+    pass
 
 
 def _stdin_is_tty() -> bool:
@@ -20,12 +30,20 @@ def _prompt_guidance_mode(platform: str) -> str:
 
     Prompts go to stderr so stdout stays a clean JSON document.
     """
+    try:
+        return _prompt_guidance_mode_interactive(platform)
+    except _InteractivePromptUnavailable:
+        return _prompt_guidance_mode_numbered(platform)
+
+
+def _prompt_guidance_mode_numbered(platform: str) -> str:
+    """Fallback picker that accepts 1/2/3, mode names, or blank=default."""
     sys.stderr.write(
         f"\nresearch-git guidance for {platform} "
-        "— how proactive should capture be?\n"
-        "  1) default     — consider capture after meaningful changes (recommended)\n"
-        "  2) manual-only — only when you explicitly ask\n"
-        "  3) none        — install skills + MCP only, write no guidance\n"
+        "- how proactive should capture be?\n"
+        "  1) default     - consider capture after meaningful changes (recommended)\n"
+        "  2) manual-only - only when you explicitly ask\n"
+        "  3) none        - install skills + MCP only, write no guidance\n"
     )
     choices = {"1": "default", "2": "manual-only", "3": "none", "": "default",
                "default": "default", "manual-only": "manual-only", "none": "none"}
@@ -39,6 +57,116 @@ def _prompt_guidance_mode(platform: str) -> str:
         if answer in choices:
             return choices[answer]
         sys.stderr.write("Please enter 1, 2, or 3.\n")
+
+
+def _prompt_guidance_mode_interactive(platform: str, stderr=None) -> str:
+    stderr = stderr or sys.stderr
+    if not getattr(stderr, "isatty", lambda: False)():
+        raise _InteractivePromptUnavailable
+    if os.environ.get("TERM") == "dumb":
+        raise _InteractivePromptUnavailable
+
+    index = 0
+    first_render = True
+    while True:
+        _render_guidance_selector(platform, index, stderr, first_render)
+        first_render = False
+        try:
+            key = _read_prompt_key()
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            raise _InteractivePromptUnavailable from e
+        if key == "ctrl-c":
+            raise KeyboardInterrupt
+        if key == "up":
+            index = (index - 1) % len(_GUIDANCE_OPTIONS)
+        elif key == "down":
+            index = (index + 1) % len(_GUIDANCE_OPTIONS)
+        elif key == "enter":
+            return _GUIDANCE_OPTIONS[index][0]
+        elif key in ("1", "2", "3"):
+            return _GUIDANCE_OPTIONS[int(key) - 1][0]
+
+
+def _render_guidance_selector(platform: str, index: int, stderr, first_render: bool) -> None:
+    if not first_render:
+        stderr.write("\x1b[7F\x1b[J")
+    stderr.write(
+        f"\nresearch-git guidance for {platform} - how proactive should capture be?\n\n"
+    )
+    for i, (mode, description) in enumerate(_GUIDANCE_OPTIONS):
+        pointer = ">" if i == index else " "
+        stderr.write(f"{pointer} {mode:<11} {description}\n")
+    stderr.write("\nUse ↑/↓ to move, Enter to select.\n")
+    stderr.flush()
+
+
+def _read_prompt_key() -> str:
+    if os.name == "nt":
+        return _read_prompt_key_windows()
+    return _read_prompt_key_posix()
+
+
+def _decode_prompt_key(seq: str) -> str:
+    if seq in ("\r", "\n"):
+        return "enter"
+    if seq == "\x03":
+        return "ctrl-c"
+    if seq in ("1", "2", "3"):
+        return seq
+    if seq == "\x1b[A":
+        return "up"
+    if seq == "\x1b[B":
+        return "down"
+    return "other"
+
+
+def _read_prompt_key_posix() -> str:
+    try:
+        import select
+        import termios
+        import tty
+
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+    except Exception as e:
+        raise _InteractivePromptUnavailable from e
+    try:
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+        if ch == "\x1b":
+            seq = ch
+            while True:
+                ready, _, _ = select.select([sys.stdin], [], [], 0.01)
+                if not ready:
+                    break
+                seq += sys.stdin.read(1)
+                if len(seq) >= 3:
+                    break
+            return _decode_prompt_key(seq)
+        return _decode_prompt_key(ch)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def _read_prompt_key_windows() -> str:
+    try:
+        import msvcrt
+    except Exception as e:
+        raise _InteractivePromptUnavailable from e
+    ch = msvcrt.getwch()
+    if ch == "\x03":
+        return "ctrl-c"
+    if ch in ("\r", "\n", "1", "2", "3"):
+        return _decode_prompt_key(ch)
+    if ch in ("\x00", "\xe0"):
+        ch2 = msvcrt.getwch()
+        if ch2 == "H":
+            return "up"
+        if ch2 == "P":
+            return "down"
+    return "other"
 
 from .curation import approve, dismiss
 from .runner import run_experiment
