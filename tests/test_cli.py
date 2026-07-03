@@ -598,6 +598,23 @@ def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
     assert captured.err == ""
 
 
+def test_install_prompt_ctrl_c_exits_without_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
+    monkeypatch.setattr(cli, "_prompt_guidance_mode",
+                        lambda platform: (_ for _ in ()).throw(KeyboardInterrupt))
+
+    import rgit.installer as installer
+    monkeypatch.setattr(installer, "install",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AssertionError("install must not run after Ctrl+C")))
+
+    assert cli.main(["install", "codex"]) == 130
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "install cancelled" in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_prompt_guidance_mode_maps_answers(monkeypatch):
     answers = iter(["2"])
     monkeypatch.setattr("builtins.input", lambda: next(answers))

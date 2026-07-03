@@ -391,7 +391,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         fn = installer.uninstall if args.uninstall else installer.install
         mode = args.guidance
         if mode is None and not args.uninstall and _stdin_is_tty():
-            mode = _prompt_guidance_mode(args.platform)
+            try:
+                mode = _prompt_guidance_mode(args.platform)
+            except KeyboardInterrupt:
+                print("\ninstall cancelled", file=sys.stderr)
+                return 130
         res = fn(args.platform, scope=args.scope, dry_run=args.dry_run, mode=mode)
         print(json.dumps(res, indent=2, ensure_ascii=False))
         return 0
@@ -540,7 +544,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     if args.cmd == "resegment":
-        import sys
         from pathlib import Path
         if args.from_json == "-":
             # Read stdin as bytes and decode UTF-8: the host agent pipes UTF-8
@@ -655,7 +658,6 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 0
 
     if args.cmd == "graph":
-        import sys
         from . import graphview
         if args.dot:
             render = graphview.to_dot
