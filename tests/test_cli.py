@@ -529,6 +529,30 @@ def test_guidance_selector_unavailable_for_bad_terminal(monkeypatch):
         cli._prompt_guidance_mode_interactive("codex", stderr=_TTYBuffer())
 
 
+def test_guidance_selector_falls_back_when_windows_ansi_unavailable(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cli.os, "name", "nt", raising=False)
+    monkeypatch.setattr(cli, "_enable_windows_virtual_terminal",
+                        lambda stderr: False)
+    monkeypatch.setattr(cli, "_prompt_guidance_mode_numbered",
+                        lambda platform: calls.append(platform) or "default")
+
+    assert cli._prompt_guidance_mode("codex") == "default"
+    assert calls == ["codex"]
+
+
+def test_guidance_selector_runs_when_windows_ansi_enabled(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["2"])
+    monkeypatch.setattr(cli.os, "name", "nt", raising=False)
+    monkeypatch.setattr(cli, "_enable_windows_virtual_terminal",
+                        lambda stderr: True)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
+    assert "\x1b[7m> default" in err.getvalue()
+
+
 def test_prompt_guidance_mode_falls_back_to_numbered(monkeypatch):
     calls = []
 

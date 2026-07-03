@@ -66,6 +66,8 @@ def _prompt_guidance_mode_interactive(platform: str, stderr=None) -> str:
         raise _InteractivePromptUnavailable
     if os.environ.get("TERM") == "dumb":
         raise _InteractivePromptUnavailable
+    if not _selector_ansi_supported(stderr):
+        raise _InteractivePromptUnavailable
 
     index = 0
     first_render = True
@@ -107,6 +109,32 @@ def _render_guidance_selector(platform: str, index: int, stderr, first_render: b
         stderr.write(f"{line}\n")
     stderr.write("\nUse ↑/↓ to move, Enter to select.\n")
     stderr.flush()
+
+
+def _selector_ansi_supported(stderr) -> bool:
+    if os.name != "nt":
+        return True
+    return _enable_windows_virtual_terminal(stderr)
+
+
+def _enable_windows_virtual_terminal(stderr) -> bool:
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.GetStdHandle(-12)  # STD_ERROR_HANDLE
+        if handle in (0, -1):
+            return False
+        mode = wintypes.DWORD()
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False
+        new_mode = mode.value | 0x0004  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        if new_mode == mode.value:
+            return True
+        return bool(kernel32.SetConsoleMode(handle, new_mode))
+    except Exception:
+        return False
 
 
 def _read_prompt_key() -> str:
