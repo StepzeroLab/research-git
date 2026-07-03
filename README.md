@@ -17,15 +17,13 @@
   <strong>Git recovers history. It can't recover an entangled idea onto today's code.</strong>
 </p>
 
----
+<p align="center">
+  <img src="assets/hero.png" alt="Capture a code idea as a clean semantic unit — regenerate it onto today's codebase." width="800" />
+</p>
 
-**You're deep into building an agent. You've tried twenty things — a restructured system prompt, splitting one overloaded tool into three, a re-ranking step before retrieval, a scratchpad for intermediate reasoning, two different few-shot sets — half of them commented in and out, all tangled together in one working tree. Now you want *one* of those ideas back. Not the stale commit it lived in. The idea itself, re-applied to the agent you have today.**
+research-git captures experiments as Feature Capsules, then regenerates the one you need onto your current agent, using your existing Coding Plan subscription, no pay-per-use API.
 
-Git can't do that. Its unit is a *tree snapshot*, not an *idea*. `git checkout` drags back everything from that moment and throws away all the infrastructure you've built since. You can't pull one feature forward without rolling back the rest.
-
-research-git makes the **idea** the unit. It captures each change as a self-contained **Feature Capsule**, stores it in a graph, and — when you want it back — *regenerates* it onto your current code instead of pasting a stale patch. The capsule is a specification of intent; the code is always rebuilt against today's reality.
-
-The intelligent steps (segmenting a diff into capsules, regenerating one onto changed code) run as **subagents on your existing Claude subscription** — there is **no pay-per-use API** anywhere.
+> **Think of it as Git for agentic coding experiments: not just recovering old code, but bringing old ideas back into today’s code.**
 
 ---
 
