@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+SCHEMA_VERSION = "1"
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS features (
     id TEXT PRIMARY KEY,
@@ -50,6 +52,10 @@ CREATE TABLE IF NOT EXISTS metric_directions (
     metric TEXT PRIMARY KEY,
     direction TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS schema_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -70,4 +76,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
     rcols = {r[1] for r in conn.execute("PRAGMA table_info(runs)")}
     if "returncode" not in rcols:
         conn.execute("ALTER TABLE runs ADD COLUMN returncode INTEGER")
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_metadata VALUES (?,?)",
+        ("schema_version", SCHEMA_VERSION))
     conn.commit()
