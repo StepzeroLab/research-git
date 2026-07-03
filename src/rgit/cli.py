@@ -12,6 +12,7 @@ _GUIDANCE_OPTIONS = [
     ("manual-only", "only when you explicitly ask"),
     ("none", "install skills + MCP only, write no guidance"),
 ]
+_GUIDANCE_SELECTOR_LINES = 7
 
 
 class _InteractivePromptUnavailable(Exception):
@@ -94,9 +95,9 @@ def _prompt_guidance_mode_interactive(platform: str, stderr=None) -> str:
 
 def _render_guidance_selector(platform: str, index: int, stderr, first_render: bool) -> None:
     if not first_render:
-        stderr.write("\x1b[7F\x1b[J")
+        stderr.write(f"\x1b[{_GUIDANCE_SELECTOR_LINES}F\x1b[J")
     stderr.write(
-        f"\nresearch-git guidance for {platform} - how proactive should capture be?\n\n"
+        f"research-git guidance for {platform} - how proactive should capture be?\n\n"
     )
     for i, (mode, description) in enumerate(_GUIDANCE_OPTIONS):
         pointer = ">" if i == index else " "

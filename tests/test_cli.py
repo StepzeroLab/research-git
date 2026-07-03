@@ -502,6 +502,16 @@ def test_guidance_selector_ignores_unknown_keys_without_rerender(monkeypatch):
     assert err.getvalue().count("research-git guidance for codex") == 2
 
 
+def test_guidance_selector_redraw_does_not_add_leading_blank_lines(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["down", "enter"])
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
+    assert "\x1b[7F\x1b[Jresearch-git guidance for codex" in err.getvalue()
+    assert "\x1b[7F\x1b[J\nresearch-git guidance for codex" not in err.getvalue()
+
+
 def test_guidance_selector_ctrl_c_exits(monkeypatch):
     err = _TTYBuffer()
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: "ctrl-c")
