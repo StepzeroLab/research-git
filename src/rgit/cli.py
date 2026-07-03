@@ -69,8 +69,9 @@ def _prompt_guidance_mode_interactive(platform: str, stderr=None) -> str:
     index = 0
     first_render = True
     while True:
-        _render_guidance_selector(platform, index, stderr, first_render)
-        first_render = False
+        if first_render:
+            _render_guidance_selector(platform, index, stderr, True)
+            first_render = False
         try:
             key = _read_prompt_key()
         except KeyboardInterrupt:
@@ -81,8 +82,10 @@ def _prompt_guidance_mode_interactive(platform: str, stderr=None) -> str:
             raise KeyboardInterrupt
         if key == "up":
             index = (index - 1) % len(_GUIDANCE_OPTIONS)
+            _render_guidance_selector(platform, index, stderr, False)
         elif key == "down":
             index = (index + 1) % len(_GUIDANCE_OPTIONS)
+            _render_guidance_selector(platform, index, stderr, False)
         elif key == "enter":
             return _GUIDANCE_OPTIONS[index][0]
         elif key in ("1", "2", "3"):
@@ -97,7 +100,10 @@ def _render_guidance_selector(platform: str, index: int, stderr, first_render: b
     )
     for i, (mode, description) in enumerate(_GUIDANCE_OPTIONS):
         pointer = ">" if i == index else " "
-        stderr.write(f"{pointer} {mode:<11} {description}\n")
+        line = f"{pointer} {mode:<11} {description}"
+        if i == index:
+            line = f"\x1b[7m{line}\x1b[0m"
+        stderr.write(f"{line}\n")
     stderr.write("\nUse ↑/↓ to move, Enter to select.\n")
     stderr.flush()
 
@@ -134,14 +140,14 @@ def _read_prompt_key_posix() -> str:
         raise _InteractivePromptUnavailable from e
     try:
         tty.setraw(fd)
-        ch = sys.stdin.read(1)
+        ch = os.read(fd, 1).decode(errors="ignore")
         if ch == "\x1b":
             seq = ch
             while True:
-                ready, _, _ = select.select([sys.stdin], [], [], 0.01)
+                ready, _, _ = select.select([fd], [], [], 0.05)
                 if not ready:
                     break
-                seq += sys.stdin.read(1)
+                seq += os.read(fd, 1).decode(errors="ignore")
                 if len(seq) >= 3:
                     break
             return _decode_prompt_key(seq)

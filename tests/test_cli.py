@@ -474,6 +474,7 @@ def test_guidance_selector_defaults_to_default_on_enter(monkeypatch):
 
     assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "default"
     assert "> default" in err.getvalue()
+    assert "\x1b[7m> default" in err.getvalue()
 
 
 def test_guidance_selector_moves_down_up_and_selects(monkeypatch):
@@ -490,6 +491,15 @@ def test_guidance_selector_accepts_numeric_shortcut(monkeypatch):
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
 
     assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "none"
+
+
+def test_guidance_selector_ignores_unknown_keys_without_rerender(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["other", "down", "enter"])
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
+    assert err.getvalue().count("research-git guidance for codex") == 2
 
 
 def test_guidance_selector_ctrl_c_exits(monkeypatch):
