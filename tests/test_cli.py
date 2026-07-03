@@ -435,6 +435,10 @@ class _NotTTYBuffer:
         return False
 
 
+def _allow_selector_ansi(monkeypatch):
+    monkeypatch.setattr(cli, "_selector_ansi_supported", lambda stderr: True)
+
+
 def test_guidance_numbered_prompt_accepts_blank_default(monkeypatch):
     answers = iter([""])
     monkeypatch.setattr("builtins.input", lambda: next(answers))
@@ -470,6 +474,7 @@ def test_guidance_numbered_prompt_retries_and_eof_defaults(monkeypatch):
 def test_guidance_selector_defaults_to_default_on_enter(monkeypatch):
     err = _TTYBuffer()
     keys = iter(["enter"])
+    _allow_selector_ansi(monkeypatch)
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
 
     assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "default"
@@ -480,6 +485,7 @@ def test_guidance_selector_defaults_to_default_on_enter(monkeypatch):
 def test_guidance_selector_moves_down_up_and_selects(monkeypatch):
     err = _TTYBuffer()
     keys = iter(["down", "up", "down", "enter"])
+    _allow_selector_ansi(monkeypatch)
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
 
     assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
@@ -488,6 +494,7 @@ def test_guidance_selector_moves_down_up_and_selects(monkeypatch):
 def test_guidance_selector_accepts_numeric_shortcut(monkeypatch):
     err = _TTYBuffer()
     keys = iter(["3"])
+    _allow_selector_ansi(monkeypatch)
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
 
     assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "none"
@@ -496,6 +503,7 @@ def test_guidance_selector_accepts_numeric_shortcut(monkeypatch):
 def test_guidance_selector_ignores_unknown_keys_without_rerender(monkeypatch):
     err = _TTYBuffer()
     keys = iter(["other", "down", "enter"])
+    _allow_selector_ansi(monkeypatch)
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
 
     assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
@@ -505,6 +513,7 @@ def test_guidance_selector_ignores_unknown_keys_without_rerender(monkeypatch):
 def test_guidance_selector_redraw_does_not_add_leading_blank_lines(monkeypatch):
     err = _TTYBuffer()
     keys = iter(["down", "enter"])
+    _allow_selector_ansi(monkeypatch)
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
 
     assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
@@ -514,6 +523,7 @@ def test_guidance_selector_redraw_does_not_add_leading_blank_lines(monkeypatch):
 
 def test_guidance_selector_ctrl_c_exits(monkeypatch):
     err = _TTYBuffer()
+    _allow_selector_ansi(monkeypatch)
     monkeypatch.setattr(cli, "_read_prompt_key", lambda: "ctrl-c")
 
     with pytest.raises(KeyboardInterrupt):
