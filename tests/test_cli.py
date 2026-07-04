@@ -439,11 +439,11 @@ def _allow_selector_ansi(monkeypatch):
     monkeypatch.setattr(cli, "_selector_ansi_supported", lambda stderr: True)
 
 
-def test_guidance_numbered_prompt_accepts_blank_default(monkeypatch):
-    answers = iter([""])
+def test_guidance_numbered_prompt_rejects_blank_then_accepts_choice(monkeypatch):
+    answers = iter(["", "2"])
     monkeypatch.setattr("builtins.input", lambda: next(answers))
 
-    assert cli._prompt_guidance_mode_numbered("codex") == "default"
+    assert cli._prompt_guidance_mode_numbered("codex") == "manual-only"
 
 
 def test_guidance_numbered_prompt_accepts_numbers_and_names(monkeypatch):
@@ -462,13 +462,14 @@ def test_guidance_numbered_prompt_accepts_numbers_and_names(monkeypatch):
         assert cli._prompt_guidance_mode_numbered("codex") == expected
 
 
-def test_guidance_numbered_prompt_retries_and_eof_defaults(monkeypatch):
+def test_guidance_numbered_prompt_retries_and_eof_cancels(monkeypatch):
     answers = iter(["nope", "3"])
     monkeypatch.setattr("builtins.input", lambda: next(answers))
     assert cli._prompt_guidance_mode_numbered("codex") == "none"
 
     monkeypatch.setattr("builtins.input", lambda: (_ for _ in ()).throw(EOFError))
-    assert cli._prompt_guidance_mode_numbered("codex") == "default"
+    with pytest.raises(cli._GuidancePromptCancelled):
+        cli._prompt_guidance_mode_numbered("codex")
 
 
 def test_guidance_selector_defaults_to_default_on_enter(monkeypatch):
@@ -655,8 +656,8 @@ def test_prompt_guidance_mode_maps_answers(monkeypatch):
     assert cli._prompt_guidance_mode("codex") == "manual-only"
 
 
-def test_prompt_guidance_mode_empty_defaults_then_retries_on_garbage(monkeypatch):
-    answers = iter([""])
+def test_prompt_guidance_mode_blank_retries_and_garbage_retries(monkeypatch):
+    answers = iter(["", "1"])
     monkeypatch.setattr("builtins.input", lambda: next(answers))
     assert cli._prompt_guidance_mode("codex") == "default"
 
