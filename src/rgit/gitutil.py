@@ -314,6 +314,11 @@ def diff_commit(repo: Path, rev: str = "HEAD") -> str:
                 rev)
 
 
+def diff_range(repo: Path, base: str, head: str) -> str:
+    """Unified patch for the cumulative committed range base..head."""
+    return _git(repo, "-c", "core.quotePath=false", "diff", base, head)
+
+
 def _snapshot_paths(repo: Path, exclude_root: Path | None = None) -> list[str]:
     """Tracked + untracked files, excluding ignored, .git and .rgit.
 

@@ -1,4 +1,4 @@
-from rgit.segmenter import HeuristicSegmenter, MockSegmenter, segment_diff
+from rgit.segmenter import DiffSource, HeuristicSegmenter, MockSegmenter, segment_diff
 from rgit.store.store import Store
 
 
@@ -89,6 +89,46 @@ def test_segment_diff_manual_trigger_ignores_clean_committed_diff(git_repo):
     assert segment_diff(store, trigger="manual", segmenter=MockSegmenter([]),
                         run_id=None) is None
     assert store.list_proposals("open") == []
+
+
+def test_segment_diff_range_source_captures_multiple_commits(git_repo):
+    import subprocess
+    store = Store.init(git_repo)
+    base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=git_repo, check=True,
+                          capture_output=True, text=True).stdout.strip()
+    (git_repo / "model.py").write_text("def forward(x):\n    return x + 1\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "increment"], cwd=git_repo,
+                   check=True, capture_output=True)
+    (git_repo / "model.py").write_text("def forward(x):\n    return (x + 1) * 2\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "double"], cwd=git_repo,
+                   check=True, capture_output=True)
+
+    pid = segment_diff(store, trigger="manual", segmenter=MockSegmenter([]),
+                       run_id=None, diff_source=DiffSource.range(base, "HEAD"))
+
+    prop = store.get_proposal(pid)
+    diff = store.objects.get(prop.diff_ref).decode(errors="replace")
+    assert "-    return x" in diff
+    assert "+    return (x + 1) * 2" in diff
+
+
+def test_segment_diff_reuses_existing_open_proposal_for_same_diff(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 7\n")
+
+    first = segment_diff(store, trigger="manual", segmenter=MockSegmenter([]),
+                         run_id=None)
+    second = segment_diff(store, trigger="manual", segmenter=MockSegmenter([]),
+                          run_id=None)
+
+    assert second == first
+    assert getattr(first, "created") is True
+    assert getattr(second, "created") is False
+    assert len(store.list_proposals("open")) == 1
 
 
 def test_segment_diff_survives_non_utf8_python_file(git_repo):

@@ -13,6 +13,15 @@ def test_render_global_block_contains_markers_and_default_mode():
     assert "rgit-recall" in block
 
 
+def test_default_guidance_includes_capture_source_decision_tree():
+    block = agent_guidance.render_global_block()
+    assert "After meaningful research/code changes" in block
+    assert "`rgit capture`" in block
+    assert "`rgit capture --commit HEAD`" in block
+    assert "`rgit capture --range <base>..HEAD`" in block
+    assert "Skip mechanical formatting" in block
+
+
 def test_upsert_creates_parent_and_file(tmp_path):
     path = tmp_path / ".codex" / "AGENTS.md"
 

@@ -115,6 +115,100 @@ def test_capture_empty_diff_is_friendly(git_repo, monkeypatch, capsys):
     assert Store.open(git_repo).list_proposals("open") == []
 
 
+def test_capture_commit_flag_captures_clean_committed_diff(git_repo, monkeypatch, capsys):
+    import subprocess
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 6\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "sextuple forward"], cwd=git_repo,
+                   check=True, capture_output=True)
+
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+
+    out = capsys.readouterr().out
+    assert "proposal" in out and "created" in out
+    assert cli.main(["pending", "--json"]) == 0
+    items = json.loads(capsys.readouterr().out)
+    assert len(items) == 1
+    assert "-    return x" in items[0]["diff"]
+    assert "+    return x * 6" in items[0]["diff"]
+
+
+def test_capture_range_flag_captures_multiple_commits_as_one_proposal(
+        git_repo, monkeypatch, capsys):
+    import subprocess
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=git_repo, check=True,
+                          capture_output=True, text=True).stdout.strip()
+    (git_repo / "model.py").write_text("def forward(x):\n    return x + 1\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "increment forward"], cwd=git_repo,
+                   check=True, capture_output=True)
+    (git_repo / "model.py").write_text("def forward(x):\n    return (x + 1) * 2\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "double increment"], cwd=git_repo,
+                   check=True, capture_output=True)
+
+    assert cli.main(["capture", "--range", f"{base}..HEAD"]) == 0
+
+    out = capsys.readouterr().out
+    assert "proposal" in out and "created" in out
+    assert cli.main(["pending", "--json"]) == 0
+    items = json.loads(capsys.readouterr().out)
+    assert len(items) == 1
+    assert "-    return x" in items[0]["diff"]
+    assert "+    return (x + 1) * 2" in items[0]["diff"]
+
+
+def test_capture_rejects_invalid_range(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+
+    assert cli.main(["capture", "--range", "HEAD"]) == 1
+
+    out = capsys.readouterr().out
+    assert "invalid range" in out
+    assert "BASE..HEAD" in out
+
+
+def test_capture_invalid_commit_returns_friendly_error(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+
+    assert cli.main(["capture", "--commit", "not-a-rev"]) == 1
+
+    out = capsys.readouterr().out
+    assert "capture failed:" in out
+    assert "not-a-rev" in out
+
+
+def test_capture_source_flags_are_mutually_exclusive():
+    parser = cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["capture", "--worktree", "--commit", "HEAD"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["capture", "--commit", "HEAD", "--range", "main..HEAD"])
+
+
+def test_capture_duplicate_diff_reports_existing_proposal(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 8\n")
+
+    assert cli.main(["capture", "--worktree"]) == 0
+    first_out = capsys.readouterr().out
+    assert "created" in first_out
+    assert cli.main(["capture", "--worktree"]) == 0
+    second_out = capsys.readouterr().out
+    assert "already exists for this diff" in second_out
+    assert len(Store.open(git_repo).list_proposals("open")) == 1
+
+
 def test_capture_skip_notice_warns_and_json_stays_clean(git_repo, monkeypatch, capsys):
     monkeypatch.chdir(git_repo)
     monkeypatch.setattr(cli, "_SEGMENTER", None)

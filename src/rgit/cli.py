@@ -205,7 +205,7 @@ def _read_prompt_key_windows() -> str:
 
 from .curation import approve, dismiss
 from .runner import run_experiment
-from .segmenter import Segmenter, segment_diff
+from .segmenter import DiffSource, Segmenter, segment_diff
 from .store.store import Store
 
 # Test seam: when set, used instead of the default free HeuristicSegmenter.
@@ -232,6 +232,20 @@ def _brief(text: str, limit: int = 1200) -> str:
 
 def _run_exit_code(returncode: int) -> int:
     return returncode if returncode > 0 else 1
+
+
+def _capture_diff_source(args) -> DiffSource | None:
+    if getattr(args, "commit", None):
+        return DiffSource.commit(args.commit)
+    capture_range = getattr(args, "capture_range", None)
+    if capture_range:
+        if capture_range.count("..") != 1:
+            raise ValueError("invalid range; expected BASE..HEAD")
+        base, head = capture_range.split("..", 1)
+        if not base or not head:
+            raise ValueError("invalid range; expected BASE..HEAD")
+        return DiffSource.range(base, head)
+    return None
 
 
 def _diff_text(store: Store, diff_ref: Optional[str]) -> str:
@@ -300,6 +314,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_cap.add_argument("--trigger", default="manual")
     p_cap.add_argument("--init", action="store_true",
                        help="create .rgit/ at the git root if missing (no hooks)")
+    cap_source = p_cap.add_mutually_exclusive_group()
+    cap_source.add_argument("--worktree", action="store_true",
+                            help="capture working-tree changes (default)")
+    cap_source.add_argument("--commit", metavar="REV",
+                            help="capture one commit's patch, e.g. HEAD")
+    cap_source.add_argument("--range", dest="capture_range", metavar="BASE..HEAD",
+                            help="capture the cumulative patch for a git range")
 
     p_rev = sub.add_parser("review")
     p_rev.add_argument("--approve")
@@ -478,14 +499,30 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0 if result.returncode == 0 else _run_exit_code(result.returncode)
 
     if args.cmd == "capture":
-        pid = segment_diff(store, args.trigger, _segmenter(), run_id=None, now=_now())
+        try:
+            diff_source = _capture_diff_source(args)
+            pid = segment_diff(store, args.trigger, _segmenter(), run_id=None,
+                               now=_now(), diff_source=diff_source)
+        except ValueError as e:
+            print(str(e))
+            return 1
+        except Exception as e:
+            import subprocess
+            if isinstance(e, subprocess.CalledProcessError):
+                msg = (e.stderr or e.stdout or str(e)).strip()
+                print(f"capture failed: {msg or e}")
+                return 1
+            raise
         if pid is None:
             print("nothing to capture (working tree has no diff)")
             return 0
         prop = store.get_proposal(pid)
-        print(f"proposal {pid} created")
+        if getattr(pid, "created", True):
+            print(f"proposal {pid} created")
+        else:
+            print(f"proposal {pid} already exists for this diff")
         _print_skip_summary(_diff_text(store, prop.diff_ref))
-        if not prop.candidates:
+        if getattr(pid, "created", True) and not prop.candidates:
             print("note: proposal has 0 candidates; run `rgit pending --json`, "
                   "then `rgit resegment <proposal_id> --from-json <path>`")
         return 0

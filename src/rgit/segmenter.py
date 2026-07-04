@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional, Protocol
 
 from .astmap import changed_symbols
-from .gitutil import diff_commit, diff_since, parse_git_diff_header
+from .gitutil import diff_commit, diff_range, diff_since, parse_git_diff_header
 from .store.models import Proposal
 from .store.store import Store
 
@@ -34,6 +34,8 @@ class DiffSource:
 
     kind: str
     rev: str = "HEAD"
+    base: str = ""
+    head: str = ""
 
     @classmethod
     def working_tree(cls) -> "DiffSource":
@@ -42,6 +44,21 @@ class DiffSource:
     @classmethod
     def commit(cls, rev: str = "HEAD") -> "DiffSource":
         return cls("commit", rev=rev)
+
+    @classmethod
+    def range(cls, base: str, head: str) -> "DiffSource":
+        return cls("range", base=base, head=head)
+
+
+class CaptureResult(str):
+    """Proposal id plus whether this capture created a new proposal."""
+
+    created: bool
+
+    def __new__(cls, proposal_id: str, *, created: bool) -> "CaptureResult":
+        obj = str.__new__(cls, proposal_id)
+        obj.created = created
+        return obj
 
 
 def _default_diff_source(trigger: str) -> DiffSource:
@@ -55,7 +72,16 @@ def _read_diff(store: Store, source: DiffSource) -> str:
         return diff_since(store.root, "HEAD")
     if source.kind == "commit":
         return diff_commit(store.root, source.rev)
+    if source.kind == "range":
+        return diff_range(store.root, source.base, source.head)
     raise ValueError(f"unknown diff source: {source.kind}")
+
+
+def _existing_open_proposal_for_diff(store: Store, diff_ref: str) -> Optional[str]:
+    for prop in store.list_proposals("open"):
+        if prop.diff_ref == diff_ref:
+            return prop.id
+    return None
 
 
 def _diff_by_file(diff: str) -> dict[str, str]:
@@ -120,7 +146,8 @@ class HeuristicSegmenter:
 
 def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
                  run_id: Optional[str], from_features: Optional[list[str]] = None,
-                 now: str = "", diff_source: Optional[DiffSource] = None) -> Optional[str]:
+                 now: str = "",
+                 diff_source: Optional[DiffSource] = None) -> Optional[CaptureResult]:
     """Read a diff source, segment it, store an open Proposal, and
     record comment-in/out toggle events against the capsules they touch.
 
@@ -131,13 +158,16 @@ def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
     diff = _read_diff(store, diff_source or _default_diff_source(trigger))
     if not diff.strip():
         return None
+    diff_ref = store.objects.put(diff.encode("utf-8", errors="replace"))
+    existing = _existing_open_proposal_for_diff(store, diff_ref)
+    if existing is not None:
+        return CaptureResult(existing, created=False)
     symbols = changed_symbols(diff, store.root)
     candidates = segmenter.segment(diff, symbols)
-    diff_ref = store.objects.put(diff.encode("utf-8", errors="replace"))
     pid = store.add_proposal(Proposal(
         id="", trigger=trigger, diff_ref=diff_ref,
         candidates=candidates, status="open", run_id=run_id,
         from_features=from_features))
     for ev in map_to_capsules(store, detect_toggles(diff)):
         store.add_event(ev["capsule_id"], ev["kind"], run_id, now)
-    return pid
+    return CaptureResult(pid, created=True)
