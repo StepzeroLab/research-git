@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 import rgit.cli as cli
 from rgit.cli import main
 from rgit.gitutil import MAX_UNTRACKED_DIFF_BYTES
@@ -404,6 +405,248 @@ def test_cli_install_prompts_for_mode_on_tty_without_flag(
 
     res = json.loads(capsys.readouterr().out)
     assert "Current mode: manual-only" in res["guidance"]["block"]
+
+
+class _TTYBuffer:
+    def __init__(self):
+        self.parts = []
+
+    def write(self, text):
+        self.parts.append(text)
+
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return True
+
+    def getvalue(self):
+        return "".join(self.parts)
+
+
+class _NotTTYBuffer:
+    def write(self, text):
+        pass
+
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return False
+
+
+def _allow_selector_ansi(monkeypatch):
+    monkeypatch.setattr(cli, "_selector_ansi_supported", lambda stderr: True)
+
+
+def test_guidance_numbered_prompt_accepts_blank_default(monkeypatch):
+    answers = iter([""])
+    monkeypatch.setattr("builtins.input", lambda: next(answers))
+
+    assert cli._prompt_guidance_mode_numbered("codex") == "default"
+
+
+def test_guidance_numbered_prompt_accepts_numbers_and_names(monkeypatch):
+    cases = [
+        ("1", "default"),
+        ("2", "manual-only"),
+        ("3", "none"),
+        ("default", "default"),
+        ("manual-only", "manual-only"),
+        ("none", "none"),
+    ]
+
+    for answer, expected in cases:
+        answers = iter([answer])
+        monkeypatch.setattr("builtins.input", lambda: next(answers))
+        assert cli._prompt_guidance_mode_numbered("codex") == expected
+
+
+def test_guidance_numbered_prompt_retries_and_eof_defaults(monkeypatch):
+    answers = iter(["nope", "3"])
+    monkeypatch.setattr("builtins.input", lambda: next(answers))
+    assert cli._prompt_guidance_mode_numbered("codex") == "none"
+
+    monkeypatch.setattr("builtins.input", lambda: (_ for _ in ()).throw(EOFError))
+    assert cli._prompt_guidance_mode_numbered("codex") == "default"
+
+
+def test_guidance_selector_defaults_to_default_on_enter(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["enter"])
+    _allow_selector_ansi(monkeypatch)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "default"
+    assert "> default" in err.getvalue()
+    assert "\x1b[7m> default" in err.getvalue()
+
+
+def test_guidance_selector_moves_down_up_and_selects(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["down", "up", "down", "enter"])
+    _allow_selector_ansi(monkeypatch)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
+
+
+def test_guidance_selector_accepts_numeric_shortcut(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["3"])
+    _allow_selector_ansi(monkeypatch)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "none"
+
+
+def test_guidance_selector_ignores_unknown_keys_without_rerender(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["other", "down", "enter"])
+    _allow_selector_ansi(monkeypatch)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
+    assert err.getvalue().count("research-git guidance for codex") == 2
+
+
+def test_guidance_selector_redraw_does_not_add_leading_blank_lines(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["down", "enter"])
+    _allow_selector_ansi(monkeypatch)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
+    assert "\x1b[7F\x1b[Jresearch-git guidance for codex" in err.getvalue()
+    assert "\x1b[7F\x1b[J\nresearch-git guidance for codex" not in err.getvalue()
+
+
+def test_guidance_selector_ctrl_c_exits(monkeypatch):
+    err = _TTYBuffer()
+    _allow_selector_ansi(monkeypatch)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: "ctrl-c")
+
+    with pytest.raises(KeyboardInterrupt):
+        cli._prompt_guidance_mode_interactive("codex", stderr=err)
+
+
+def test_guidance_selector_unavailable_for_bad_terminal(monkeypatch):
+    with pytest.raises(cli._InteractivePromptUnavailable):
+        cli._prompt_guidance_mode_interactive("codex", stderr=_NotTTYBuffer())
+
+    monkeypatch.setenv("TERM", "dumb")
+    with pytest.raises(cli._InteractivePromptUnavailable):
+        cli._prompt_guidance_mode_interactive("codex", stderr=_TTYBuffer())
+
+
+def test_guidance_selector_falls_back_when_windows_ansi_unavailable(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cli.os, "name", "nt", raising=False)
+    monkeypatch.setattr(cli, "_enable_windows_virtual_terminal",
+                        lambda stderr: False)
+    monkeypatch.setattr(cli, "_prompt_guidance_mode_numbered",
+                        lambda platform: calls.append(platform) or "default")
+
+    assert cli._prompt_guidance_mode("codex") == "default"
+    assert calls == ["codex"]
+
+
+def test_guidance_selector_runs_when_windows_ansi_enabled(monkeypatch):
+    err = _TTYBuffer()
+    keys = iter(["2"])
+    monkeypatch.setattr(cli.os, "name", "nt", raising=False)
+    monkeypatch.setattr(cli, "_enable_windows_virtual_terminal",
+                        lambda stderr: True)
+    monkeypatch.setattr(cli, "_read_prompt_key", lambda: next(keys))
+
+    assert cli._prompt_guidance_mode_interactive("codex", stderr=err) == "manual-only"
+    assert "\x1b[7m> default" in err.getvalue()
+
+
+def test_prompt_guidance_mode_falls_back_to_numbered(monkeypatch):
+    calls = []
+
+    def unavailable(platform):
+        raise cli._InteractivePromptUnavailable
+
+    monkeypatch.setattr(cli, "_prompt_guidance_mode_interactive", unavailable)
+    monkeypatch.setattr(cli, "_prompt_guidance_mode_numbered",
+                        lambda platform: calls.append(platform) or "manual-only")
+
+    assert cli._prompt_guidance_mode("codex") == "manual-only"
+    assert calls == ["codex"]
+
+
+def test_decode_prompt_key_sequences():
+    assert cli._decode_prompt_key("\r") == "enter"
+    assert cli._decode_prompt_key("\n") == "enter"
+    assert cli._decode_prompt_key("\x03") == "ctrl-c"
+    assert cli._decode_prompt_key("1") == "1"
+    assert cli._decode_prompt_key("2") == "2"
+    assert cli._decode_prompt_key("3") == "3"
+    assert cli._decode_prompt_key("\x1b[A") == "up"
+    assert cli._decode_prompt_key("\x1b[B") == "down"
+    assert cli._decode_prompt_key("x") == "other"
+
+
+def test_read_prompt_key_dispatches_backend(monkeypatch):
+    monkeypatch.setattr(cli.os, "name", "posix", raising=False)
+    monkeypatch.setattr(cli, "_read_prompt_key_posix", lambda: "down")
+    assert cli._read_prompt_key() == "down"
+
+    monkeypatch.setattr(cli.os, "name", "nt", raising=False)
+    monkeypatch.setattr(cli, "_read_prompt_key_windows", lambda: "up")
+    assert cli._read_prompt_key() == "up"
+
+
+def test_install_explicit_guidance_bypasses_prompt(monkeypatch, capsys):
+    prompted = {"called": False}
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
+    monkeypatch.setattr(cli, "_prompt_guidance_mode",
+                        lambda platform: prompted.__setitem__("called", True) or "default")
+
+    import rgit.installer as installer
+    monkeypatch.setattr(installer, "install",
+                        lambda platform, scope="user", dry_run=False, mode=None:
+                        {"platform": platform, "mode": mode})
+
+    assert cli.main(["install", "codex", "--guidance", "manual-only"]) == 0
+    out = capsys.readouterr().out
+    assert '"mode": "manual-only"' in out
+    assert prompted["called"] is False
+
+
+def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
+    monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "default")
+
+    import rgit.installer as installer
+    monkeypatch.setattr(installer, "install",
+                        lambda platform, scope="user", dry_run=False, mode=None:
+                        {"platform": platform, "mode": mode})
+
+    assert cli.main(["install", "codex"]) == 0
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert data["mode"] == "default"
+    assert captured.err == ""
+
+
+def test_install_prompt_ctrl_c_exits_without_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_stdin_is_tty", lambda: True)
+    monkeypatch.setattr(cli, "_prompt_guidance_mode",
+                        lambda platform: (_ for _ in ()).throw(KeyboardInterrupt))
+
+    import rgit.installer as installer
+    monkeypatch.setattr(installer, "install",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AssertionError("install must not run after Ctrl+C")))
+
+    assert cli.main(["install", "codex"]) == 130
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "install cancelled" in captured.err
+    assert "Traceback" not in captured.err
 
 
 def test_prompt_guidance_mode_maps_answers(monkeypatch):
