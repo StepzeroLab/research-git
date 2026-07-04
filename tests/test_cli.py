@@ -1078,3 +1078,52 @@ def test_capture_help_hides_legacy_source_flags(capsys):
     out = capsys.readouterr().out
     assert "--commit" not in out and "--range" not in out and "--worktree" not in out
     assert "REV|A..B" in out
+
+
+# ---- zero-choice review (id-free actions) -----------------------------------
+
+def _stage_one_proposal(git_repo, text="def forward(x):\n    return x + 5\n"):
+    (git_repo / "model.py").write_text(text)
+    assert cli.main(["capture", "--worktree"]) == 0
+
+
+def test_review_approve_without_id_takes_sole_open_proposal(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    _stage_one_proposal(git_repo)
+    capsys.readouterr()
+    assert cli.main(["review", "--approve"]) == 0
+    assert "approved -> feature" in capsys.readouterr().out
+    assert Store.open(git_repo).list_proposals("open") == []
+
+
+def test_review_approve_without_id_no_proposals(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--approve"]) == 1
+    assert "no pending proposals" in capsys.readouterr().out
+
+
+def test_review_approve_without_id_ambiguous_lists_candidates(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    _stage_one_proposal(git_repo)
+    (git_repo / "other.py").write_text("def other():\n    return 1\n")
+    assert cli.main(["capture", "--worktree"]) == 0
+    capsys.readouterr()
+    assert cli.main(["review", "--approve"]) == 1
+    out = capsys.readouterr().out
+    assert "several proposals are open" in out and out.count("prop_") >= 2
+
+
+def test_review_dismiss_without_id_takes_sole_open_proposal(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    _stage_one_proposal(git_repo)
+    capsys.readouterr()
+    assert cli.main(["review", "--dismiss"]) == 0
+    assert "dismissed" in capsys.readouterr().out
+    assert Store.open(git_repo).list_proposals("open") == []

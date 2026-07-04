@@ -231,6 +231,26 @@ def _run_exit_code(returncode: int) -> int:
     return returncode if returncode > 0 else 1
 
 
+def _sole_open_proposal(store: Store) -> str:
+    """The only open proposal's id; ValueError otherwise.
+
+    Lets `review --approve` / `--dismiss` work without copying an id in the
+    overwhelmingly common one-proposal case; ambiguity fails with the listing
+    so the retry is a copy-paste.
+    """
+    opens = store.list_proposals("open")
+    if not opens:
+        raise ValueError("no pending proposals")
+    if len(opens) > 1:
+        lines = []
+        for p in opens:
+            names = ", ".join(c["name"] for c in p.candidates) or "0 candidate(s)"
+            lines.append(f"  {p.id}  [{p.trigger}]  {names}")
+        raise ValueError("several proposals are open; pass an id:\n"
+                         + "\n".join(lines))
+    return opens[0].id
+
+
 def _diff_text(store: Store, diff_ref: Optional[str]) -> str:
     return store.objects.get(diff_ref).decode(errors="replace") if diff_ref else ""
 
@@ -313,10 +333,16 @@ def build_parser() -> argparse.ArgumentParser:
                        help="create .rgit/ at the git root if missing (no hooks)")
 
     p_rev = sub.add_parser("review")
-    p_rev.add_argument("--approve")
+    p_rev.add_argument("--approve", nargs="?", const="", default=None,
+                       metavar="PROPOSAL_ID",
+                       help="approve PROPOSAL_ID — or, with no id, the only "
+                            "open proposal")
     p_rev.add_argument("--name")
     p_rev.add_argument("--index", type=int, default=0)
-    p_rev.add_argument("--dismiss")
+    p_rev.add_argument("--dismiss", nargs="?", const="", default=None,
+                       metavar="PROPOSAL_ID",
+                       help="dismiss PROPOSAL_ID — or, with no id, the only "
+                            "open proposal")
 
     sub.add_parser("features")
     sub.add_parser("mcp")          # run the MCP server (the query/share surface)
@@ -557,17 +583,19 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     if args.cmd == "review":
-        if args.dismiss:
+        if args.dismiss is not None:
             try:
-                dismiss(store, args.dismiss)
+                target = args.dismiss or _sole_open_proposal(store)
+                dismiss(store, target)
             except (KeyError, ValueError) as e:
                 print(str(e))
                 return 1
-            print(f"dismissed {args.dismiss}")
+            print(f"dismissed {target}")
             return 0
-        if args.approve:
+        if args.approve is not None:
             try:
-                fid = approve(store, args.approve, args.index, args.name)
+                target = args.approve or _sole_open_proposal(store)
+                fid = approve(store, target, args.index, args.name)
             except (KeyError, ValueError) as e:
                 print(str(e))
                 print("hint: inspect with `rgit pending --json`; if there are "
