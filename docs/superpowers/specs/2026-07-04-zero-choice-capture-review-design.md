@@ -50,6 +50,15 @@ Modeled on the Understand-Anything installer: near-zero flags, auto-detect first
 - **Visible flags shrink to `--uninstall` and `--list`.** `--guidance`, `--scope`, `--dry-run`, and `--json` keep parsing forever but leave `--help` (`--dry-run` exists mainly as the test seam; `--scope` has a correct default; guidance is handled below).
 - **Non-interactive guidance stops failing.** Today a non-TTY `rgit install <platform>` without `--guidance` exits 1 with instructions to re-run — an agent-driven install cannot succeed on the first try by design. Under zero-choice it proceeds: keep a previously pinned mode if the managed block has one, else write `default`, and print a one-line notice (`guidance mode: default — change with --guidance <mode>`). The TTY picker is unchanged. *This deliberately reverses part of PR #19's "require explicit selection" behavior; the picker remains for humans, but automation gets a working default instead of homework.*
 
+### 5. Git-style hints on misuse
+
+Wrong usage prints a pointer to the right usage, like git does:
+
+- Unknown subcommand → `hint: did you mean 'capture'?` appended to the argparse error (difflib close matches over all commands, hidden aliases included; no hint when nothing is close).
+- Unknown install platform → the known-platforms error plus `hint: did you mean 'codex'?` instead of today's traceback.
+- Unresolvable capture ref/range → `hint: pass a commit (HEAD, abc123) or a range (main..HEAD); git log --oneline -5 shows recent commits`.
+- `review --dismiss <unknown-id>` → `hint: run rgit review to list open proposals` (approve already had its hint).
+
 ## Non-goals
 
 - No top-level command consolidation (`pending`, `resegment`, `install-hooks`, `compare`, `ablation`, `metric-dir` all stay as they are).

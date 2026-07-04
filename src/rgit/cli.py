@@ -1,8 +1,10 @@
 from __future__ import annotations
 import argparse
 import datetime
+import difflib
 import json
 import os
+import re
 import sys
 from typing import Optional
 
@@ -359,8 +361,24 @@ def _print_run_result(result, store: Store) -> None:
             print(out)
 
 
+class _Parser(argparse.ArgumentParser):
+    """ArgumentParser with a git-style did-you-mean on unknown subcommands."""
+
+    commands: tuple = ()
+
+    def error(self, message):
+        m = re.search(r"invalid choice: '([^']+)'", message)
+        if m and self.commands:
+            close = difflib.get_close_matches(m.group(1), self.commands,
+                                              n=3, cutoff=0.6)
+            if close:
+                message += ("\nhint: did you mean "
+                            + " or ".join(f"'{c}'" for c in close) + "?")
+        super().error(message)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="rgit")
+    parser = _Parser(prog="rgit")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init")
@@ -484,6 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_graph.add_argument("--runs", action="store_true",
                          help="include run nodes + produced/active edges")
 
+    parser.commands = tuple(sub.choices)
     return parser
 
 
@@ -575,8 +594,16 @@ def main(argv: Optional[list[str]] = None) -> int:
                         print(f"  rgit install {p} --guidance default",
                               file=sys.stderr)
                 return 1
-        results = [fn(p, scope=args.scope, dry_run=args.dry_run, mode=mode)
-                   for p in platforms]
+        try:
+            results = [fn(p, scope=args.scope, dry_run=args.dry_run, mode=mode)
+                       for p in platforms]
+        except ValueError as e:
+            print(str(e))
+            close = difflib.get_close_matches(platforms[0], installer.PLATFORMS,
+                                              n=1, cutoff=0.6)
+            if close:
+                print(f"hint: did you mean '{close[0]}'?")
+            return 1
         if args.json:
             # Explicit platform keeps today's single-object payload; bare
             # installs yield one entry per detected client.
@@ -680,6 +707,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                                now=_now(), source=source)
         except ValueError as e:
             print(str(e))
+            print("hint: pass a commit (HEAD, abc123) or a range (main..HEAD); "
+                  "`git log --oneline -5` shows recent commits")
             return 1
         if pid is None:
             print(f"nothing to capture ({source.no_diff_reason(store.root)})")
@@ -701,7 +730,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             try:
                 target = args.dismiss or _sole_open_proposal(store)
                 dismiss(store, target)
-            except (KeyError, ValueError) as e:
+            except KeyError as e:
+                print(str(e))
+                print("hint: run `rgit review` to list open proposals")
+                return 1
+            except ValueError as e:
                 print(str(e))
                 return 1
             print(f"dismissed {target}")

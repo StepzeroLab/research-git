@@ -233,3 +233,11 @@ CLI: bare platform → `detect_platforms()`; empty + stdin TTY → numbered pick
 - [ ] Full suite `.venv/bin/python -m pytest -q` green.
 - [ ] Live smoke in a scratch repo: bare capture dirty/clean/repeat, bare review approve, bare install with fake `~/.codex` home (`HOME=... rgit install`), non-TTY guidance notice.
 - [ ] Push branch `zero-choice-capture-review`, open PR (spec + plan + implementation), body lists the two deliberate semantic changes (bare install writes; #19 reversal).
+
+### Task 8: git-style misuse hints (added mid-implementation at maintainer request)
+
+**Files:** Modify `src/rgit/cli.py` (`_Parser.error` did-you-mean, install unknown-platform catch, capture ref hint, dismiss unknown-id hint). Test: `tests/test_cli.py`.
+
+- [x] Failing tests: unknown subcommand `captur` → exit 2 + `did you mean` + `capture`; no hint when nothing close; `install codx` → exit 1 + `did you mean 'codex'` (no traceback); `capture no-such-ref` → hint naming `git log --oneline`; `review --dismiss prop_nope` → hint naming `rgit review`.
+- [x] Implement: `_Parser(argparse.ArgumentParser)` overriding `error()` with difflib close matches over `tuple(sub.choices)`; ValueError catch around the installer fan-out; hint lines at the capture and dismiss error sites.
+- [x] Full suite green; commit `feat(cli): git-style did-you-mean and misuse hints`.

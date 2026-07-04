@@ -1202,3 +1202,46 @@ def test_install_help_hides_plumbing_flags(capsys):
     for hidden in ("--guidance", "--scope", "--dry-run", "--json"):
         assert hidden not in out
     assert "--uninstall" in out and "--list" in out
+
+
+# ---- git-style misuse hints --------------------------------------------------
+
+def test_unknown_subcommand_suggests_closest(capsys):
+    with pytest.raises(SystemExit) as ei:
+        cli.main(["captur"])
+    assert ei.value.code == 2
+    err = capsys.readouterr().err
+    assert "did you mean" in err and "capture" in err
+
+
+def test_unknown_subcommand_without_close_match_has_no_hint(capsys):
+    with pytest.raises(SystemExit) as ei:
+        cli.main(["frobnicate"])
+    assert ei.value.code == 2
+    assert "did you mean" not in capsys.readouterr().err
+
+
+def test_install_unknown_platform_suggests_closest(capsys):
+    assert cli.main(["install", "codx", "--guidance", "none"]) == 1
+    out = capsys.readouterr().out
+    assert "unknown platform" in out
+    assert "did you mean 'codex'" in out
+    assert "Traceback" not in out
+
+
+def test_capture_bad_ref_prints_hint(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["capture", "no-such-ref"]) == 1
+    out = capsys.readouterr().out
+    assert "cannot resolve" in out
+    assert "hint:" in out and "git log --oneline" in out
+
+
+def test_review_dismiss_unknown_id_prints_hint(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--dismiss", "prop_nope"]) == 1
+    out = capsys.readouterr().out
+    assert "prop_nope" in out
+    assert "hint:" in out and "rgit review" in out
