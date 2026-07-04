@@ -308,6 +308,12 @@ def diff_since(repo: Path, base: str = "HEAD") -> str:
     return "\n".join(parts)
 
 
+def diff_commit(repo: Path, rev: str = "HEAD") -> str:
+    """Unified patch for one committed revision, excluding working-tree files."""
+    return _git(repo, "-c", "core.quotePath=false", "show", "--format=", "--patch",
+                rev)
+
+
 def _snapshot_paths(repo: Path, exclude_root: Path | None = None) -> list[str]:
     """Tracked + untracked files, excluding ignored, .git and .rgit.
 

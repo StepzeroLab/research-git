@@ -57,6 +57,40 @@ def test_segment_diff_skips_empty_diff(git_repo):
     assert store.list_proposals("open") == []
 
 
+def test_segment_diff_commit_trigger_captures_latest_commit(git_repo):
+    import subprocess
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 3\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "triple forward"], cwd=git_repo,
+                   check=True, capture_output=True)
+
+    pid = segment_diff(store, trigger="commit", segmenter=MockSegmenter([]),
+                       run_id=None)
+
+    assert pid is not None
+    prop = store.get_proposal(pid)
+    diff = store.objects.get(prop.diff_ref).decode(errors="replace")
+    assert prop.trigger == "commit"
+    assert "-    return x" in diff
+    assert "+    return x * 3" in diff
+
+
+def test_segment_diff_manual_trigger_ignores_clean_committed_diff(git_repo):
+    import subprocess
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 4\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "quadruple forward"], cwd=git_repo,
+                   check=True, capture_output=True)
+
+    assert segment_diff(store, trigger="manual", segmenter=MockSegmenter([]),
+                        run_id=None) is None
+    assert store.list_proposals("open") == []
+
+
 def test_segment_diff_survives_non_utf8_python_file(git_repo):
     store = Store.init(git_repo)
     (git_repo / "latin.py").write_bytes(b"def cafe():\n    return 'caf\xe9'\n")

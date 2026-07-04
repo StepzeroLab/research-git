@@ -347,6 +347,46 @@ def test_install_hooks_uninstall(git_repo, monkeypatch, capsys):
     assert not (git_repo / ".git" / "hooks" / "post-commit").exists()
 
 
+def test_install_hooks_post_commit_captures_committed_diff(
+        git_repo, tmp_path, monkeypatch, capsys):
+    import os
+    import subprocess
+    monkeypatch.chdir(git_repo)
+    assert cli.main(["init"]) == 0
+    capsys.readouterr()
+    assert cli.main(["install-hooks"]) == 0
+    capsys.readouterr()
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    wrapper = bin_dir / "rgit"
+    src_path = Path(__file__).resolve().parents[1] / "src"
+    wrapper.write_text(
+        f"#!{sys.executable}\n"
+        "import sys\n"
+        f"sys.path.insert(0, {str(src_path)!r})\n"
+        "from rgit.cli import main\n"
+        "raise SystemExit(main())\n",
+        encoding="utf-8")
+    wrapper.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir) + os.pathsep + os.environ["PATH"])
+
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 5\n")
+    subprocess.run(["git", "add", "model.py"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "quintuple forward"], cwd=git_repo,
+                   check=True, capture_output=True)
+
+    store = Store.open(git_repo)
+    proposals = store.list_proposals("open")
+    assert len(proposals) == 1
+    prop = proposals[0]
+    diff = store.objects.get(prop.diff_ref).decode(errors="replace")
+    assert prop.trigger == "commit"
+    assert "-    return x" in diff
+    assert "+    return x * 5" in diff
+
+
 def test_cli_install_codex_dry_run_emits_guidance_json(tmp_path, monkeypatch, capsys):
     from rgit import agent_platforms, installer
     monkeypatch.setattr(agent_platforms, "home_dir", lambda: tmp_path)

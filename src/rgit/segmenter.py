@@ -1,8 +1,9 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Optional, Protocol
 
 from .astmap import changed_symbols
-from .gitutil import diff_since, parse_git_diff_header
+from .gitutil import diff_commit, diff_since, parse_git_diff_header
 from .store.models import Proposal
 from .store.store import Store
 
@@ -25,6 +26,36 @@ class MockSegmenter:
     def segment(self, diff: str, symbols: list[dict]) -> list[dict]:
         self.last_symbols = symbols
         return self.candidates
+
+
+@dataclass(frozen=True)
+class DiffSource:
+    """Where capture should read diff bytes from."""
+
+    kind: str
+    rev: str = "HEAD"
+
+    @classmethod
+    def working_tree(cls) -> "DiffSource":
+        return cls("working_tree")
+
+    @classmethod
+    def commit(cls, rev: str = "HEAD") -> "DiffSource":
+        return cls("commit", rev=rev)
+
+
+def _default_diff_source(trigger: str) -> DiffSource:
+    if trigger == "commit":
+        return DiffSource.commit("HEAD")
+    return DiffSource.working_tree()
+
+
+def _read_diff(store: Store, source: DiffSource) -> str:
+    if source.kind == "working_tree":
+        return diff_since(store.root, "HEAD")
+    if source.kind == "commit":
+        return diff_commit(store.root, source.rev)
+    raise ValueError(f"unknown diff source: {source.kind}")
 
 
 def _diff_by_file(diff: str) -> dict[str, str]:
@@ -89,15 +120,15 @@ class HeuristicSegmenter:
 
 def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
                  run_id: Optional[str], from_features: Optional[list[str]] = None,
-                 now: str = "") -> Optional[str]:
-    """Diff the working tree vs HEAD, segment it, store an open Proposal, and
+                 now: str = "", diff_source: Optional[DiffSource] = None) -> Optional[str]:
+    """Read a diff source, segment it, store an open Proposal, and
     record comment-in/out toggle events against the capsules they touch.
 
     `from_features` records the capsule(s) this work regenerated, so approving the
     resulting proposal links the new capsule `variant_of` those sources.
     """
     from .toggles import detect_toggles, map_to_capsules
-    diff = diff_since(store.root, "HEAD")
+    diff = _read_diff(store, diff_source or _default_diff_source(trigger))
     if not diff.strip():
         return None
     symbols = changed_symbols(diff, store.root)
