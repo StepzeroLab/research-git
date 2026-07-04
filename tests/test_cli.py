@@ -662,7 +662,10 @@ def test_install_prompt_eof_cancels_without_running_installer(monkeypatch, capsy
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "install cancelled: no guidance mode selected" in captured.err
-    assert "--guidance default" in captured.err
+    assert "run one of:" in captured.err
+    assert "rgit install codex --guidance default" in captured.err
+    assert "rgit install codex --guidance manual-only" in captured.err
+    assert "rgit install codex --guidance none" in captured.err
 
 
 def test_prompt_guidance_mode_maps_answers(monkeypatch):

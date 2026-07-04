@@ -424,8 +424,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             except _GuidancePromptCancelled:
                 print("\ninstall cancelled: no guidance mode selected",
                       file=sys.stderr)
-                print("pass --guidance default, --guidance manual-only, "
-                      "or --guidance none", file=sys.stderr)
+                print("run one of:", file=sys.stderr)
+                print(f"  rgit install {args.platform} --guidance default",
+                      file=sys.stderr)
+                print(f"  rgit install {args.platform} --guidance manual-only",
+                      file=sys.stderr)
+                print(f"  rgit install {args.platform} --guidance none",
+                      file=sys.stderr)
                 return 1
         res = fn(args.platform, scope=args.scope, dry_run=args.dry_run, mode=mode)
         print(json.dumps(res, indent=2, ensure_ascii=False))
