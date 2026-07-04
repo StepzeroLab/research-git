@@ -130,6 +130,18 @@ That's the whole loop. The rest of the commands you'll meet as you need them —
 
 ---
 
+## Updating
+
+```bash
+rgit update
+```
+
+Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone — the command tells you how to restore them instead.
+
+rgit prints a one-line notice (at most once a day, terminal sessions only) when a newer release is on PyPI. Turn it off for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
+
+---
+
 ## 🧩 Where it fits
 
 Anywhere you try many variations of one thing and later want a single one back — cleanly, on top of how the code looks now.
