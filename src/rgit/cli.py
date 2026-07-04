@@ -415,12 +415,18 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 0
         fn = installer.uninstall if args.uninstall else installer.install
         mode = args.guidance
-        if mode is None and not args.uninstall and _stdin_is_tty():
+        if mode is None and not args.uninstall:
             try:
                 mode = _prompt_guidance_mode(args.platform)
             except KeyboardInterrupt:
                 print("\ninstall cancelled", file=sys.stderr)
                 return 130
+            except _GuidancePromptCancelled:
+                print("\ninstall cancelled: no guidance mode selected",
+                      file=sys.stderr)
+                print("pass --guidance default, --guidance manual-only, "
+                      "or --guidance none", file=sys.stderr)
+                return 1
         res = fn(args.platform, scope=args.scope, dry_run=args.dry_run, mode=mode)
         print(json.dumps(res, indent=2, ensure_ascii=False))
         return 0
