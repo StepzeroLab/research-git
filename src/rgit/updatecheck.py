@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import urllib.request
 from pathlib import Path
 
 TTL_SECONDS = 24 * 3600
@@ -57,3 +59,78 @@ def should_check(now: float) -> bool:
     if not isinstance(last, (int, float)):
         return True
     return now - last > TTL_SECONDS
+
+
+def _newer(latest: str, current: str) -> bool:
+    """PEP 440 compare when `packaging` is importable, tolerant fallback else.
+
+    Incomparable strings mean "no notice", never an exception.
+    """
+    try:
+        from packaging.version import InvalidVersion, Version
+        try:
+            return Version(latest) > Version(current)
+        except InvalidVersion:
+            return False
+    except ImportError:
+        pass
+
+    def parse(v: str) -> tuple | None:
+        parts = []
+        for tok in v.split("."):
+            digits = "".join(ch for ch in tok if ch.isdigit())
+            if not digits:
+                return None
+            parts.append(int(digits))
+        return tuple(parts)
+
+    a, b = parse(latest), parse(current)
+    return a is not None and b is not None and a > b
+
+
+def render_notice(current: str) -> str | None:
+    """One-line upgrade notice from the *cached* check result, or None."""
+    latest = load_state().get("latest_version")
+    if not isinstance(latest, str) or not _newer(latest, current):
+        return None
+    return (f"research-git {latest} available (you have {current}) "
+            f"— run `rgit update`")
+
+
+def _fetch_once(now: float) -> None:
+    try:
+        with urllib.request.urlopen(PYPI_URL, timeout=2) as resp:
+            latest = json.load(resp)["info"]["version"]
+    except Exception:
+        return
+    if not isinstance(latest, str):
+        return
+    state = load_state()
+    state.update({"last_check": now, "latest_version": latest})
+    save_state(state)
+
+
+def maybe_start_background_check(now: float) -> None:
+    """Fire-and-forget PyPI check when the TTL has lapsed.
+
+    `last_check` is stamped before the fetch so concurrent rgit processes do
+    not all hit PyPI; a failed fetch simply waits out the next TTL.
+    """
+    if not should_check(now):
+        return
+    state = load_state()
+    state["last_check"] = now
+    save_state(state)
+    threading.Thread(target=_fetch_once, args=(now,), daemon=True).start()
+
+
+def hint_pending(path: str) -> bool:
+    return path not in load_state().get("guidance_hints", [])
+
+
+def mark_hint_shown(path: str) -> None:
+    state = load_state()
+    hints = state.setdefault("guidance_hints", [])
+    if path not in hints:
+        hints.append(path)
+        save_state(state)
