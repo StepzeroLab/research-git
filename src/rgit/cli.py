@@ -1,8 +1,10 @@
 from __future__ import annotations
 import argparse
 import datetime
+import difflib
 import json
 import os
+import re
 import sys
 from typing import Optional
 
@@ -32,6 +34,26 @@ def _prompt_guidance_mode(platform: str) -> str:
         return _prompt_guidance_mode_interactive(platform)
     except _InteractivePromptUnavailable:
         return _prompt_guidance_mode_numbered(platform)
+
+
+def _prompt_platform_numbered(platforms) -> str:
+    """Numbered platform picker for a bare `rgit install` when detection
+    finds nothing. Prompts go to stderr; accepts an index or a name."""
+    sys.stderr.write("\nwhich agent client is this install for?\n\n")
+    for i, p in enumerate(platforms, 1):
+        sys.stderr.write(f"  {i}) {p}\n")
+    sys.stderr.write(f"\nSelect [1-{len(platforms)}]: ")
+    choices = {str(i): p for i, p in enumerate(platforms, 1)}
+    choices.update({p: p for p in platforms})
+    while True:
+        sys.stderr.flush()
+        try:
+            answer = input().strip().lower()
+        except EOFError as e:
+            raise _GuidancePromptCancelled from e
+        if answer in choices:
+            return choices[answer]
+        sys.stderr.write(f"Please enter 1-{len(platforms)}: ")
 
 
 def _prompt_guidance_mode_numbered(platform: str) -> str:
@@ -231,6 +253,71 @@ def _run_exit_code(returncode: int) -> int:
     return returncode if returncode > 0 else 1
 
 
+def _render_install_result(res: dict) -> None:
+    """Understand-Anything-style ✓ lines for one platform's install result.
+
+    The full machine-readable document stays available behind --json; this
+    view keeps only what a human acts on.
+    """
+    print(f"{res.get('platform', '?')}:")
+    for r in res.get("results", []):
+        mark = "✓" if r.get("rc") == 0 else "✗"
+        print(f"  {mark} {' '.join(r.get('cmd', []))}")
+        if r.get("rc") != 0 and r.get("out"):
+            print(f"      {r['out'].splitlines()[0]}")
+    for cmd in res.get("planned", []):
+        print(f"  • would run: {' '.join(cmd)}")
+    if res.get("links"):
+        if res.get("ran"):
+            print(f"  ✓ skills linked into {res.get('skills_dir')}")
+        else:
+            print(f"  • would link {len(res['links'])} skill(s) into "
+                  f"{res.get('skills_dir')}")
+    for e in res.get("errors", []):
+        print(f"  ✗ {e.get('link', '')}: {e.get('error')}")
+        if e.get("hint"):
+            print(f"      hint: {e['hint']}")
+    if res.get("would_remove") is not None:
+        print(f"  • would remove {len(res['would_remove'])} skill link(s)")
+    if res.get("removed") is not None:
+        print(f"  ✓ removed {len(res['removed'])} skill link(s)")
+    g = res.get("guidance") or {}
+    if g:
+        action = g.get("action", "?")
+        path = g.get("path", "")
+        if action == "disabled":
+            print("  • guidance: not written (mode none)")
+        elif action == "manual":
+            print("  • guidance: no managed file for this platform — run with "
+                  "--json for the block to paste")
+        elif action == "skipped_error":
+            print(f"  ✗ guidance: {g.get('error')} ({path})")
+        else:
+            print(f"  ✓ guidance {action}: {path}".rstrip(": "))
+    if res.get("instructions"):
+        print(f"  → {res['instructions']}")
+
+
+def _sole_open_proposal(store: Store) -> str:
+    """The only open proposal's id; ValueError otherwise.
+
+    Lets `review --approve` / `--dismiss` work without copying an id in the
+    overwhelmingly common one-proposal case; ambiguity fails with the listing
+    so the retry is a copy-paste.
+    """
+    opens = store.list_proposals("open")
+    if not opens:
+        raise ValueError("no pending proposals")
+    if len(opens) > 1:
+        lines = []
+        for p in opens:
+            names = ", ".join(c["name"] for c in p.candidates) or "0 candidate(s)"
+            lines.append(f"  {p.id}  [{p.trigger}]  {names}")
+        raise ValueError("several proposals are open; pass an id:\n"
+                         + "\n".join(lines))
+    return opens[0].id
+
+
 def _diff_text(store: Store, diff_ref: Optional[str]) -> str:
     return store.objects.get(diff_ref).decode(errors="replace") if diff_ref else ""
 
@@ -274,8 +361,24 @@ def _print_run_result(result, store: Store) -> None:
             print(out)
 
 
+class _Parser(argparse.ArgumentParser):
+    """ArgumentParser with a git-style did-you-mean on unknown subcommands."""
+
+    commands: tuple = ()
+
+    def error(self, message):
+        m = re.search(r"invalid choice: '([^']+)'", message)
+        if m and self.commands:
+            close = difflib.get_close_matches(m.group(1), self.commands,
+                                              n=3, cutoff=0.6)
+            if close:
+                message += ("\nhint: did you mean "
+                            + " or ".join(f"'{c}'" for c in close) + "?")
+        super().error(message)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="rgit")
+    parser = _Parser(prog="rgit")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init")
@@ -294,30 +397,35 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("rest", nargs=argparse.REMAINDER)  # after `--`
 
     p_cap = sub.add_parser("capture")
+    p_cap.add_argument("source", nargs="?", metavar="REV|A..B",
+                       help="what to capture: a commit (HEAD, abc123) or a "
+                            "range (main..HEAD). Omit to auto-pick: the "
+                            "working tree if it has changes, else the last "
+                            "commit.")
     p_cap.add_argument("--trigger", default="manual")
+    # Legacy source spellings — permanent, but hidden: the positional form is
+    # the one taught everywhere, and deployed hooks/guidance keep working.
     cap_src = p_cap.add_mutually_exclusive_group()
     cap_src.add_argument("--commit", nargs="?", const="HEAD", default=None,
-                         metavar="REF",
-                         help="capture the diff introduced by commit REF "
-                              "(default HEAD) instead of the working tree; "
-                              "merge commits yield nothing")
+                         metavar="REF", help=argparse.SUPPRESS)
     cap_src.add_argument("--range", dest="range_spec", default=None,
-                         metavar="A..B",
-                         help="capture committed changes across A..B "
-                              "(an omitted endpoint means HEAD; A...B diffs "
-                              "from the merge base)")
+                         metavar="A..B", help=argparse.SUPPRESS)
     cap_src.add_argument("--worktree", action="store_true",
-                         help="capture working-tree changes (the default; "
-                              "overrides the commit-diff default of "
-                              "--trigger commit)")
+                         help=argparse.SUPPRESS)
     p_cap.add_argument("--init", action="store_true",
                        help="create .rgit/ at the git root if missing (no hooks)")
 
     p_rev = sub.add_parser("review")
-    p_rev.add_argument("--approve")
+    p_rev.add_argument("--approve", nargs="?", const="", default=None,
+                       metavar="PROPOSAL_ID",
+                       help="approve PROPOSAL_ID — or, with no id, the only "
+                            "open proposal")
     p_rev.add_argument("--name")
     p_rev.add_argument("--index", type=int, default=0)
-    p_rev.add_argument("--dismiss")
+    p_rev.add_argument("--dismiss", nargs="?", const="", default=None,
+                       metavar="PROPOSAL_ID",
+                       help="dismiss PROPOSAL_ID — or, with no id, the only "
+                            "open proposal")
 
     sub.add_parser("features")
     sub.add_parser("mcp")          # run the MCP server (the query/share surface)
@@ -341,15 +449,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_watch.add_argument("--once", action="store_true")
 
     p_inst = sub.add_parser("install")   # wire plugin + MCP into an AI client
-    p_inst.add_argument("platform", nargs="?")
-    p_inst.add_argument("--list", action="store_true")
+    p_inst.add_argument("platform", nargs="?",
+                        help="agent client to install for; omit to auto-detect "
+                             "every client on this machine")
+    p_inst.add_argument("--list", action="store_true",
+                        help="list supported platforms")
     p_inst.add_argument("--uninstall", action="store_true")
-    p_inst.add_argument("--dry-run", action="store_true")
+    # Plumbing — permanent but hidden: --dry-run is the test seam, --scope has
+    # the right default, guidance is prompted/auto-defaulted, and --json is the
+    # machine-readable document the human lines replaced.
+    p_inst.add_argument("--dry-run", action="store_true", help=argparse.SUPPRESS)
     p_inst.add_argument("--guidance", choices=list(GUIDANCE_MODES),
-                        help="guidance to write: default | manual-only | none "
-                             "(none = skills + MCP only). If omitted, you are "
-                             "asked interactively on a TTY, else 'default' is kept.")
-    p_inst.add_argument("--scope", default="user", choices=["user", "project", "local"])
+                        help=argparse.SUPPRESS)
+    p_inst.add_argument("--scope", default="user",
+                        choices=["user", "project", "local"],
+                        help=argparse.SUPPRESS)
+    p_inst.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
 
     p_ih = sub.add_parser("install-hooks")   # git post-commit capture hook
     p_ih.add_argument("--uninstall", action="store_true")
@@ -387,6 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_graph.add_argument("--runs", action="store_true",
                          help="include run nodes + produced/active edges")
 
+    parser.commands = tuple(sub.choices)
     return parser
 
 
@@ -425,14 +541,43 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.cmd == "install":
         from . import installer
-        if args.list or not args.platform:
+        if args.list:
             print("platforms: " + ", ".join(installer.PLATFORMS))
             return 0
+        if args.platform:
+            platforms = [args.platform]
+        else:
+            platforms = installer.detect_platforms()
+            if platforms:
+                print("detected: " + ", ".join(platforms), file=sys.stderr)
+            else:
+                if sys.stdin.isatty():
+                    try:
+                        platforms = [_prompt_platform_numbered(installer.PLATFORMS)]
+                    except KeyboardInterrupt:
+                        print("\ninstall cancelled", file=sys.stderr)
+                        return 130
+                    except _GuidancePromptCancelled:
+                        print("\ninstall cancelled: no platform selected",
+                              file=sys.stderr)
+                        return 1
+                else:
+                    print("no agent client detected; platforms: "
+                          + ", ".join(installer.PLATFORMS))
+                    print("run `rgit install <platform>`")
+                    return 1
         fn = installer.uninstall if args.uninstall else installer.install
         mode = args.guidance
-        if mode is None and not args.uninstall:
+        if mode is None and not args.uninstall and not sys.stdin.isatty():
+            # Automation must succeed on the first try: keep a previously
+            # pinned mode (or write `default`) and say so, instead of exiting
+            # with homework to re-run with --guidance.
+            print("guidance mode: default — change with --guidance <mode>",
+                  file=sys.stderr)
+        elif mode is None and not args.uninstall:
+            label = ", ".join(platforms)
             try:
-                mode = _prompt_guidance_mode(args.platform)
+                mode = _prompt_guidance_mode(label)
             except KeyboardInterrupt:
                 print("\ninstall cancelled", file=sys.stderr)
                 return 130
@@ -440,15 +585,36 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print("\ninstall cancelled: no guidance mode selected",
                       file=sys.stderr)
                 print("run one of:", file=sys.stderr)
-                print(f"  rgit install {args.platform} --guidance default",
-                      file=sys.stderr)
-                print(f"  rgit install {args.platform} --guidance manual-only",
-                      file=sys.stderr)
-                print(f"  rgit install {args.platform} --guidance none",
-                      file=sys.stderr)
+                if len(platforms) == 1:
+                    for m in GUIDANCE_MODES:
+                        print(f"  rgit install {platforms[0]} --guidance {m}",
+                              file=sys.stderr)
+                else:
+                    for p in platforms:
+                        print(f"  rgit install {p} --guidance default",
+                              file=sys.stderr)
                 return 1
-        res = fn(args.platform, scope=args.scope, dry_run=args.dry_run, mode=mode)
-        print(json.dumps(res, indent=2, ensure_ascii=False))
+        try:
+            results = [fn(p, scope=args.scope, dry_run=args.dry_run, mode=mode)
+                       for p in platforms]
+        except ValueError as e:
+            print(str(e))
+            close = difflib.get_close_matches(platforms[0], installer.PLATFORMS,
+                                              n=1, cutoff=0.6)
+            if close:
+                print(f"hint: did you mean '{close[0]}'?")
+            return 1
+        if args.json:
+            # Explicit platform keeps today's single-object payload; bare
+            # installs yield one entry per detected client.
+            payload = results[0] if args.platform else results
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            return 0
+        for res in results:
+            _render_install_result(res)
+        if not args.uninstall:
+            print("\nrestart your CLI/agent session to pick up the skills")
+            print("note: `rgit install-hooks` enables per-commit capture (opt-in)")
         return 0
 
     if args.cmd == "install-hooks":
@@ -501,25 +667,48 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0 if result.returncode == 0 else _run_exit_code(result.returncode)
 
     if args.cmd == "capture":
-        from .gitutil import CommitDiffSource, RangeDiffSource, WorktreeDiffSource
+        from .gitutil import (CommitDiffSource, RangeDiffSource,
+                              WorktreeDiffSource, commit_subject, diff_since,
+                              resolve_commit)
+        explicit_flag = (args.range_spec is not None or args.commit is not None
+                         or args.worktree)
+        if args.source is not None and explicit_flag:
+            print("give either a positional source or "
+                  "--commit/--range/--worktree, not both")
+            return 1
         try:
-            if args.range_spec is not None:
+            if args.source is not None:
+                source = (RangeDiffSource(args.source) if ".." in args.source
+                          else CommitDiffSource(args.source))
+            elif args.range_spec is not None:
                 source = RangeDiffSource(args.range_spec)
             elif args.commit is not None:
                 source = CommitDiffSource(args.commit)
-            elif args.trigger == "commit" and not args.worktree:
-                # Deployed post-commit hooks run `rgit capture --trigger commit`
-                # with no explicit source. Post-commit the worktree matches
-                # HEAD, so the only useful reading is the commit that just
-                # happened — and it keeps old hook installs working without a
-                # reinstall. An explicit --worktree wins over this default.
-                source = CommitDiffSource("HEAD")
-            else:
+            elif args.worktree:
                 source = WorktreeDiffSource()
+            elif args.trigger == "commit":
+                # Deployed post-commit hooks run `rgit capture --trigger commit`
+                # with no explicit source. The hook knows its context: right
+                # after a partially staged commit the worktree holds leftovers,
+                # so auto would capture the wrong thing — the hook must take
+                # the commit that just happened.
+                source = CommitDiffSource("HEAD")
+            elif diff_since(store.root, "HEAD").strip():
+                source = WorktreeDiffSource()
+            else:
+                # Clean tree: the work worth preserving is the last commit.
+                # Say which one — a just-pulled foreign commit should be
+                # captured visibly and dismissably, never silently.
+                sha = resolve_commit(store.root, "HEAD")
+                print(f'capturing last commit {sha[:12]} '
+                      f'("{commit_subject(store.root, sha)}")')
+                source = CommitDiffSource(sha)
             pid = segment_diff(store, args.trigger, _segmenter(), run_id=None,
                                now=_now(), source=source)
         except ValueError as e:
             print(str(e))
+            print("hint: pass a commit (HEAD, abc123) or a range (main..HEAD); "
+                  "`git log --oneline -5` shows recent commits")
             return 1
         if pid is None:
             print(f"nothing to capture ({source.no_diff_reason(store.root)})")
@@ -537,17 +726,23 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     if args.cmd == "review":
-        if args.dismiss:
+        if args.dismiss is not None:
             try:
-                dismiss(store, args.dismiss)
-            except (KeyError, ValueError) as e:
+                target = args.dismiss or _sole_open_proposal(store)
+                dismiss(store, target)
+            except KeyError as e:
+                print(str(e))
+                print("hint: run `rgit review` to list open proposals")
+                return 1
+            except ValueError as e:
                 print(str(e))
                 return 1
-            print(f"dismissed {args.dismiss}")
+            print(f"dismissed {target}")
             return 0
-        if args.approve:
+        if args.approve is not None:
             try:
-                fid = approve(store, args.approve, args.index, args.name)
+                target = args.approve or _sole_open_proposal(store)
+                fid = approve(store, target, args.index, args.name)
             except (KeyError, ValueError) as e:
                 print(str(e))
                 print("hint: inspect with `rgit pending --json`; if there are "

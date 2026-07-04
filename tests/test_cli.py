@@ -108,9 +108,12 @@ def test_run_missing_command_is_friendly(git_repo, monkeypatch, capsys):
 
 
 def test_capture_empty_diff_is_friendly(git_repo, monkeypatch, capsys):
+    # Explicit worktree target with a clean tree stays a friendly no-op.
+    # (A bare `rgit capture` on a clean tree now auto-captures HEAD instead —
+    # covered by test_capture_auto_clean_tree_captures_head_with_note.)
     monkeypatch.chdir(git_repo)
     Store.init(git_repo)
-    assert cli.main(["capture", "--trigger", "manual"]) == 0
+    assert cli.main(["capture", "--worktree"]) == 0
     out = capsys.readouterr().out
     assert "nothing to capture" in out
     assert Store.open(git_repo).list_proposals("open") == []
@@ -354,7 +357,7 @@ def test_cli_install_codex_dry_run_emits_guidance_json(tmp_path, monkeypatch, ca
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
 
-    assert cli.main(["install", "codex", "--dry-run",
+    assert cli.main(["install", "codex", "--dry-run", "--json",
                      "--guidance", "default"]) == 0
 
     res = json.loads(capsys.readouterr().out)
@@ -371,7 +374,7 @@ def test_cli_install_generic_dry_run_guidance_is_instruction_only(
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
 
-    assert cli.main(["install", "generic", "--dry-run",
+    assert cli.main(["install", "generic", "--dry-run", "--json",
                      "--guidance", "default"]) == 0
 
     res = json.loads(capsys.readouterr().out)
@@ -388,7 +391,7 @@ def test_cli_install_codex_guidance_none_flag_disables_guidance(
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
 
-    assert cli.main(["install", "codex", "--dry-run", "--guidance", "none"]) == 0
+    assert cli.main(["install", "codex", "--dry-run", "--json", "--guidance", "none"]) == 0
 
     res = json.loads(capsys.readouterr().out)
     assert res["guidance"] == {"action": "disabled"}
@@ -396,16 +399,22 @@ def test_cli_install_codex_guidance_none_flag_disables_guidance(
 
 def test_cli_install_prompts_for_mode_on_tty_without_flag(
         tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     from rgit import agent_platforms, installer
     monkeypatch.setattr(agent_platforms, "home_dir", lambda: tmp_path)
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
     monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "manual-only")
 
-    assert cli.main(["install", "codex", "--dry-run"]) == 0
+    assert cli.main(["install", "codex", "--dry-run", "--json"]) == 0
 
     res = json.loads(capsys.readouterr().out)
     assert "Current mode: manual-only" in res["guidance"]["block"]
+
+
+class _FakeTTYStdin:
+    def isatty(self):
+        return True
 
 
 class _TTYBuffer:
@@ -611,13 +620,14 @@ def test_install_explicit_guidance_bypasses_prompt(monkeypatch, capsys):
                         lambda platform, scope="user", dry_run=False, mode=None:
                         {"platform": platform, "mode": mode})
 
-    assert cli.main(["install", "codex", "--guidance", "manual-only"]) == 0
+    assert cli.main(["install", "codex", "--json", "--guidance", "manual-only"]) == 0
     out = capsys.readouterr().out
     assert '"mode": "manual-only"' in out
     assert prompted["called"] is False
 
 
 def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "default")
 
     import rgit.installer as installer
@@ -625,7 +635,7 @@ def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
                         lambda platform, scope="user", dry_run=False, mode=None:
                         {"platform": platform, "mode": mode})
 
-    assert cli.main(["install", "codex"]) == 0
+    assert cli.main(["install", "codex", "--json"]) == 0
     captured = capsys.readouterr()
     data = json.loads(captured.out)
     assert data["mode"] == "default"
@@ -633,6 +643,7 @@ def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
 
 
 def test_install_prompt_ctrl_c_exits_without_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     monkeypatch.setattr(cli, "_prompt_guidance_mode",
                         lambda platform: (_ for _ in ()).throw(KeyboardInterrupt))
 
@@ -649,6 +660,7 @@ def test_install_prompt_ctrl_c_exits_without_traceback(monkeypatch, capsys):
 
 
 def test_install_prompt_eof_cancels_without_running_installer(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     monkeypatch.setattr(cli, "_prompt_guidance_mode",
                         lambda platform: (_ for _ in ()).throw(
                             cli._GuidancePromptCancelled))
@@ -684,38 +696,22 @@ def test_prompt_guidance_mode_blank_retries_and_garbage_retries(monkeypatch):
     assert cli._prompt_guidance_mode("codex") == "none"
 
 
-def test_cli_install_prompts_when_not_a_tty(
+def test_cli_install_non_tty_defaults_guidance_with_notice(
         tmp_path, monkeypatch, capsys):
+    # Automation must succeed on the first try: no prompt, no homework —
+    # keep/pin default guidance and say so on stderr (reverses part of #19).
     from rgit import agent_platforms, installer
     monkeypatch.setattr(agent_platforms, "home_dir", lambda: tmp_path)
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
-    monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "manual-only")
 
-    assert cli.main(["install", "codex", "--dry-run"]) == 0
-
-    res = json.loads(capsys.readouterr().out)
-    assert "Current mode: manual-only" in res["guidance"]["block"]
-
-
-def test_cli_install_non_tty_numbered_input_selects_mode(
-        tmp_path, monkeypatch, capsys):
-    from rgit import agent_platforms, installer
-    monkeypatch.setattr(agent_platforms, "home_dir", lambda: tmp_path)
-    monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
-                        tmp_path / ".agents" / "skills")
-    monkeypatch.setattr(cli, "_prompt_guidance_mode_interactive",
-                        lambda platform: (_ for _ in ()).throw(
-                            cli._InteractivePromptUnavailable))
-    answers = iter(["2"])
-    monkeypatch.setattr("builtins.input", lambda: next(answers))
-
-    assert cli.main(["install", "codex", "--dry-run"]) == 0
+    assert cli.main(["install", "codex", "--dry-run", "--json"]) == 0
 
     captured = capsys.readouterr()
     res = json.loads(captured.out)
-    assert "Current mode: manual-only" in res["guidance"]["block"]
-    assert "Select [1-3]" in captured.err
+    assert "Current mode: default" in res["guidance"]["block"]
+    assert "guidance mode: default" in captured.err
+    assert "Select [1-3]" not in captured.err
 
 
 def test_readonly_command_without_store_is_clean_error(git_repo, monkeypatch, capsys):
@@ -1006,3 +1002,246 @@ def test_capture_worktree_flag_overrides_commit_trigger_default(git_repo, monkey
     assert len(props) == 1 and props[0].source_commit is None
     diff = store.objects.get(props[0].diff_ref).decode()
     assert "SCRATCH" in diff and "x * 2" not in diff
+
+
+# ---- zero-choice capture (auto source + positional) -------------------------
+
+def test_capture_auto_dirty_tree_captures_worktree(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x + 1\n")
+    assert cli.main(["capture"]) == 0
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) == 1 and props[0].source_commit is None
+
+
+def test_capture_auto_clean_tree_captures_head_with_note(git_repo, monkeypatch, capsys):
+    from rgit.gitutil import current_commit
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double it")
+    assert cli.main(["capture"]) == 0
+    out = capsys.readouterr().out
+    assert "capturing last commit" in out and "double it" in out
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) == 1
+    assert props[0].source_commit == current_commit(git_repo)
+
+
+def test_capture_auto_repeat_reports_existing(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture"]) == 0
+    capsys.readouterr()
+    assert cli.main(["capture"]) == 0
+    assert "already exists" in capsys.readouterr().out
+    assert len(Store.open(git_repo).list_proposals("open")) == 1
+
+
+def test_capture_positional_commit_and_range(git_repo, monkeypatch, capsys):
+    from rgit.gitutil import current_commit
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    base = current_commit(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture", "HEAD"]) == 0
+    assert cli.main(["capture", f"{base}..HEAD"]) == 0
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) >= 1
+
+
+def test_capture_positional_conflicts_with_legacy_flags(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["capture", "HEAD", "--worktree"]) == 1
+    assert "not both" in capsys.readouterr().out
+
+
+def test_capture_help_hides_legacy_source_flags(capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["capture", "--help"])
+    out = capsys.readouterr().out
+    assert "--commit" not in out and "--range" not in out and "--worktree" not in out
+    assert "REV|A..B" in out
+
+
+# ---- zero-choice review (id-free actions) -----------------------------------
+
+def _stage_one_proposal(git_repo, text="def forward(x):\n    return x + 5\n"):
+    (git_repo / "model.py").write_text(text)
+    assert cli.main(["capture", "--worktree"]) == 0
+
+
+def test_review_approve_without_id_takes_sole_open_proposal(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    _stage_one_proposal(git_repo)
+    capsys.readouterr()
+    assert cli.main(["review", "--approve"]) == 0
+    assert "approved -> feature" in capsys.readouterr().out
+    assert Store.open(git_repo).list_proposals("open") == []
+
+
+def test_review_approve_without_id_no_proposals(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--approve"]) == 1
+    assert "no pending proposals" in capsys.readouterr().out
+
+
+def test_review_approve_without_id_ambiguous_lists_candidates(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    _stage_one_proposal(git_repo)
+    (git_repo / "other.py").write_text("def other():\n    return 1\n")
+    assert cli.main(["capture", "--worktree"]) == 0
+    capsys.readouterr()
+    assert cli.main(["review", "--approve"]) == 1
+    out = capsys.readouterr().out
+    assert "several proposals are open" in out and out.count("prop_") >= 2
+
+
+def test_review_dismiss_without_id_takes_sole_open_proposal(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    _stage_one_proposal(git_repo)
+    capsys.readouterr()
+    assert cli.main(["review", "--dismiss"]) == 0
+    assert "dismissed" in capsys.readouterr().out
+    assert Store.open(git_repo).list_proposals("open") == []
+
+
+# ---- zero-choice install (auto-detect platforms) -----------------------------
+
+def test_bare_install_without_detection_non_tty_lists_platforms(monkeypatch, capsys):
+    import io
+    from rgit import installer
+    monkeypatch.setattr(installer, "detect_platforms", lambda: [])
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    assert cli.main(["install"]) == 1
+    out = capsys.readouterr().out
+    assert "no agent client detected" in out and "claude-code" in out
+
+
+def test_bare_install_fans_out_to_detected_platforms(monkeypatch, capsys):
+    from rgit import installer
+    calls = []
+    monkeypatch.setattr(installer, "detect_platforms", lambda: ["codex", "gemini"])
+    monkeypatch.setattr(
+        installer, "install",
+        lambda p, *, scope, dry_run, mode: (calls.append((p, mode))
+                                            or {"platform": p, "ran": True}))
+    assert cli.main(["install", "--guidance", "default"]) == 0
+    assert calls == [("codex", "default"), ("gemini", "default")]
+    err = capsys.readouterr().err
+    assert "detected: codex, gemini" in err
+
+
+def test_bare_uninstall_fans_out_to_detected_platforms(monkeypatch, capsys):
+    from rgit import installer
+    calls = []
+    monkeypatch.setattr(installer, "detect_platforms", lambda: ["codex"])
+    monkeypatch.setattr(
+        installer, "uninstall",
+        lambda p, *, scope, dry_run, mode: (calls.append(p)
+                                            or {"platform": p, "ran": True}))
+    assert cli.main(["install", "--uninstall"]) == 0
+    assert calls == ["codex"]
+
+
+def _canned_agents_result(platform="codex"):
+    return {"platform": platform,
+            "links": [{"link": f"/tmp/skills/rgit-capture", "target": "/plug"}],
+            "skills_dir": "/tmp/skills",
+            "mcp_config": {"mcpServers": {"research-git": {"command": "rgit"}}},
+            "instructions": "add this server to ~/.codex/config.toml",
+            "guidance": {"action": "updated", "path": "/home/AGENTS.md",
+                         "reload": "restart"},
+            "ran": True}
+
+
+def test_install_prints_human_lines_by_default(monkeypatch, capsys):
+    from rgit import installer
+    monkeypatch.setattr(installer, "install",
+                        lambda p, *, scope, dry_run, mode: _canned_agents_result(p))
+    assert cli.main(["install", "codex", "--guidance", "none"]) == 0
+    out = capsys.readouterr().out
+    assert "✓" in out
+    assert "skills linked" in out and "/tmp/skills" in out
+    assert "guidance updated" in out and "/home/AGENTS.md" in out
+    assert "restart" in out
+    assert "install-hooks" in out
+    assert not out.lstrip().startswith("{")
+
+
+def test_install_json_flag_prints_todays_document(monkeypatch, capsys):
+    from rgit import installer
+    canned = _canned_agents_result()
+    monkeypatch.setattr(installer, "install",
+                        lambda p, *, scope, dry_run, mode: canned)
+    assert cli.main(["install", "codex", "--json", "--guidance", "none"]) == 0
+    out = capsys.readouterr().out
+    assert json.loads(out) == canned
+
+
+def test_install_help_hides_plumbing_flags(capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["install", "--help"])
+    out = capsys.readouterr().out
+    for hidden in ("--guidance", "--scope", "--dry-run", "--json"):
+        assert hidden not in out
+    assert "--uninstall" in out and "--list" in out
+
+
+# ---- git-style misuse hints --------------------------------------------------
+
+def test_unknown_subcommand_suggests_closest(capsys):
+    with pytest.raises(SystemExit) as ei:
+        cli.main(["captur"])
+    assert ei.value.code == 2
+    err = capsys.readouterr().err
+    assert "did you mean" in err and "capture" in err
+
+
+def test_unknown_subcommand_without_close_match_has_no_hint(capsys):
+    with pytest.raises(SystemExit) as ei:
+        cli.main(["frobnicate"])
+    assert ei.value.code == 2
+    assert "did you mean" not in capsys.readouterr().err
+
+
+def test_install_unknown_platform_suggests_closest(capsys):
+    assert cli.main(["install", "codx", "--guidance", "none"]) == 1
+    out = capsys.readouterr().out
+    assert "unknown platform" in out
+    assert "did you mean 'codex'" in out
+    assert "Traceback" not in out
+
+
+def test_capture_bad_ref_prints_hint(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["capture", "no-such-ref"]) == 1
+    out = capsys.readouterr().out
+    assert "cannot resolve" in out
+    assert "hint:" in out and "git log --oneline" in out
+
+
+def test_review_dismiss_unknown_id_prints_hint(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--dismiss", "prop_nope"]) == 1
+    out = capsys.readouterr().out
+    assert "prop_nope" in out
+    assert "hint:" in out and "rgit review" in out

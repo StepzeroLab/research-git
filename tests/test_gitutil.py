@@ -567,3 +567,33 @@ def test_range_source_three_dot_without_merge_base_fails_cleanly(git_repo, tmp_p
                    cwd=git_repo, check=True, capture_output=True)
     with pytest.raises(ValueError, match="merge base"):
         RangeDiffSource("orphan...HEAD").diff(git_repo)
+
+
+def test_commit_subject_returns_first_line(git_repo):
+    from rgit.gitutil import commit_subject
+    assert commit_subject(git_repo, current_commit(git_repo)) == "init"
+
+
+def test_diff_since_ignores_tracked_rgit_store(git_repo):
+    # A user may accidentally `git add -A` the .rgit store; its churn (objects,
+    # graph.db) must never surface as capturable work.
+    (git_repo / ".rgit").mkdir()
+    (git_repo / ".rgit" / "x.txt").write_text("v1\n")
+    _commit_all(git_repo, "accidentally track store")
+    (git_repo / ".rgit" / "x.txt").write_text("v2\n")
+    assert diff_since(git_repo, "HEAD") == ""
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    diff = diff_since(git_repo, "HEAD")
+    assert "model.py" in diff and ".rgit" not in diff
+
+
+def test_committed_sources_exclude_rgit_store(git_repo):
+    base = current_commit(git_repo)
+    (git_repo / ".rgit").mkdir()
+    (git_repo / ".rgit" / "x.txt").write_text("v1\n")
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "work plus accidental store")
+    diff = CommitDiffSource("HEAD").diff(git_repo)
+    assert "model.py" in diff and ".rgit" not in diff
+    rdiff = RangeDiffSource(f"{base}..HEAD").diff(git_repo)
+    assert "model.py" in rdiff and ".rgit" not in rdiff
