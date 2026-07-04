@@ -172,3 +172,12 @@ def test_hint_ledger(monkeypatch, tmp_path):
     updatecheck.mark_hint_shown("/x/AGENTS.md")
     assert updatecheck.hint_pending("/x/AGENTS.md") is False
     assert updatecheck.hint_pending("/y/CLAUDE.md") is True
+
+
+def test_hint_ledger_tolerates_corrupt_guidance_hints(monkeypatch, tmp_path):
+    _use_tmp_state(monkeypatch, tmp_path)
+    updatecheck.save_state({"guidance_hints": "corrupt"})
+    assert updatecheck.hint_pending("/x/AGENTS.md") is True
+    updatecheck.mark_hint_shown("/x/AGENTS.md")          # must not raise
+    assert updatecheck.hint_pending("/x/AGENTS.md") is False
+    assert updatecheck.load_state()["guidance_hints"] == ["/x/AGENTS.md"]

@@ -130,13 +130,21 @@ def maybe_start_background_check(now: float) -> None:
     threading.Thread(target=_fetch_once, args=(now,), daemon=True).start()
 
 
+def _hints(state: dict) -> list:
+    # Type-guard like every other reader here: a hand-edited or drifted state
+    # file must degrade to "no hints shown yet", never raise.
+    hints = state.get("guidance_hints")
+    return hints if isinstance(hints, list) else []
+
+
 def hint_pending(path: str) -> bool:
-    return path not in load_state().get("guidance_hints", [])
+    return path not in _hints(load_state())
 
 
 def mark_hint_shown(path: str) -> None:
     state = load_state()
-    hints = state.setdefault("guidance_hints", [])
+    hints = _hints(state)
     if path not in hints:
         hints.append(path)
+        state["guidance_hints"] = hints
         save_state(state)
