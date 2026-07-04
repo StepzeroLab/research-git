@@ -549,7 +549,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                     return 1
         fn = installer.uninstall if args.uninstall else installer.install
         mode = args.guidance
-        if mode is None and not args.uninstall:
+        if mode is None and not args.uninstall and not sys.stdin.isatty():
+            # Automation must succeed on the first try: keep a previously
+            # pinned mode (or write `default`) and say so, instead of exiting
+            # with homework to re-run with --guidance.
+            print("guidance mode: default — change with --guidance <mode>",
+                  file=sys.stderr)
+        elif mode is None and not args.uninstall:
             label = ", ".join(platforms)
             try:
                 mode = _prompt_guidance_mode(label)

@@ -399,6 +399,7 @@ def test_cli_install_codex_guidance_none_flag_disables_guidance(
 
 def test_cli_install_prompts_for_mode_on_tty_without_flag(
         tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     from rgit import agent_platforms, installer
     monkeypatch.setattr(agent_platforms, "home_dir", lambda: tmp_path)
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
@@ -409,6 +410,11 @@ def test_cli_install_prompts_for_mode_on_tty_without_flag(
 
     res = json.loads(capsys.readouterr().out)
     assert "Current mode: manual-only" in res["guidance"]["block"]
+
+
+class _FakeTTYStdin:
+    def isatty(self):
+        return True
 
 
 class _TTYBuffer:
@@ -621,6 +627,7 @@ def test_install_explicit_guidance_bypasses_prompt(monkeypatch, capsys):
 
 
 def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "default")
 
     import rgit.installer as installer
@@ -636,6 +643,7 @@ def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
 
 
 def test_install_prompt_ctrl_c_exits_without_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     monkeypatch.setattr(cli, "_prompt_guidance_mode",
                         lambda platform: (_ for _ in ()).throw(KeyboardInterrupt))
 
@@ -652,6 +660,7 @@ def test_install_prompt_ctrl_c_exits_without_traceback(monkeypatch, capsys):
 
 
 def test_install_prompt_eof_cancels_without_running_installer(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", _FakeTTYStdin())
     monkeypatch.setattr(cli, "_prompt_guidance_mode",
                         lambda platform: (_ for _ in ()).throw(
                             cli._GuidancePromptCancelled))
@@ -687,38 +696,22 @@ def test_prompt_guidance_mode_blank_retries_and_garbage_retries(monkeypatch):
     assert cli._prompt_guidance_mode("codex") == "none"
 
 
-def test_cli_install_prompts_when_not_a_tty(
+def test_cli_install_non_tty_defaults_guidance_with_notice(
         tmp_path, monkeypatch, capsys):
+    # Automation must succeed on the first try: no prompt, no homework —
+    # keep/pin default guidance and say so on stderr (reverses part of #19).
     from rgit import agent_platforms, installer
     monkeypatch.setattr(agent_platforms, "home_dir", lambda: tmp_path)
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
-    monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "manual-only")
-
-    assert cli.main(["install", "codex", "--dry-run", "--json"]) == 0
-
-    res = json.loads(capsys.readouterr().out)
-    assert "Current mode: manual-only" in res["guidance"]["block"]
-
-
-def test_cli_install_non_tty_numbered_input_selects_mode(
-        tmp_path, monkeypatch, capsys):
-    from rgit import agent_platforms, installer
-    monkeypatch.setattr(agent_platforms, "home_dir", lambda: tmp_path)
-    monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
-                        tmp_path / ".agents" / "skills")
-    monkeypatch.setattr(cli, "_prompt_guidance_mode_interactive",
-                        lambda platform: (_ for _ in ()).throw(
-                            cli._InteractivePromptUnavailable))
-    answers = iter(["2"])
-    monkeypatch.setattr("builtins.input", lambda: next(answers))
 
     assert cli.main(["install", "codex", "--dry-run", "--json"]) == 0
 
     captured = capsys.readouterr()
     res = json.loads(captured.out)
-    assert "Current mode: manual-only" in res["guidance"]["block"]
-    assert "Select [1-3]" in captured.err
+    assert "Current mode: default" in res["guidance"]["block"]
+    assert "guidance mode: default" in captured.err
+    assert "Select [1-3]" not in captured.err
 
 
 def test_readonly_command_without_store_is_clean_error(git_repo, monkeypatch, capsys):
