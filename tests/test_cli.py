@@ -108,9 +108,12 @@ def test_run_missing_command_is_friendly(git_repo, monkeypatch, capsys):
 
 
 def test_capture_empty_diff_is_friendly(git_repo, monkeypatch, capsys):
+    # Explicit worktree target with a clean tree stays a friendly no-op.
+    # (A bare `rgit capture` on a clean tree now auto-captures HEAD instead —
+    # covered by test_capture_auto_clean_tree_captures_head_with_note.)
     monkeypatch.chdir(git_repo)
     Store.init(git_repo)
-    assert cli.main(["capture", "--trigger", "manual"]) == 0
+    assert cli.main(["capture", "--worktree"]) == 0
     out = capsys.readouterr().out
     assert "nothing to capture" in out
     assert Store.open(git_repo).list_proposals("open") == []
@@ -1006,3 +1009,72 @@ def test_capture_worktree_flag_overrides_commit_trigger_default(git_repo, monkey
     assert len(props) == 1 and props[0].source_commit is None
     diff = store.objects.get(props[0].diff_ref).decode()
     assert "SCRATCH" in diff and "x * 2" not in diff
+
+
+# ---- zero-choice capture (auto source + positional) -------------------------
+
+def test_capture_auto_dirty_tree_captures_worktree(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x + 1\n")
+    assert cli.main(["capture"]) == 0
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) == 1 and props[0].source_commit is None
+
+
+def test_capture_auto_clean_tree_captures_head_with_note(git_repo, monkeypatch, capsys):
+    from rgit.gitutil import current_commit
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double it")
+    assert cli.main(["capture"]) == 0
+    out = capsys.readouterr().out
+    assert "capturing last commit" in out and "double it" in out
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) == 1
+    assert props[0].source_commit == current_commit(git_repo)
+
+
+def test_capture_auto_repeat_reports_existing(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture"]) == 0
+    capsys.readouterr()
+    assert cli.main(["capture"]) == 0
+    assert "already exists" in capsys.readouterr().out
+    assert len(Store.open(git_repo).list_proposals("open")) == 1
+
+
+def test_capture_positional_commit_and_range(git_repo, monkeypatch, capsys):
+    from rgit.gitutil import current_commit
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    base = current_commit(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture", "HEAD"]) == 0
+    assert cli.main(["capture", f"{base}..HEAD"]) == 0
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) >= 1
+
+
+def test_capture_positional_conflicts_with_legacy_flags(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["capture", "HEAD", "--worktree"]) == 1
+    assert "not both" in capsys.readouterr().out
+
+
+def test_capture_help_hides_legacy_source_flags(capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["capture", "--help"])
+    out = capsys.readouterr().out
+    assert "--commit" not in out and "--range" not in out and "--worktree" not in out
+    assert "REV|A..B" in out

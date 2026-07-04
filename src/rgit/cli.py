@@ -294,22 +294,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("rest", nargs=argparse.REMAINDER)  # after `--`
 
     p_cap = sub.add_parser("capture")
+    p_cap.add_argument("source", nargs="?", metavar="REV|A..B",
+                       help="what to capture: a commit (HEAD, abc123) or a "
+                            "range (main..HEAD). Omit to auto-pick: the "
+                            "working tree if it has changes, else the last "
+                            "commit.")
     p_cap.add_argument("--trigger", default="manual")
+    # Legacy source spellings — permanent, but hidden: the positional form is
+    # the one taught everywhere, and deployed hooks/guidance keep working.
     cap_src = p_cap.add_mutually_exclusive_group()
     cap_src.add_argument("--commit", nargs="?", const="HEAD", default=None,
-                         metavar="REF",
-                         help="capture the diff introduced by commit REF "
-                              "(default HEAD) instead of the working tree; "
-                              "merge commits yield nothing")
+                         metavar="REF", help=argparse.SUPPRESS)
     cap_src.add_argument("--range", dest="range_spec", default=None,
-                         metavar="A..B",
-                         help="capture committed changes across A..B "
-                              "(an omitted endpoint means HEAD; A...B diffs "
-                              "from the merge base)")
+                         metavar="A..B", help=argparse.SUPPRESS)
     cap_src.add_argument("--worktree", action="store_true",
-                         help="capture working-tree changes (the default; "
-                              "overrides the commit-diff default of "
-                              "--trigger commit)")
+                         help=argparse.SUPPRESS)
     p_cap.add_argument("--init", action="store_true",
                        help="create .rgit/ at the git root if missing (no hooks)")
 
@@ -501,21 +500,42 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0 if result.returncode == 0 else _run_exit_code(result.returncode)
 
     if args.cmd == "capture":
-        from .gitutil import CommitDiffSource, RangeDiffSource, WorktreeDiffSource
+        from .gitutil import (CommitDiffSource, RangeDiffSource,
+                              WorktreeDiffSource, commit_subject, diff_since,
+                              resolve_commit)
+        explicit_flag = (args.range_spec is not None or args.commit is not None
+                         or args.worktree)
+        if args.source is not None and explicit_flag:
+            print("give either a positional source or "
+                  "--commit/--range/--worktree, not both")
+            return 1
         try:
-            if args.range_spec is not None:
+            if args.source is not None:
+                source = (RangeDiffSource(args.source) if ".." in args.source
+                          else CommitDiffSource(args.source))
+            elif args.range_spec is not None:
                 source = RangeDiffSource(args.range_spec)
             elif args.commit is not None:
                 source = CommitDiffSource(args.commit)
-            elif args.trigger == "commit" and not args.worktree:
-                # Deployed post-commit hooks run `rgit capture --trigger commit`
-                # with no explicit source. Post-commit the worktree matches
-                # HEAD, so the only useful reading is the commit that just
-                # happened — and it keeps old hook installs working without a
-                # reinstall. An explicit --worktree wins over this default.
-                source = CommitDiffSource("HEAD")
-            else:
+            elif args.worktree:
                 source = WorktreeDiffSource()
+            elif args.trigger == "commit":
+                # Deployed post-commit hooks run `rgit capture --trigger commit`
+                # with no explicit source. The hook knows its context: right
+                # after a partially staged commit the worktree holds leftovers,
+                # so auto would capture the wrong thing — the hook must take
+                # the commit that just happened.
+                source = CommitDiffSource("HEAD")
+            elif diff_since(store.root, "HEAD").strip():
+                source = WorktreeDiffSource()
+            else:
+                # Clean tree: the work worth preserving is the last commit.
+                # Say which one — a just-pulled foreign commit should be
+                # captured visibly and dismissably, never silently.
+                sha = resolve_commit(store.root, "HEAD")
+                print(f'capturing last commit {sha[:12]} '
+                      f'("{commit_subject(store.root, sha)}")')
+                source = CommitDiffSource(sha)
             pid = segment_diff(store, args.trigger, _segmenter(), run_id=None,
                                now=_now(), source=source)
         except ValueError as e:
