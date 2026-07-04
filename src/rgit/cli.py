@@ -19,11 +19,8 @@ class _InteractivePromptUnavailable(Exception):
     pass
 
 
-def _stdin_is_tty() -> bool:
-    try:
-        return sys.stdin.isatty()
-    except Exception:
-        return False
+class _GuidancePromptCancelled(Exception):
+    pass
 
 
 def _prompt_guidance_mode(platform: str) -> str:
@@ -38,26 +35,26 @@ def _prompt_guidance_mode(platform: str) -> str:
 
 
 def _prompt_guidance_mode_numbered(platform: str) -> str:
-    """Fallback picker that accepts 1/2/3, mode names, or blank=default."""
+    """Fallback picker that accepts 1/2/3 or mode names."""
     sys.stderr.write(
         f"\nresearch-git guidance for {platform} "
-        "- how proactive should capture be?\n"
-        "  1) default     - consider capture after meaningful changes (recommended)\n"
-        "  2) manual-only - only when you explicitly ask\n"
-        "  3) none        - install skills + MCP only, write no guidance\n"
+        "- how proactive should capture be?\n\n"
+        "  1) default      consider capture after meaningful changes (recommended)\n"
+        "  2) manual-only  only when you explicitly ask\n"
+        "  3) none         install skills + MCP only, write no guidance\n\n"
+        "Select [1-3]: "
     )
-    choices = {"1": "default", "2": "manual-only", "3": "none", "": "default",
+    choices = {"1": "default", "2": "manual-only", "3": "none",
                "default": "default", "manual-only": "manual-only", "none": "none"}
     while True:
-        sys.stderr.write("> ")
         sys.stderr.flush()
         try:
             answer = input().strip().lower()
-        except EOFError:
-            return "default"
+        except EOFError as e:
+            raise _GuidancePromptCancelled from e
         if answer in choices:
             return choices[answer]
-        sys.stderr.write("Please enter 1, 2, or 3.\n")
+        sys.stderr.write("Please enter 1, 2, or 3: ")
 
 
 def _prompt_guidance_mode_interactive(platform: str, stderr=None) -> str:
@@ -418,12 +415,23 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 0
         fn = installer.uninstall if args.uninstall else installer.install
         mode = args.guidance
-        if mode is None and not args.uninstall and _stdin_is_tty():
+        if mode is None and not args.uninstall:
             try:
                 mode = _prompt_guidance_mode(args.platform)
             except KeyboardInterrupt:
                 print("\ninstall cancelled", file=sys.stderr)
                 return 130
+            except _GuidancePromptCancelled:
+                print("\ninstall cancelled: no guidance mode selected",
+                      file=sys.stderr)
+                print("run one of:", file=sys.stderr)
+                print(f"  rgit install {args.platform} --guidance default",
+                      file=sys.stderr)
+                print(f"  rgit install {args.platform} --guidance manual-only",
+                      file=sys.stderr)
+                print(f"  rgit install {args.platform} --guidance none",
+                      file=sys.stderr)
+                return 1
         res = fn(args.platform, scope=args.scope, dry_run=args.dry_run, mode=mode)
         print(json.dumps(res, indent=2, ensure_ascii=False))
         return 0
