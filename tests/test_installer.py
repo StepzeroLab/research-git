@@ -339,3 +339,24 @@ def test_run_tolerates_none_stdout_from_dead_reader_thread(monkeypatch):
     results = installer._run([["claude", "--version"]])
     assert results[0]["rc"] == 0
     assert results[0]["out"] == "partial output"
+
+
+def test_detect_platforms_from_home_and_path(tmp_path, monkeypatch):
+    from pathlib import Path
+    from rgit import installer
+    (tmp_path / ".codex").mkdir()
+    (tmp_path / ".gemini").mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(installer.shutil, "which", lambda name: None)
+    assert installer.detect_platforms() == ["codex", "gemini"]
+    monkeypatch.setattr(installer.shutil, "which",
+                        lambda name: "/usr/bin/claude" if name == "claude" else None)
+    assert installer.detect_platforms() == ["claude-code", "codex", "gemini"]
+
+
+def test_detect_platforms_never_reports_generic(tmp_path, monkeypatch):
+    from pathlib import Path
+    from rgit import installer
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(installer.shutil, "which", lambda name: None)
+    assert installer.detect_platforms() == []

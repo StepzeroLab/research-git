@@ -34,6 +34,26 @@ def _prompt_guidance_mode(platform: str) -> str:
         return _prompt_guidance_mode_numbered(platform)
 
 
+def _prompt_platform_numbered(platforms) -> str:
+    """Numbered platform picker for a bare `rgit install` when detection
+    finds nothing. Prompts go to stderr; accepts an index or a name."""
+    sys.stderr.write("\nwhich agent client is this install for?\n\n")
+    for i, p in enumerate(platforms, 1):
+        sys.stderr.write(f"  {i}) {p}\n")
+    sys.stderr.write(f"\nSelect [1-{len(platforms)}]: ")
+    choices = {str(i): p for i, p in enumerate(platforms, 1)}
+    choices.update({p: p for p in platforms})
+    while True:
+        sys.stderr.flush()
+        try:
+            answer = input().strip().lower()
+        except EOFError as e:
+            raise _GuidancePromptCancelled from e
+        if answer in choices:
+            return choices[answer]
+        sys.stderr.write(f"Please enter 1-{len(platforms)}: ")
+
+
 def _prompt_guidance_mode_numbered(platform: str) -> str:
     """Fallback picker that accepts 1/2/3 or mode names."""
     sys.stderr.write(
@@ -450,14 +470,37 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.cmd == "install":
         from . import installer
-        if args.list or not args.platform:
+        if args.list:
             print("platforms: " + ", ".join(installer.PLATFORMS))
             return 0
+        if args.platform:
+            platforms = [args.platform]
+        else:
+            platforms = installer.detect_platforms()
+            if platforms:
+                print("detected: " + ", ".join(platforms), file=sys.stderr)
+            else:
+                if sys.stdin.isatty():
+                    try:
+                        platforms = [_prompt_platform_numbered(installer.PLATFORMS)]
+                    except KeyboardInterrupt:
+                        print("\ninstall cancelled", file=sys.stderr)
+                        return 130
+                    except _GuidancePromptCancelled:
+                        print("\ninstall cancelled: no platform selected",
+                              file=sys.stderr)
+                        return 1
+                else:
+                    print("no agent client detected; platforms: "
+                          + ", ".join(installer.PLATFORMS))
+                    print("run `rgit install <platform>`")
+                    return 1
         fn = installer.uninstall if args.uninstall else installer.install
         mode = args.guidance
         if mode is None and not args.uninstall:
+            label = ", ".join(platforms)
             try:
-                mode = _prompt_guidance_mode(args.platform)
+                mode = _prompt_guidance_mode(label)
             except KeyboardInterrupt:
                 print("\ninstall cancelled", file=sys.stderr)
                 return 130
@@ -465,15 +508,21 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print("\ninstall cancelled: no guidance mode selected",
                       file=sys.stderr)
                 print("run one of:", file=sys.stderr)
-                print(f"  rgit install {args.platform} --guidance default",
-                      file=sys.stderr)
-                print(f"  rgit install {args.platform} --guidance manual-only",
-                      file=sys.stderr)
-                print(f"  rgit install {args.platform} --guidance none",
-                      file=sys.stderr)
+                if len(platforms) == 1:
+                    for m in GUIDANCE_MODES:
+                        print(f"  rgit install {platforms[0]} --guidance {m}",
+                              file=sys.stderr)
+                else:
+                    for p in platforms:
+                        print(f"  rgit install {p} --guidance default",
+                              file=sys.stderr)
                 return 1
-        res = fn(args.platform, scope=args.scope, dry_run=args.dry_run, mode=mode)
-        print(json.dumps(res, indent=2, ensure_ascii=False))
+        results = [fn(p, scope=args.scope, dry_run=args.dry_run, mode=mode)
+                   for p in platforms]
+        # Explicit platform keeps today's single-object payload; bare installs
+        # yield one entry per detected client.
+        payload = results[0] if args.platform else results
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 0
 
     if args.cmd == "install-hooks":

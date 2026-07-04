@@ -4,6 +4,7 @@ The plugin assets ship inside the wheel at `rgit/_plugin/`, so after `pip instal
 """
 from __future__ import annotations
 import json
+import shutil
 import subprocess
 from functools import partial
 from importlib.resources import files
@@ -232,6 +233,26 @@ for _pid in _AGENT_CLI_IDS:
     _UNINSTALL[_pid] = partial(_uninstall_agents_cli, _pid)
 
 PLATFORMS = tuple(_INSTALL)
+
+
+def detect_platforms() -> list[str]:
+    """Agent clients present on this machine, in PLATFORMS order.
+
+    `generic` is deliberately never detected — it is an alias for "any
+    ~/.agents/skills client", not an installation signal. Bare `rgit install`
+    uses this so the common case needs no platform choice at all.
+    """
+    home = Path.home()
+    found = []
+    if shutil.which("claude"):
+        found.append("claude-code")
+    if (home / ".codex").is_dir():
+        found.append("codex")
+    if (home / ".gemini").is_dir():
+        found.append("gemini")
+    if shutil.which("opencode") or (home / ".config" / "opencode").is_dir():
+        found.append("opencode")
+    return found
 
 
 def install(platform: str, *, scope: str = "user", dry_run: bool = False,

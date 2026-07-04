@@ -1127,3 +1127,41 @@ def test_review_dismiss_without_id_takes_sole_open_proposal(git_repo, monkeypatc
     assert cli.main(["review", "--dismiss"]) == 0
     assert "dismissed" in capsys.readouterr().out
     assert Store.open(git_repo).list_proposals("open") == []
+
+
+# ---- zero-choice install (auto-detect platforms) -----------------------------
+
+def test_bare_install_without_detection_non_tty_lists_platforms(monkeypatch, capsys):
+    import io
+    from rgit import installer
+    monkeypatch.setattr(installer, "detect_platforms", lambda: [])
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    assert cli.main(["install"]) == 1
+    out = capsys.readouterr().out
+    assert "no agent client detected" in out and "claude-code" in out
+
+
+def test_bare_install_fans_out_to_detected_platforms(monkeypatch, capsys):
+    from rgit import installer
+    calls = []
+    monkeypatch.setattr(installer, "detect_platforms", lambda: ["codex", "gemini"])
+    monkeypatch.setattr(
+        installer, "install",
+        lambda p, *, scope, dry_run, mode: (calls.append((p, mode))
+                                            or {"platform": p, "ran": True}))
+    assert cli.main(["install", "--guidance", "default"]) == 0
+    assert calls == [("codex", "default"), ("gemini", "default")]
+    err = capsys.readouterr().err
+    assert "detected: codex, gemini" in err
+
+
+def test_bare_uninstall_fans_out_to_detected_platforms(monkeypatch, capsys):
+    from rgit import installer
+    calls = []
+    monkeypatch.setattr(installer, "detect_platforms", lambda: ["codex"])
+    monkeypatch.setattr(
+        installer, "uninstall",
+        lambda p, *, scope, dry_run, mode: (calls.append(p)
+                                            or {"platform": p, "ran": True}))
+    assert cli.main(["install", "--uninstall"]) == 0
+    assert calls == ["codex"]
