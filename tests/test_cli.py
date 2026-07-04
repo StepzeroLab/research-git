@@ -31,7 +31,8 @@ def test_install_list_and_dry_run(capsys):
     assert cli.main(["install", "--list"]) == 0
     out = capsys.readouterr().out
     assert "claude-code" in out and "generic" in out
-    assert cli.main(["install", "claude-code", "--dry-run"]) == 0
+    assert cli.main(["install", "claude-code", "--dry-run",
+                     "--guidance", "default"]) == 0
     out2 = capsys.readouterr().out
     assert "marketplace" in out2 and "research-git@research-git" in out2
 
