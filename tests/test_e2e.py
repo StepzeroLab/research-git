@@ -58,3 +58,44 @@ def test_full_memory_loop(git_repo):
     dest = git_repo / ".rgit" / "replay"
     materialize(store.objects, frozen_hash, dest)
     assert "0.1 * aux(p)" in (dest / "model.py").read_text()   # exact code that ran
+
+
+def test_post_commit_hook_captures_the_commit(git_repo, tmp_path, monkeypatch):
+    # Acceptance for issue #20: install hooks, make a commit, and the hook by
+    # itself must leave a pending proposal carrying that commit's diff.
+    import json
+    import os
+    import stat
+    if os.name == "nt":
+        import pytest
+        pytest.skip("POSIX shim; the hook itself is /bin/sh")
+    from rgit.hooks import install_hooks
+    from rgit.gitutil import current_commit
+
+    Store.init(git_repo)
+    assert install_hooks(git_repo)["action"] == "installed"
+
+    shim_dir = tmp_path / "bin"
+    shim_dir.mkdir()
+    shim = shim_dir / "rgit"
+    shim.write_text(
+        "#!/bin/sh\n"
+        f'exec "{sys.executable}" -c '
+        "'import sys; from rgit.cli import main; sys.exit(main(sys.argv[1:]))' "
+        '"$@"\n')
+    shim.chmod(shim.stat().st_mode | stat.S_IXUSR)
+
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    env = {**os.environ, "PATH": f"{shim_dir}{os.pathsep}{os.environ['PATH']}",
+           "PYTHONPATH": os.pathsep.join(p for p in sys.path if p)}
+    subprocess.run(["git", "add", "."], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "double"], cwd=git_repo,
+                   check=True, capture_output=True, env=env)
+
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) == 1
+    store = Store.open(git_repo)
+    assert props[0].trigger == "commit"
+    assert props[0].source_commit == current_commit(git_repo)
+    assert "x * 2" in store.objects.get(props[0].diff_ref).decode()

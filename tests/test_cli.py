@@ -826,3 +826,183 @@ def test_resegment_rejects_malformed_candidate(git_repo, monkeypatch, tmp_path, 
     assert rc == 1
     assert "name" in capsys.readouterr().out.lower()
     assert Store.open(git_repo).get_proposal(pid).candidates[0]["name"] == "keep"  # untouched
+
+
+# ---- committed-diff capture (issue #20) ------------------------------------
+
+def _commit_all(repo, msg):
+    import subprocess
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", msg], cwd=repo, check=True,
+                   capture_output=True)
+
+
+def test_capture_trigger_commit_defaults_to_head_commit(git_repo, monkeypatch, capsys):
+    # what an already-installed post-commit hook runs: after the commit the
+    # worktree is clean, yet the commit's own diff must be captured (issue #20)
+    from rgit.gitutil import current_commit
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture", "--trigger", "commit"]) == 0
+    assert "proposal" in capsys.readouterr().out
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) == 1
+    store = Store.open(git_repo)
+    assert "x * 2" in store.objects.get(props[0].diff_ref).decode()
+    assert props[0].source_commit == current_commit(git_repo)
+
+
+def test_capture_explicit_commit_flag_with_clean_worktree(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 3\n")
+    _commit_all(git_repo, "triple")
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+    props = Store.open(git_repo).list_proposals("open")
+    assert len(props) == 1 and props[0].trigger == "manual"
+
+
+def test_capture_bare_commit_flag_means_head(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 5\n")
+    _commit_all(git_repo, "quint")
+    assert cli.main(["capture", "--commit"]) == 0
+    assert len(Store.open(git_repo).list_proposals("open")) == 1
+
+
+def test_capture_commit_flag_ignores_dirty_worktree(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    (git_repo / "scratch.py").write_text("SCRATCH = 1\n")   # uncommitted noise
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+    store = Store.open(git_repo)
+    diff = store.objects.get(store.list_proposals("open")[0].diff_ref).decode()
+    assert "x * 2" in diff and "SCRATCH" not in diff
+
+
+def test_capture_default_worktree_behavior_unchanged(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x + 7\n")
+    assert cli.main(["capture", "--trigger", "manual"]) == 0
+    store = Store.open(git_repo)
+    props = store.list_proposals("open")
+    assert len(props) == 1 and props[0].source_commit is None
+    assert "x + 7" in store.objects.get(props[0].diff_ref).decode()
+
+
+def test_capture_bad_commit_ref_fails_cleanly(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["capture", "--commit", "no-such-ref"]) == 1
+    out = capsys.readouterr().out
+    assert "no-such-ref" in out and "Traceback" not in out
+    assert Store.open(git_repo).list_proposals("open") == []
+
+
+def test_capture_range_spans_commits(git_repo, monkeypatch, capsys):
+    from rgit.gitutil import current_commit
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    base = current_commit(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    (git_repo / "extra.py").write_text("def extra():\n    return 1\n")
+    _commit_all(git_repo, "extra")
+    assert cli.main(["capture", "--range", f"{base}..HEAD"]) == 0
+    store = Store.open(git_repo)
+    diff = store.objects.get(store.list_proposals("open")[0].diff_ref).decode()
+    assert "x * 2" in diff and "extra.py" in diff
+
+
+def test_capture_range_requires_dots(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["capture", "--range", "main"]) == 1
+    out = capsys.readouterr().out
+    assert "A..B" in out and "Traceback" not in out
+
+
+def test_capture_commit_and_range_are_mutually_exclusive(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    with pytest.raises(SystemExit):
+        cli.main(["capture", "--commit", "HEAD", "--range", "a..b"])
+
+
+def test_capture_commit_no_diff_names_the_commit(git_repo, monkeypatch, capsys):
+    # merge commits produce no diff-tree patch: say so instead of the
+    # misleading "working tree has no diff"
+    import subprocess
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    subprocess.run(["git", "checkout", "-q", "-b", "side"], cwd=git_repo,
+                   check=True, capture_output=True)
+    (git_repo / "side.py").write_text("SIDE = 1\n")
+    _commit_all(git_repo, "side")
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=git_repo, check=True,
+                   capture_output=True)
+    (git_repo / "main.py").write_text("MAIN = 1\n")
+    _commit_all(git_repo, "main")
+    subprocess.run(["git", "merge", "-q", "--no-ff", "-m", "merge", "side"],
+                   cwd=git_repo, check=True, capture_output=True)
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+    out = capsys.readouterr().out
+    assert "nothing to capture" in out and "commit" in out
+    assert "working tree" not in out
+
+
+def test_pending_json_includes_source_commit(git_repo, monkeypatch, capsys):
+    from rgit.gitutil import current_commit
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture", "--trigger", "commit"]) == 0
+    capsys.readouterr()
+    assert cli.main(["pending", "--json"]) == 0
+    items = json.loads(capsys.readouterr().out)
+    assert items[0]["source_commit"] == current_commit(git_repo)
+
+
+def test_capture_same_diff_twice_reports_existing(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+    capsys.readouterr()
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+    out = capsys.readouterr().out
+    assert "already exists" in out
+    assert len(Store.open(git_repo).list_proposals("open")) == 1
+
+
+def test_capture_worktree_flag_overrides_commit_trigger_default(git_repo, monkeypatch, capsys):
+    # explicit --worktree must beat the `--trigger commit` commit-diff default
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    (git_repo / "scratch.py").write_text("SCRATCH = 1\n")
+    assert cli.main(["capture", "--trigger", "commit", "--worktree"]) == 0
+    store = Store.open(git_repo)
+    props = store.list_proposals("open")
+    assert len(props) == 1 and props[0].source_commit is None
+    diff = store.objects.get(props[0].diff_ref).decode()
+    assert "SCRATCH" in diff and "x * 2" not in diff

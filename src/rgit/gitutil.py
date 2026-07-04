@@ -4,7 +4,7 @@ import os
 import subprocess
 import tarfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 from .store.objects import ObjectStore
 
@@ -306,6 +306,198 @@ def diff_since(repo: Path, base: str = "HEAD") -> str:
         if captured:
             parts.append(captured)
     return "\n".join(parts)
+
+
+def resolve_commit(repo: Path, ref: str) -> str:
+    """Resolve `ref` to a full commit sha, or raise ValueError naming the ref.
+
+    `--end-of-options` keeps an option-lookalike ref (`--all`) from being parsed
+    as a flag; `^{commit}` peels tags and rejects trees/blobs so downstream
+    plumbing can assume a commit.
+    """
+    res = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", "--end-of-options",
+         ref + "^{commit}"],
+        cwd=repo, capture_output=True, text=True, encoding="utf-8",
+        errors="replace")
+    if res.returncode != 0:
+        raise ValueError(f"cannot resolve {ref!r} to a commit")
+    return res.stdout.strip()
+
+
+def diff_of_commit(repo: Path, sha: str) -> str:
+    """The patch a single commit introduced, regardless of worktree state.
+
+    `diff-tree` (plumbing) rather than `show`/`diff`: it never looks at the
+    worktree or user diff config, `--root` makes the first commit diff against
+    the empty tree, and merge commits produce no patch by default — their
+    content was capturable when the merged commits were made, and a
+    first-parent patch would re-stage the whole merged branch as one giant
+    proposal.
+    """
+    return _git(repo, "-c", "core.quotePath=false", "diff-tree", "--root",
+                "--no-commit-id", "-p", sha, "--")
+
+
+def _merge_base(repo: Path, a: str, b: str) -> str:
+    """First merge base of two commits, or ValueError (disjoint histories)."""
+    res = subprocess.run(["git", "merge-base", a, b], cwd=repo,
+                         capture_output=True, text=True, encoding="utf-8",
+                         errors="replace")
+    if res.returncode != 0 or not res.stdout.strip():
+        raise ValueError(f"no merge base between {a[:12]} and {b[:12]}")
+    return res.stdout.splitlines()[0].strip()
+
+
+def read_worktree_python(repo: Path, file: str) -> Optional[str]:
+    """Python source text from the working tree, or None (non-.py, missing,
+    outside the repo, unreadable, or undecodable).
+
+    ``utf-8-sig`` strips a UTF-8 BOM (common on Windows-authored files) that
+    would otherwise make libcst miss the first symbol — and it also reads
+    plain UTF-8 unchanged.
+    """
+    path = repo / file
+    if path.suffix != ".py" or not _within(repo, path):
+        return None
+    try:
+        if not path.is_file():
+            return None
+        return path.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def read_committed_python(repo: Path, sha: str, file: str) -> Optional[str]:
+    """Python source text of `file` as committed in `sha`, or None.
+
+    Reading the committed blob — not the worktree — keeps symbol mapping
+    correct when capture runs after further edits, or for a partially staged
+    commit, where worktree line numbers no longer match the captured diff.
+    """
+    if not file.endswith(".py"):
+        return None
+    res = subprocess.run(["git", "cat-file", "blob", f"{sha}:{file}"],
+                         cwd=repo, capture_output=True)
+    if res.returncode != 0:
+        return None
+    try:
+        return res.stdout.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return None
+
+
+class DiffSource(Protocol):
+    """Where a capture's diff comes from.
+
+    Capture = source × segmentation × storage; keeping the source a
+    first-class strategy lets the same pipeline serve uncommitted work, the
+    commit a post-commit hook just saw, and an after-the-fact commit range,
+    without the trigger label (pure provenance) doubling as behavior.
+    """
+
+    def diff(self, repo: Path) -> str: ...
+    def read_new_side(self, repo: Path, file: str) -> Optional[str]: ...
+    def source_commit(self, repo: Path) -> Optional[str]: ...
+    def no_diff_reason(self, repo: Path) -> str: ...
+
+
+class WorktreeDiffSource:
+    """Capture source: uncommitted work — worktree vs HEAD, incl. untracked."""
+
+    def diff(self, repo: Path) -> str:
+        return diff_since(repo, "HEAD")
+
+    def read_new_side(self, repo: Path, file: str) -> Optional[str]:
+        return read_worktree_python(repo, file)
+
+    def source_commit(self, repo: Path) -> Optional[str]:
+        return None
+
+    def no_diff_reason(self, repo: Path) -> str:
+        return "working tree has no diff"
+
+
+class CommitDiffSource:
+    """Capture source: the patch a single commit introduced (default HEAD).
+
+    What the post-commit hook and after-the-fact agent capture need: right
+    after `git commit` the worktree matches HEAD, so a worktree diff is empty
+    exactly when the just-committed work is what should be captured.
+    """
+
+    def __init__(self, ref: str = "HEAD"):
+        self.ref = ref
+        self._sha: Optional[str] = None
+
+    def _resolved(self, repo: Path) -> str:
+        if self._sha is None:
+            self._sha = resolve_commit(repo, self.ref)
+        return self._sha
+
+    def diff(self, repo: Path) -> str:
+        return diff_of_commit(repo, self._resolved(repo))
+
+    def read_new_side(self, repo: Path, file: str) -> Optional[str]:
+        return read_committed_python(repo, self._resolved(repo), file)
+
+    def source_commit(self, repo: Path) -> Optional[str]:
+        return self._resolved(repo)
+
+    def no_diff_reason(self, repo: Path) -> str:
+        return (f"commit {self._resolved(repo)[:12]} introduced no diff; "
+                "merge commits are not captured")
+
+
+class RangeDiffSource:
+    """Capture source: committed changes across `A..B` or `A...B`.
+
+    An omitted endpoint defaults to HEAD, matching `git diff` semantics.
+    Endpoints resolve eagerly on first use so a bogus or option-lookalike rev
+    fails cleanly before anything is stored.
+    """
+
+    def __init__(self, spec: str):
+        self.spec = spec
+        if "..." in spec:
+            base, _, head = spec.partition("...")
+            self._sep = "..."
+        elif ".." in spec:
+            base, _, head = spec.partition("..")
+            self._sep = ".."
+        else:
+            raise ValueError(
+                f"invalid range {spec!r}: expected A..B or A...B "
+                "(use --commit REF for a single commit)")
+        self._base_ref = base or "HEAD"
+        self._head_ref = head or "HEAD"
+        self._base: Optional[str] = None
+        self._head: Optional[str] = None
+
+    def _endpoints(self, repo: Path) -> tuple[str, str]:
+        if self._base is None or self._head is None:
+            self._base = resolve_commit(repo, self._base_ref)
+            self._head = resolve_commit(repo, self._head_ref)
+        return self._base, self._head
+
+    def diff(self, repo: Path) -> str:
+        base, head = self._endpoints(repo)
+        if self._sep == "...":
+            base = _merge_base(repo, base, head)
+        # diff-tree (plumbing), not porcelain `git diff`: user diff config
+        # (diff.external replaces the output wholesale; noprefix/srcPrefix
+        # mangle the headers) must never corrupt a stored capture.
+        return _git(repo, "-c", "core.quotePath=false", "diff-tree", "-p",
+                    "--no-renames", base, head, "--")
+
+    def read_new_side(self, repo: Path, file: str) -> Optional[str]:
+        return read_committed_python(repo, self._endpoints(repo)[1], file)
+
+    def source_commit(self, repo: Path) -> Optional[str]:
+        return self._endpoints(repo)[1]
+
+    def no_diff_reason(self, repo: Path) -> str:
+        return f"range {self.spec} has no diff"
 
 
 def _snapshot_paths(repo: Path, exclude_root: Path | None = None) -> list[str]:

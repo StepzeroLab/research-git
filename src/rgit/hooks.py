@@ -3,9 +3,20 @@ import stat
 from pathlib import Path
 
 MARKER = "# installed by research-git"
-CAPTURE_LINE = "rgit capture --trigger commit"
+# --commit HEAD: right after `git commit` the worktree matches HEAD, so a bare
+# worktree capture is empty exactly when the just-committed work is the thing
+# to capture (issue #20).
+CAPTURE_LINE = "rgit capture --trigger commit --commit HEAD"
 _POST_COMMIT = f"#!/bin/sh\n{MARKER}\n{CAPTURE_LINE} || true\n"
 _POST_COMMIT_BYTES = _POST_COMMIT.encode("utf-8")
+# Exact bytes of every template we ever shipped: a hook matching one of these
+# is ours to upgrade or remove. Marker-substring matching would be too loose —
+# a user comment mentioning the marker must never make us clobber their hook.
+_LEGACY_CAPTURE_LINES = ("rgit capture --trigger commit",)
+_MANAGED_HOOK_BYTES = frozenset(
+    {_POST_COMMIT_BYTES,
+     *(f"#!/bin/sh\n{MARKER}\n{line} || true\n".encode("utf-8")
+       for line in _LEGACY_CAPTURE_LINES)})
 
 
 def _hook_path(repo: Path) -> Path:
@@ -22,7 +33,7 @@ def _classify(hook: Path) -> str:
     """
     if not hook.exists():
         return "absent"
-    return "ours" if hook.read_bytes() == _POST_COMMIT_BYTES else "foreign"
+    return "ours" if hook.read_bytes() in _MANAGED_HOOK_BYTES else "foreign"
 
 
 def install_hooks(repo: Path, *, dry_run: bool = False) -> dict:

@@ -144,9 +144,10 @@ class Store:
     def add_proposal(self, p: Proposal) -> str:
         pid = p.id or new_id("prop_")
         self.conn.execute(
-            "INSERT INTO proposals VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO proposals VALUES (?,?,?,?,?,?,?,?)",
             (pid, p.trigger, p.diff_ref, json.dumps(p.candidates), p.status, p.run_id,
-             json.dumps(p.from_features) if p.from_features else None))
+             json.dumps(p.from_features) if p.from_features else None,
+             p.source_commit))
         self.conn.commit()
         return pid
 
@@ -158,7 +159,8 @@ class Store:
                         candidates=json.loads(row["candidates"]), status=row["status"],
                         run_id=row["run_id"],
                         from_features=json.loads(row["from_features"])
-                        if row["from_features"] else None)
+                        if row["from_features"] else None,
+                        source_commit=row["source_commit"])
 
     def list_proposals(self, status: Optional[str] = None) -> list[Proposal]:
         if status:

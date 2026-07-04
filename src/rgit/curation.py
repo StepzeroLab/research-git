@@ -36,9 +36,12 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
             f"candidate index {idx} out of range for proposal {proposal_id!r} "
             f"with {len(prop.candidates)} candidate(s)")
     cand = prop.candidates[idx]
+    # A committed-diff capture pins the capsule to the commit that contains the
+    # change; only worktree captures fall back to HEAD at approve time.
+    base = prop.source_commit or current_commit(store.root)
     cap = Capsule(
         id="", name=name or cand["name"], intent=cand["intent"],
-        status="approved", base_commit=current_commit(store.root),
+        status="approved", base_commit=base,
         knobs=cand.get("knobs", {}), data_assumptions=cand.get("data_assumptions"),
         resurrection_guide=cand.get("resurrection_guide"), result_summary=None,
         payload_hash=None,

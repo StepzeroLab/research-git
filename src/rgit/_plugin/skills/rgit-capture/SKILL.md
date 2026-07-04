@@ -26,8 +26,12 @@ Every `agents/<name>.md` reference below (`agents/capsule-segmenter.md`, `agents
 If the user just made changes and there is no open proposal yet, create one:
 
 ```
-rgit capture --trigger manual
+rgit capture --trigger manual        # uncommitted work (worktree vs HEAD)
+rgit capture --commit HEAD           # work that was already committed
+rgit capture --range A..B            # several commits at once (e.g. main..HEAD)
 ```
+
+Pick the source that matches where the work lives: after a `git commit` the working tree is clean, so the plain form finds nothing — use `--commit HEAD` (or `--range`) to capture from history. If the repo has the post-commit hook installed (`rgit install-hooks`), each commit is captured automatically; don't capture the same commit twice.
 
 This runs the libcst symbol mapping + the free heuristic, producing one or more open proposals with a raw diff and a crude candidate. Proposals also appear automatically from `rgit run`, the post-commit hook, and the `rgit watch` daemon.
 

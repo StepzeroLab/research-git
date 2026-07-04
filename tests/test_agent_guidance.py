@@ -165,3 +165,17 @@ def test_dry_run_reports_action_and_writes_nothing(tmp_path):
     assert res["path"] == str(path)
     assert "block" in res
     assert not path.exists()
+
+
+def test_render_global_block_teaches_committed_capture_path():
+    # Agents commonly commit first and only then think of capturing; the
+    # guidance must route that case to the committed-diff source instead of
+    # letting a clean worktree read as "nothing to capture" (issue #20).
+    from rgit.agent_guidance import render_global_block
+    block = render_global_block()
+    assert "rgit capture --commit HEAD" in block
+
+
+def test_render_global_block_tells_agents_to_skip_mechanical_changes():
+    from rgit.agent_guidance import render_global_block
+    assert "Skip mechanical" in render_global_block()

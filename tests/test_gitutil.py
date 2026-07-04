@@ -390,3 +390,180 @@ def test_materialize_rejects_before_writing_partial_files(tmp_path):
     with pytest.raises(ValueError):
         materialize(objs, h, dest)
     assert not (dest / "partial.txt").exists()
+
+
+# ---- committed-diff capture sources (issue #20) ---------------------------
+
+from rgit.gitutil import (  # noqa: E402
+    CommitDiffSource,
+    RangeDiffSource,
+    WorktreeDiffSource,
+    diff_of_commit,
+    resolve_commit,
+)
+
+
+def _commit_all(repo, msg):
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", msg], cwd=repo, check=True,
+                   capture_output=True)
+
+
+def test_resolve_commit_returns_full_sha(git_repo):
+    sha = resolve_commit(git_repo, "HEAD")
+    assert sha == current_commit(git_repo)
+    assert len(sha) == 40
+
+
+def test_resolve_commit_rejects_unknown_ref(git_repo):
+    with pytest.raises(ValueError, match="no-such-ref"):
+        resolve_commit(git_repo, "no-such-ref")
+
+
+def test_resolve_commit_rejects_option_lookalike_ref(git_repo):
+    # A ref named like a git option must fail cleanly, not change behavior.
+    with pytest.raises(ValueError):
+        resolve_commit(git_repo, "--all")
+
+
+def test_diff_of_commit_shows_patch_even_with_clean_worktree(git_repo):
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    diff = diff_of_commit(git_repo, resolve_commit(git_repo, "HEAD"))
+    assert "x * 2" in diff and "model.py" in diff
+    assert "+++ b/model.py" in diff       # header contract for segmenter/astmap
+
+
+def test_diff_of_commit_on_root_commit_diffs_against_empty_tree(git_repo):
+    # the fixture's only commit is the root commit
+    diff = diff_of_commit(git_repo, resolve_commit(git_repo, "HEAD"))
+    assert "+++ b/model.py" in diff and "def forward" in diff
+
+
+def test_diff_of_commit_on_merge_commit_is_empty(git_repo):
+    subprocess.run(["git", "checkout", "-q", "-b", "side"], cwd=git_repo,
+                   check=True, capture_output=True)
+    (git_repo / "side.py").write_text("SIDE = 1\n")
+    _commit_all(git_repo, "side")
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=git_repo, check=True,
+                   capture_output=True)
+    (git_repo / "main.py").write_text("MAIN = 1\n")
+    _commit_all(git_repo, "main")
+    subprocess.run(["git", "merge", "-q", "--no-ff", "-m", "merge", "side"],
+                   cwd=git_repo, check=True, capture_output=True)
+    assert diff_of_commit(git_repo, resolve_commit(git_repo, "HEAD")) == ""
+
+
+def test_commit_source_diff_and_provenance(git_repo):
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 3\n")
+    _commit_all(git_repo, "triple")
+    src = CommitDiffSource("HEAD")
+    assert "x * 3" in src.diff(git_repo)
+    assert src.source_commit(git_repo) == current_commit(git_repo)
+
+
+def test_commit_source_reads_new_side_from_the_commit_not_worktree(git_repo):
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    src = CommitDiffSource("HEAD")
+    # worktree moves on after the commit; the source must not follow it
+    (git_repo / "model.py").write_text("def renamed_since(x):\n    return 0\n")
+    text = src.read_new_side(git_repo, "model.py")
+    assert "x * 2" in text and "renamed_since" not in text
+
+
+def test_commit_source_read_new_side_missing_or_non_python_is_none(git_repo):
+    src = CommitDiffSource("HEAD")
+    assert src.read_new_side(git_repo, "nope.py") is None
+    assert src.read_new_side(git_repo, "README.md") is None
+
+
+def test_worktree_source_matches_diff_since_and_has_no_commit(git_repo):
+    (git_repo / "model.py").write_text("def forward(x):\n    return x + 1\n")
+    src = WorktreeDiffSource()
+    assert src.diff(git_repo) == diff_since(git_repo, "HEAD")
+    assert src.source_commit(git_repo) is None
+    assert "x + 1" in src.read_new_side(git_repo, "model.py")
+
+
+def test_range_source_spans_multiple_commits(git_repo):
+    base = current_commit(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    (git_repo / "extra.py").write_text("def extra():\n    return 1\n")
+    _commit_all(git_repo, "extra")
+    src = RangeDiffSource(f"{base}..HEAD")
+    diff = src.diff(git_repo)
+    assert "x * 2" in diff and "extra.py" in diff
+    assert src.source_commit(git_repo) == current_commit(git_repo)
+    assert "def extra" in src.read_new_side(git_repo, "extra.py")
+
+
+def test_range_source_requires_a_dotted_range(git_repo):
+    with pytest.raises(ValueError, match="A..B"):
+        RangeDiffSource("main")
+
+
+def test_range_source_empty_side_defaults_to_head(git_repo):
+    base = current_commit(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 4\n")
+    _commit_all(git_repo, "quad")
+    assert "x * 4" in RangeDiffSource(f"{base}..").diff(git_repo)
+
+
+def test_range_source_ignores_user_diff_config(git_repo):
+    # diff.external replaces porcelain `git diff` output wholesale; a capture
+    # source must produce parseable unified diffs no matter the user's config.
+    base = current_commit(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    subprocess.run(["git", "config", "diff.external", "echo"], cwd=git_repo,
+                   check=True, capture_output=True)
+    diff = RangeDiffSource(f"{base}..HEAD").diff(git_repo)
+    assert "+++ b/model.py" in diff and "x * 2" in diff
+
+
+def test_commit_source_ignores_user_diff_config(git_repo):
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    subprocess.run(["git", "config", "diff.noprefix", "true"], cwd=git_repo,
+                   check=True, capture_output=True)
+    subprocess.run(["git", "config", "diff.external", "echo"], cwd=git_repo,
+                   check=True, capture_output=True)
+    diff = CommitDiffSource("HEAD").diff(git_repo)
+    assert "+++ b/model.py" in diff and "x * 2" in diff
+
+
+def test_range_source_three_dot_diffs_from_merge_base(git_repo):
+    # A...B must show only B's side since the fork point, even after A advanced.
+    subprocess.run(["git", "checkout", "-q", "-b", "side"], cwd=git_repo,
+                   check=True, capture_output=True)
+    (git_repo / "side.py").write_text("SIDE = 1\n")
+    _commit_all(git_repo, "side work")
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=git_repo, check=True,
+                   capture_output=True)
+    (git_repo / "mainonly.py").write_text("MAIN = 1\n")
+    _commit_all(git_repo, "main moved on")
+    diff = RangeDiffSource("HEAD...side").diff(git_repo)
+    assert "side.py" in diff and "mainonly" not in diff
+
+
+def test_range_source_three_dot_without_merge_base_fails_cleanly(git_repo, tmp_path):
+    # disjoint histories have no merge base; that must be a clean ValueError
+    other = tmp_path / "orphan"
+    subprocess.run(["git", "init", "-q", str(other)], check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-C", str(other), "config", "user.email", "t@t.t"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(other), "config", "user.name", "t"],
+                   check=True, capture_output=True)
+    (other / "x.txt").write_text("x\n")
+    subprocess.run(["git", "-C", str(other), "add", "."], check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-C", str(other), "commit", "-qm", "orphan"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "fetch", "-q", str(other), "HEAD:refs/heads/orphan"],
+                   cwd=git_repo, check=True, capture_output=True)
+    with pytest.raises(ValueError, match="merge base"):
+        RangeDiffSource("orphan...HEAD").diff(git_repo)
