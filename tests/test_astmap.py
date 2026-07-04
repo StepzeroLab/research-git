@@ -165,3 +165,29 @@ def test_changed_symbols_flags_symbol_with_only_deletions(git_repo):
     )
     syms = changed_symbols(diff, git_repo)
     assert {"file": "d.py", "symbol": "keep"} in syms
+
+
+def test_changed_symbols_uses_read_source_over_worktree(git_repo):
+    # Committed-diff capture must map symbols against the committed content:
+    # here the worktree copy has moved on and would yield the wrong symbol.
+    (git_repo / "model.py").write_text(
+        "# shifted\n# shifted\n# shifted\ndef unrelated():\n    return 9\n")
+    committed = "def a():\n    return 1\n\ndef b():\n    return 2\n"
+    diff = (
+        "diff --git a/model.py b/model.py\n"
+        "--- a/model.py\n+++ b/model.py\n"
+        "@@ -4,2 +4,2 @@ def b():\n-    return 2\n+    return 3\n"
+    )
+    syms = changed_symbols(diff, git_repo,
+                           read_source=lambda file: committed)
+    assert syms == [{"file": "model.py", "symbol": "b"}]
+
+
+def test_changed_symbols_read_source_none_skips_file(git_repo):
+    # Provider returning None (deleted/non-Python at that commit) skips cleanly.
+    diff = (
+        "diff --git a/gone.py b/gone.py\n"
+        "--- a/gone.py\n+++ b/gone.py\n"
+        "@@ -1,1 +1,1 @@\n-x = 1\n+x = 2\n"
+    )
+    assert changed_symbols(diff, git_repo, read_source=lambda file: None) == []

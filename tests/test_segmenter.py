@@ -195,3 +195,41 @@ def test_segment_diff_records_toggle_event(git_repo):
     segment_diff(store, "manual", HeuristicSegmenter(), run_id=None, now="t9")
     latest = store.latest_event(fid)
     assert latest is not None and latest.kind == "deactivate"
+
+
+def _commit_all(repo, msg):
+    import subprocess
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", msg], cwd=repo, check=True,
+                   capture_output=True)
+
+
+def test_segment_diff_from_commit_source_with_clean_worktree(git_repo):
+    from rgit.gitutil import CommitDiffSource, current_commit
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    # worktree is clean: the default worktree source would capture nothing
+    assert segment_diff(store, trigger="manual",
+                        segmenter=HeuristicSegmenter(), run_id=None) is None
+    pid = segment_diff(store, trigger="commit", segmenter=HeuristicSegmenter(),
+                       run_id=None, source=CommitDiffSource("HEAD"))
+    prop = store.get_proposal(pid)
+    assert "x * 2" in store.objects.get(prop.diff_ref).decode()
+    assert prop.source_commit == current_commit(git_repo)
+    assert prop.candidates and "forward" in prop.candidates[0]["intent"]
+
+
+def test_segment_diff_commit_source_maps_symbols_from_the_commit(git_repo):
+    from rgit.gitutil import CommitDiffSource
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    src = CommitDiffSource("HEAD")
+    # the worktree moves on; committed line numbers no longer match it
+    (git_repo / "model.py").write_text(
+        "# pad\n# pad\n# pad\n# pad\ndef someone_else():\n    return 0\n")
+    seg = MockSegmenter([])
+    segment_diff(store, trigger="commit", segmenter=seg, run_id=None, source=src)
+    assert seg.last_symbols == [{"file": "model.py", "symbol": "forward"}]

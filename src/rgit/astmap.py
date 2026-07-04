@@ -1,32 +1,14 @@
 from __future__ import annotations
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import libcst as cst
 from libcst.metadata import MetadataWrapper, PositionProvider
 
-from .gitutil import _within, parse_git_diff_header
+from .gitutil import parse_git_diff_header, read_worktree_python
 
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
-
-
-def _read_python_source(path: Path) -> str:
-    """Read a .py file for parsing. ``utf-8-sig`` strips a UTF-8 BOM (common on
-    Windows-authored files) that would otherwise make libcst miss the first
-    symbol — and it also reads plain UTF-8 unchanged."""
-    return path.read_text(encoding="utf-8-sig")
-
-
-def _python_source_path(repo: Path, file: str) -> Optional[Path]:
-    """Repo-contained regular Python file, without following external symlinks."""
-    path = repo / file
-    if path.suffix != ".py" or not _within(repo, path):
-        return None
-    try:
-        return path if path.is_file() else None
-    except OSError:
-        return None
 
 
 def _changed_line_ranges(diff: str) -> dict[str, list[tuple[int, int]]]:
@@ -99,15 +81,28 @@ class _SymbolFinder(cst.CSTVisitor):
             self.found.add(node.name.value)
 
 
-def changed_symbols(diff: str, repo: Path) -> list[dict]:
-    """[{file, symbol}] for each top-level def/class overlapping a diff hunk."""
+def changed_symbols(diff: str, repo: Path,
+                    read_source: Optional[Callable[[str], Optional[str]]] = None,
+                    ) -> list[dict]:
+    """[{file, symbol}] for each top-level def/class overlapping a diff hunk.
+
+    `read_source(file)` supplies the new-side source text (None skips the
+    file); the default reads the working tree. Committed-diff capture passes a
+    reader pinned to the captured commit, so symbol mapping cannot drift when
+    the worktree has moved past — or never matched — the diff being segmented
+    (e.g. a partially staged commit).
+    """
+    if read_source is None:
+        read_source = lambda file: read_worktree_python(repo, file)  # noqa: E731
     out: list[dict] = []
     for file, ranges in _changed_line_ranges(diff).items():
-        path = _python_source_path(repo, file)
-        if path is None or not ranges:
+        if not ranges:
+            continue
+        text = read_source(file)
+        if text is None:
             continue
         try:
-            wrapper = MetadataWrapper(cst.parse_module(_read_python_source(path)))
+            wrapper = MetadataWrapper(cst.parse_module(text))
         except (cst.ParserSyntaxError, UnicodeDecodeError):
             continue
         finder = _SymbolFinder(ranges)
@@ -119,11 +114,11 @@ def changed_symbols(diff: str, repo: Path) -> list[dict]:
 
 def read_symbol_source(repo: Path, file: str, symbol: str) -> Optional[str]:
     """Current source text of a top-level def/class, or None if absent."""
-    path = _python_source_path(repo, file)
-    if path is None:
+    text = read_worktree_python(repo, file)
+    if text is None:
         return None
     try:
-        module = cst.parse_module(_read_python_source(path))
+        module = cst.parse_module(text)
     except (cst.ParserSyntaxError, UnicodeDecodeError):
         return None
     for stmt in module.body:
@@ -134,11 +129,11 @@ def read_symbol_source(repo: Path, file: str, symbol: str) -> Optional[str]:
 
 def symbol_at_line(repo: Path, file: str, line: int) -> Optional[str]:
     """Name of the top-level def/class enclosing `line` (1-based), or None."""
-    path = _python_source_path(repo, file)
-    if path is None:
+    text = read_worktree_python(repo, file)
+    if text is None:
         return None
     try:
-        wrapper = MetadataWrapper(cst.parse_module(_read_python_source(path)))
+        wrapper = MetadataWrapper(cst.parse_module(text))
     except (cst.ParserSyntaxError, UnicodeDecodeError):
         return None
     finder = _SymbolFinder([(line, line)])

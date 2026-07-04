@@ -90,6 +90,14 @@ cd your-project
 rgit init                       # creates .rgit/ (the store) at the git root
 ```
 
+**Optional — capture on every commit.** `rgit install <platform>` wires the agent side only; it deliberately does **not** touch your git hooks. If you also want every `git commit` to stage its own diff as a pending proposal automatically, opt in with:
+
+```bash
+rgit install-hooks              # adds a post-commit hook (never clobbers an existing one)
+```
+
+Good fit: solo research repos where you want nothing to slip through, even when you forget to capture. Skip it if the repo already has its own post-commit hook (the installer refuses to touch foreign hooks, so nothing breaks — it just won't install), if your team prefers deliberate manual capture, or in CI/shared clones where commit-time side effects are unwelcome. Without hooks you lose nothing: committed work stays capturable at any time with `rgit capture --commit <ref>` or `--range A..B`, and `rgit review` is the gate either way — hooks only stage proposals, they never approve anything. Remove with `rgit install-hooks --uninstall`.
+
 ### 3. Run a variation and capture the idea
 
 Launch your work through `rgit run` — it executes your command, freezes a reproducible artifact, records the run + any metrics, and stages what changed:
@@ -105,6 +113,8 @@ Then turn that raw material into a clean capsule (in a Claude Code session):
 rgit review              # list proposals
 rgit review --approve <proposal_id> --name rerank-retrieval
 ```
+
+Already committed the work before capturing? The working tree is clean at that point, so capture from history instead — `rgit capture --commit HEAD` for the last commit, or `rgit capture --range main..HEAD` for a whole branch. (With the optional post-commit hook installed, every commit stages itself automatically.)
 
 ### 4. Bring an idea back onto today's code
 
@@ -170,7 +180,8 @@ The five-step loop above is the core. These show up as your store grows — run 
 | Command | What it does |
 |---------|--------------|
 | `rgit watch` | free, deterministic background capture — stages raw material as you edit, so fleeting in-between states aren't lost |
-| `rgit install-hooks` | stage on every commit via a post-commit hook (won't touch an existing hook) |
+| `rgit capture --commit <ref>` | capture a commit's own diff after the fact (`--range A..B` for several commits) — the escape hatch when work was committed before anyone captured it |
+| `rgit install-hooks` | opt-in: stage every commit's diff via a post-commit hook (not installed by `rgit install`; won't touch an existing hook) — see step 2 above |
 | `rgit run --from <capsule>` | run a recalled variant and link the new run as a `variant_of` the original |
 | `rgit compare <query>` | which variant won: ranked table, Δ vs baseline, ★ winner |
 | `rgit provenance <run_id>` | per-feature clean (capsule) vs agent-adapted (frozen) diff for a run |

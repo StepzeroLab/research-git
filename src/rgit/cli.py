@@ -298,6 +298,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_cap = sub.add_parser("capture")
     p_cap.add_argument("--trigger", default="manual")
+    cap_src = p_cap.add_mutually_exclusive_group()
+    cap_src.add_argument("--commit", nargs="?", const="HEAD", default=None,
+                         metavar="REF",
+                         help="capture the diff introduced by commit REF "
+                              "(default HEAD) instead of the working tree; "
+                              "merge commits yield nothing")
+    cap_src.add_argument("--range", dest="range_spec", default=None,
+                         metavar="A..B",
+                         help="capture committed changes across A..B "
+                              "(an omitted endpoint means HEAD; A...B diffs "
+                              "from the merge base)")
     p_cap.add_argument("--init", action="store_true",
                        help="create .rgit/ at the git root if missing (no hooks)")
 
@@ -478,9 +489,28 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0 if result.returncode == 0 else _run_exit_code(result.returncode)
 
     if args.cmd == "capture":
-        pid = segment_diff(store, args.trigger, _segmenter(), run_id=None, now=_now())
+        from .gitutil import CommitDiffSource, RangeDiffSource, WorktreeDiffSource
+        try:
+            if args.range_spec is not None:
+                source = RangeDiffSource(args.range_spec)
+            elif args.commit is not None:
+                source = CommitDiffSource(args.commit)
+            elif args.trigger == "commit":
+                # Deployed post-commit hooks run `rgit capture --trigger commit`
+                # with no explicit source. Post-commit the worktree matches
+                # HEAD, so the only useful reading is the commit that just
+                # happened — and it keeps old hook installs working without a
+                # reinstall.
+                source = CommitDiffSource("HEAD")
+            else:
+                source = WorktreeDiffSource()
+            pid = segment_diff(store, args.trigger, _segmenter(), run_id=None,
+                               now=_now(), source=source)
+        except ValueError as e:
+            print(str(e))
+            return 1
         if pid is None:
-            print("nothing to capture (working tree has no diff)")
+            print(f"nothing to capture ({source.no_diff_reason(store.root)})")
             return 0
         prop = store.get_proposal(pid)
         print(f"proposal {pid} created")
@@ -558,6 +588,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         for p in store.list_proposals("open"):
             diff = _diff_text(store, p.diff_ref)
             items.append({"proposal_id": p.id, "trigger": p.trigger,
+                          "source_commit": p.source_commit,
                           "diff": diff, "candidates": p.candidates})
         if args.json:
             print(json.dumps(items, indent=2, ensure_ascii=False))

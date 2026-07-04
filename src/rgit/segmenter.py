@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Protocol
 
 from .astmap import changed_symbols
-from .gitutil import diff_since, parse_git_diff_header
+from .gitutil import DiffSource, WorktreeDiffSource, parse_git_diff_header
 from .store.models import Proposal
 from .store.store import Store
 
@@ -89,24 +89,36 @@ class HeuristicSegmenter:
 
 def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
                  run_id: Optional[str], from_features: Optional[list[str]] = None,
-                 now: str = "") -> Optional[str]:
-    """Diff the working tree vs HEAD, segment it, store an open Proposal, and
+                 now: str = "",
+                 source: Optional[DiffSource] = None) -> Optional[str]:
+    """Take a diff from `source`, segment it, store an open Proposal, and
     record comment-in/out toggle events against the capsules they touch.
+
+    `source` selects where the diff comes from — the working tree vs HEAD by
+    default, or a committed change (`CommitDiffSource` / `RangeDiffSource`) so
+    work that was already committed stays capturable. Symbols are resolved
+    against the same source the diff came from, never blindly against the
+    worktree.
 
     `from_features` records the capsule(s) this work regenerated, so approving the
     resulting proposal links the new capsule `variant_of` those sources.
     """
     from .toggles import detect_toggles, map_to_capsules
-    diff = diff_since(store.root, "HEAD")
+    if source is None:
+        source = WorktreeDiffSource()
+    diff = source.diff(store.root)
     if not diff.strip():
         return None
-    symbols = changed_symbols(diff, store.root)
+    symbols = changed_symbols(
+        diff, store.root,
+        read_source=lambda file: source.read_new_side(store.root, file))
     candidates = segmenter.segment(diff, symbols)
     diff_ref = store.objects.put(diff.encode("utf-8", errors="replace"))
     pid = store.add_proposal(Proposal(
         id="", trigger=trigger, diff_ref=diff_ref,
         candidates=candidates, status="open", run_id=run_id,
-        from_features=from_features))
+        from_features=from_features,
+        source_commit=source.source_commit(store.root)))
     for ev in map_to_capsules(store, detect_toggles(diff)):
         store.add_event(ev["capsule_id"], ev["kind"], run_id, now)
     return pid

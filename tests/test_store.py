@@ -131,3 +131,40 @@ def test_set_proposal_candidates_unknown_id_raises(git_repo):
     store = Store.init(git_repo)
     with pytest.raises(KeyError):
         store.set_proposal_candidates("prop_does_not_exist", [])
+
+
+def test_proposal_source_commit_round_trip(git_repo):
+    from rgit.store.models import Proposal
+    store = Store.init(git_repo)
+    pid = store.add_proposal(Proposal(id="", trigger="commit", diff_ref="d",
+                                      candidates=[], source_commit="c" * 40))
+    assert store.get_proposal(pid).source_commit == "c" * 40
+
+
+def test_proposal_source_commit_defaults_to_none(git_repo):
+    from rgit.store.models import Proposal
+    store = Store.init(git_repo)
+    pid = store.add_proposal(Proposal(id="", trigger="manual", diff_ref="d",
+                                      candidates=[]))
+    assert store.get_proposal(pid).source_commit is None
+
+
+def test_open_migrates_proposals_without_source_commit(git_repo):
+    # A pre-source_commit graph must gain the column on open, and both the
+    # legacy row and new commit-sourced writes must read back correctly.
+    import sqlite3
+    from rgit.store.models import Proposal
+    rgit_dir = git_repo / ".rgit"
+    rgit_dir.mkdir()
+    conn = sqlite3.connect(rgit_dir / "graph.db")
+    conn.execute("CREATE TABLE proposals (id TEXT PRIMARY KEY, trigger TEXT NOT NULL, "
+                 "diff_ref TEXT NOT NULL, candidates TEXT NOT NULL, "
+                 "status TEXT NOT NULL DEFAULT 'open', run_id TEXT, from_features TEXT)")
+    conn.execute("INSERT INTO proposals VALUES ('prop_old', 'manual', 'd', '[]', "
+                 "'open', NULL, NULL)")
+    conn.commit(); conn.close()
+    store = Store.open(git_repo)
+    assert store.get_proposal("prop_old").source_commit is None
+    pid = store.add_proposal(Proposal(id="", trigger="commit", diff_ref="d",
+                                      candidates=[], source_commit="c" * 40))
+    assert store.get_proposal(pid).source_commit == "c" * 40

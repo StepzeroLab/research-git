@@ -88,3 +88,31 @@ def test_binary_foreign_hook_is_skipped_not_decoded(git_repo):
     assert install_hooks(git_repo)["action"] == "skipped_foreign"
     assert uninstall_hooks(git_repo)["action"] == "skipped_foreign"
     assert hook.read_bytes() == blob                      # left byte-identical
+
+
+def test_capture_line_names_the_commit_source():
+    # The hook must capture the commit that just happened — a bare worktree
+    # capture is empty right after `git commit` (issue #20). Pinned exactly:
+    # this line is a deployed artifact in users' repos.
+    assert CAPTURE_LINE == "rgit capture --trigger commit --commit HEAD"
+
+
+def test_install_upgrades_legacy_template_hook(git_repo):
+    # Hooks written by older releases must count as ours so an upgrade can
+    # replace them — otherwise every repo keeps a silently no-op hook.
+    hook = _hook(git_repo)
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text(f"#!/bin/sh\n{MARKER}\nrgit capture --trigger commit || true\n",
+                    newline="\n")
+    res = install_hooks(git_repo)
+    assert res["action"] == "reinstalled"
+    assert CAPTURE_LINE in hook.read_text()
+
+
+def test_uninstall_removes_legacy_template_hook(git_repo):
+    hook = _hook(git_repo)
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text(f"#!/bin/sh\n{MARKER}\nrgit capture --trigger commit || true\n",
+                    newline="\n")
+    assert uninstall_hooks(git_repo)["action"] == "uninstalled"
+    assert not hook.exists()
