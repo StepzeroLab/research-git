@@ -7,7 +7,7 @@ def test_render_global_block_contains_markers_and_default_mode():
     assert agent_guidance.END in block
     assert "Current mode: default" in block
     # missing-store guidance is conditional: autonomous bootstraps, interactive asks
-    assert "rgit capture --init --trigger manual" in block      # autonomous path
+    assert "rgit capture --init" in block                       # autonomous path
     assert "rgit init" in block                                 # interactive path
     assert "autonomously" in block and "interactive" in block
     assert "rgit-recall" in block
@@ -167,13 +167,16 @@ def test_dry_run_reports_action_and_writes_nothing(tmp_path):
     assert not path.exists()
 
 
-def test_render_global_block_teaches_committed_capture_path():
-    # Agents commonly commit first and only then think of capturing; the
-    # guidance must route that case to the committed-diff source instead of
-    # letting a clean worktree read as "nothing to capture" (issue #20).
+def test_render_global_block_teaches_zero_choice_capture():
+    # One command to learn: bare `rgit capture` does the right thing before
+    # or after committing; only a span needs an argument. The old flag forms
+    # must no longer be taught (they stay as hidden aliases).
     from rgit.agent_guidance import render_global_block
     block = render_global_block()
-    assert "rgit capture --commit HEAD" in block
+    assert "run `rgit capture`" in block
+    assert "rgit capture main..HEAD" in block
+    assert "--trigger manual" not in block
+    assert "--commit HEAD" not in block
 
 
 def test_render_global_block_tells_agents_to_skip_mechanical_changes():

@@ -76,9 +76,9 @@ Five steps: install → init → run → capture → recall.
 pip install research-git        # or, from a clone: pip install -e .
 
 # wire the plugin (agents + skills) and the MCP server into your client
-rgit install claude-code        # Claude Code (via the official `claude` CLI)
-rgit install codex              # Codex / Gemini / opencode: symlinks the skills into ~/.agents/skills/
-rgit install --list             # all platforms; add --dry-run to preview, --uninstall to remove
+rgit install                    # auto-detects every agent client on this machine and wires them all
+rgit install claude-code        # or pick one explicitly (claude-code / codex / gemini / opencode / generic)
+rgit install --list             # list platforms; --uninstall to remove
 ```
 
 `codex`, `gemini`, and `opencode` share the `~/.agents/skills/` convention — the installer symlinks each skill there and prints the one-line MCP server entry to drop into that client's config. It also writes a managed research-git guidance block into the client's global guidance file when the platform has one (`~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, or `~/.gemini/GEMINI.md`). On an interactive terminal you're asked how proactive capture should be — `default`, `manual-only`, or `none`; pass `--guidance <mode>` to choose non-interactively. Start a new agent session after install so the guidance is loaded. Prefer the manual route on Claude Code? `/plugin marketplace add StepzeroLab/research-git` then `/plugin install research-git@research-git`.
@@ -96,7 +96,7 @@ rgit init                       # creates .rgit/ (the store) at the git root
 rgit install-hooks              # adds a post-commit hook (never clobbers an existing one)
 ```
 
-Good fit: solo research repos where you want nothing to slip through, even when you forget to capture. Skip it if the repo already has its own post-commit hook (the installer refuses to touch foreign hooks, so nothing breaks — it just won't install), if your team prefers deliberate manual capture, or in CI/shared clones where commit-time side effects are unwelcome. Without hooks you lose nothing: committed work stays capturable at any time with `rgit capture --commit <ref>` or `--range A..B`, and `rgit review` is the gate either way — hooks only stage proposals, they never approve anything. Remove with `rgit install-hooks --uninstall`.
+Good fit: solo research repos where you want nothing to slip through, even when you forget to capture. Skip it if the repo already has its own post-commit hook (the installer refuses to touch foreign hooks, so nothing breaks — it just won't install), if your team prefers deliberate manual capture, or in CI/shared clones where commit-time side effects are unwelcome. Without hooks you lose nothing: bare `rgit capture` takes the last commit when the tree is clean, `rgit capture A..B` a whole span, and `rgit review` is the gate either way — hooks only stage proposals, they never approve anything. Remove with `rgit install-hooks --uninstall`.
 
 ### 3. Run a variation and capture the idea
 
@@ -114,7 +114,7 @@ rgit review              # list proposals
 rgit review --approve <proposal_id> --name rerank-retrieval
 ```
 
-Already committed the work before capturing? The working tree is clean at that point, so capture from history instead — `rgit capture --commit HEAD` for the last commit, or `rgit capture --range main..HEAD` for a whole branch. (With the optional post-commit hook installed, every commit stages itself automatically.)
+Committed before capturing? Just run `rgit capture` — on a clean tree it captures the last commit (and says which one); `rgit capture main..HEAD` takes a whole span. (With the optional post-commit hook installed, every commit stages itself automatically.)
 
 ### 4. Bring an idea back onto today's code
 
@@ -180,7 +180,7 @@ The five-step loop above is the core. These show up as your store grows — run 
 | Command | What it does |
 |---------|--------------|
 | `rgit watch` | free, deterministic background capture — stages raw material as you edit, so fleeting in-between states aren't lost |
-| `rgit capture --commit <ref>` | capture a commit's own diff after the fact (`--range A..B` for several commits) — the escape hatch when work was committed before anyone captured it |
+| `rgit capture [REV \| A..B]` | bare: auto-picks the working tree or, when clean, the last commit; pass a commit or an A..B range for precise control |
 | `rgit install-hooks` | opt-in: stage every commit's diff via a post-commit hook (not installed by `rgit install`; won't touch an existing hook) — see step 2 above |
 | `rgit run --from <capsule>` | run a recalled variant and link the new run as a `variant_of` the original |
 | `rgit compare <query>` | which variant won: ranked table, Δ vs baseline, ★ winner |
