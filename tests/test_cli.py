@@ -617,7 +617,7 @@ def test_install_explicit_guidance_bypasses_prompt(monkeypatch, capsys):
 
     import rgit.installer as installer
     monkeypatch.setattr(installer, "install",
-                        lambda platform, scope="user", dry_run=False, mode=None:
+                        lambda platform, scope="user", dry_run=False, mode=None, conservative=False:
                         {"platform": platform, "mode": mode})
 
     assert cli.main(["install", "codex", "--json", "--guidance", "manual-only"]) == 0
@@ -632,7 +632,7 @@ def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
 
     import rgit.installer as installer
     monkeypatch.setattr(installer, "install",
-                        lambda platform, scope="user", dry_run=False, mode=None:
+                        lambda platform, scope="user", dry_run=False, mode=None, conservative=False:
                         {"platform": platform, "mode": mode})
 
     assert cli.main(["install", "codex", "--json"]) == 0
@@ -1140,8 +1140,8 @@ def test_bare_install_fans_out_to_detected_platforms(monkeypatch, capsys):
     monkeypatch.setattr(installer, "detect_platforms", lambda: ["codex", "gemini"])
     monkeypatch.setattr(
         installer, "install",
-        lambda p, *, scope, dry_run, mode: (calls.append((p, mode))
-                                            or {"platform": p, "ran": True}))
+        lambda p, *, scope, dry_run, mode, conservative=False: (
+            calls.append((p, mode)) or {"platform": p, "ran": True}))
     assert cli.main(["install", "--guidance", "default"]) == 0
     assert calls == [("codex", "default"), ("gemini", "default")]
     err = capsys.readouterr().err
@@ -1174,7 +1174,7 @@ def _canned_agents_result(platform="codex"):
 def test_install_prints_human_lines_by_default(monkeypatch, capsys):
     from rgit import installer
     monkeypatch.setattr(installer, "install",
-                        lambda p, *, scope, dry_run, mode: _canned_agents_result(p))
+                        lambda p, *, scope, dry_run, mode, conservative=False: _canned_agents_result(p))
     assert cli.main(["install", "codex", "--guidance", "none"]) == 0
     out = capsys.readouterr().out
     assert "✓" in out
@@ -1189,7 +1189,7 @@ def test_install_json_flag_prints_todays_document(monkeypatch, capsys):
     from rgit import installer
     canned = _canned_agents_result()
     monkeypatch.setattr(installer, "install",
-                        lambda p, *, scope, dry_run, mode: canned)
+                        lambda p, *, scope, dry_run, mode, conservative=False: canned)
     assert cli.main(["install", "codex", "--json", "--guidance", "none"]) == 0
     out = capsys.readouterr().out
     assert json.loads(out) == canned

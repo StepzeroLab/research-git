@@ -294,6 +294,8 @@ def _render_install_result(res: dict) -> None:
             print(f"  ✗ guidance: {g.get('error')} ({path})")
         else:
             print(f"  ✓ guidance {action}: {path}".rstrip(": "))
+        if g.get("hint"):
+            print(f"      hint: {g['hint']}")
     if res.get("instructions"):
         print(f"  → {res['instructions']}")
 
@@ -465,6 +467,15 @@ def build_parser() -> argparse.ArgumentParser:
                         choices=["user", "project", "local"],
                         help=argparse.SUPPRESS)
     p_inst.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
+    p_inst.add_argument("--from-update", dest="from_update",
+                        action="store_true", help=argparse.SUPPRESS)
+
+    p_upd = sub.add_parser("update")   # upgrade package + refresh platforms
+    upd_grp = p_upd.add_mutually_exclusive_group()
+    upd_grp.add_argument("--off", action="store_true",
+                         help="permanently disable the update notice")
+    upd_grp.add_argument("--on", action="store_true",
+                         help="re-enable the update notice")
 
     p_ih = sub.add_parser("install-hooks")   # git post-commit capture hook
     p_ih.add_argument("--uninstall", action="store_true")
@@ -526,6 +537,31 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    notice = None
+    if args.cmd not in ("mcp", "update") and sys.stdout.isatty() \
+            and not getattr(args, "json", False):
+        import time
+        from . import updatecheck
+        from . import __version__
+        updatecheck.maybe_start_background_check(time.time())
+        notice = updatecheck.render_notice(__version__)
+
+    try:
+        return _dispatch(args, parser)
+    finally:
+        if notice:
+            print(notice, file=sys.stderr)
+
+
+def _dispatch(args, parser) -> int:
+    if args.cmd == "update":
+        from . import selfupdate, updatecheck
+        if args.off or args.on:
+            updatecheck.set_disabled(bool(args.off))
+            print("update notice " + ("disabled" if args.off else "enabled"))
+            return 0
+        return selfupdate.run_update()
+
     if args.cmd == "init":
         Store.init(_find_root())
         print(f"initialized .rgit/ in {_find_root()}")
@@ -568,7 +604,9 @@ def main(argv: Optional[list[str]] = None) -> int:
                     return 1
         fn = installer.uninstall if args.uninstall else installer.install
         mode = args.guidance
-        if mode is None and not args.uninstall and not sys.stdin.isatty():
+        if getattr(args, "from_update", False):
+            pass                       # conservative refresh decides per-file
+        elif mode is None and not args.uninstall and not sys.stdin.isatty():
             # Automation must succeed on the first try: keep a previously
             # pinned mode (or write `default`) and say so, instead of exiting
             # with homework to re-run with --guidance.
@@ -594,8 +632,12 @@ def main(argv: Optional[list[str]] = None) -> int:
                         print(f"  rgit install {p} --guidance default",
                               file=sys.stderr)
                 return 1
+        extra = {}
+        if not args.uninstall:
+            extra["conservative"] = getattr(args, "from_update", False)
         try:
-            results = [fn(p, scope=args.scope, dry_run=args.dry_run, mode=mode)
+            results = [fn(p, scope=args.scope, dry_run=args.dry_run, mode=mode,
+                          **extra)
                        for p in platforms]
         except ValueError as e:
             print(str(e))
