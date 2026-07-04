@@ -1,7 +1,7 @@
 {
   "name": "research-git",
   "description": "A memory system for the code you're exploring: capture each idea as a semantic Feature Capsule, recall it, and regenerate it onto today's codebase. Segmentation/regeneration run on natively-dispatched subagents (your subscription) — no pay-per-use API. MCP serves the graph read-only for sharing.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "author": { "name": "Stepzero Lab" },
   "license": "MIT",
   "keywords": [
