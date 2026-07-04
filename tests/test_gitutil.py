@@ -510,3 +510,60 @@ def test_range_source_empty_side_defaults_to_head(git_repo):
     (git_repo / "model.py").write_text("def forward(x):\n    return x * 4\n")
     _commit_all(git_repo, "quad")
     assert "x * 4" in RangeDiffSource(f"{base}..").diff(git_repo)
+
+
+def test_range_source_ignores_user_diff_config(git_repo):
+    # diff.external replaces porcelain `git diff` output wholesale; a capture
+    # source must produce parseable unified diffs no matter the user's config.
+    base = current_commit(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    subprocess.run(["git", "config", "diff.external", "echo"], cwd=git_repo,
+                   check=True, capture_output=True)
+    diff = RangeDiffSource(f"{base}..HEAD").diff(git_repo)
+    assert "+++ b/model.py" in diff and "x * 2" in diff
+
+
+def test_commit_source_ignores_user_diff_config(git_repo):
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    subprocess.run(["git", "config", "diff.noprefix", "true"], cwd=git_repo,
+                   check=True, capture_output=True)
+    subprocess.run(["git", "config", "diff.external", "echo"], cwd=git_repo,
+                   check=True, capture_output=True)
+    diff = CommitDiffSource("HEAD").diff(git_repo)
+    assert "+++ b/model.py" in diff and "x * 2" in diff
+
+
+def test_range_source_three_dot_diffs_from_merge_base(git_repo):
+    # A...B must show only B's side since the fork point, even after A advanced.
+    subprocess.run(["git", "checkout", "-q", "-b", "side"], cwd=git_repo,
+                   check=True, capture_output=True)
+    (git_repo / "side.py").write_text("SIDE = 1\n")
+    _commit_all(git_repo, "side work")
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=git_repo, check=True,
+                   capture_output=True)
+    (git_repo / "mainonly.py").write_text("MAIN = 1\n")
+    _commit_all(git_repo, "main moved on")
+    diff = RangeDiffSource("HEAD...side").diff(git_repo)
+    assert "side.py" in diff and "mainonly" not in diff
+
+
+def test_range_source_three_dot_without_merge_base_fails_cleanly(git_repo, tmp_path):
+    # disjoint histories have no merge base; that must be a clean ValueError
+    other = tmp_path / "orphan"
+    subprocess.run(["git", "init", "-q", str(other)], check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-C", str(other), "config", "user.email", "t@t.t"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(other), "config", "user.name", "t"],
+                   check=True, capture_output=True)
+    (other / "x.txt").write_text("x\n")
+    subprocess.run(["git", "-C", str(other), "add", "."], check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-C", str(other), "commit", "-qm", "orphan"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "fetch", "-q", str(other), "HEAD:refs/heads/orphan"],
+                   cwd=git_repo, check=True, capture_output=True)
+    with pytest.raises(ValueError, match="merge base"):
+        RangeDiffSource("orphan...HEAD").diff(git_repo)

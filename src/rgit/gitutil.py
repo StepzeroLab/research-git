@@ -339,6 +339,16 @@ def diff_of_commit(repo: Path, sha: str) -> str:
                 "--no-commit-id", "-p", sha, "--")
 
 
+def _merge_base(repo: Path, a: str, b: str) -> str:
+    """First merge base of two commits, or ValueError (disjoint histories)."""
+    res = subprocess.run(["git", "merge-base", a, b], cwd=repo,
+                         capture_output=True, text=True, encoding="utf-8",
+                         errors="replace")
+    if res.returncode != 0 or not res.stdout.strip():
+        raise ValueError(f"no merge base between {a[:12]} and {b[:12]}")
+    return res.stdout.splitlines()[0].strip()
+
+
 def read_worktree_python(repo: Path, file: str) -> Optional[str]:
     """Python source text from the working tree, or None (non-.py, missing,
     outside the repo, unreadable, or undecodable).
@@ -472,11 +482,13 @@ class RangeDiffSource:
 
     def diff(self, repo: Path) -> str:
         base, head = self._endpoints(repo)
-        # --no-renames: a rename must appear as full delete+add hunks — the
-        # segmenter works on content, and a bare `rename from/to` header
-        # would hide it.
-        return _git(repo, "-c", "core.quotePath=false", "diff", "--no-renames",
-                    f"{base}{self._sep}{head}", "--")
+        if self._sep == "...":
+            base = _merge_base(repo, base, head)
+        # diff-tree (plumbing), not porcelain `git diff`: user diff config
+        # (diff.external replaces the output wholesale; noprefix/srcPrefix
+        # mangle the headers) must never corrupt a stored capture.
+        return _git(repo, "-c", "core.quotePath=false", "diff-tree", "-p",
+                    "--no-renames", base, head, "--")
 
     def read_new_side(self, repo: Path, file: str) -> Optional[str]:
         return read_committed_python(repo, self._endpoints(repo)[1], file)
