@@ -174,3 +174,8 @@ def test_render_global_block_teaches_committed_capture_path():
     from rgit.agent_guidance import render_global_block
     block = render_global_block()
     assert "rgit capture --commit HEAD" in block
+
+
+def test_render_global_block_tells_agents_to_skip_mechanical_changes():
+    from rgit.agent_guidance import render_global_block
+    assert "Skip mechanical" in render_global_block()

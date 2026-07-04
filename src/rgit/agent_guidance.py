@@ -53,6 +53,8 @@ def render_global_block(mode: str = "default") -> str:
         "plain capture would find nothing.\n"
         "- If a post-commit hook is installed (`rgit install-hooks`), commits "
         "are captured automatically; do not capture the same commit again.\n"
+        "- Skip mechanical formatting, dependency churn, generated files, or "
+        "changes with no reusable research/code idea.\n"
         "- For recall/resurrection requests, use the `rgit-recall` skill.\n"
         "- If `.rgit/` is missing in a git repo: when operating autonomously "
         "(no human to ask), bootstrap the store with `rgit capture --init "

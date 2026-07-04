@@ -87,10 +87,31 @@ class HeuristicSegmenter:
         return candidates
 
 
+class CaptureResult(str):
+    """Proposal id plus whether this capture created a new proposal.
+
+    A str subclass so every existing caller keeps treating it as the id.
+    """
+
+    created: bool
+
+    def __new__(cls, proposal_id: str, *, created: bool) -> "CaptureResult":
+        obj = str.__new__(cls, proposal_id)
+        obj.created = created
+        return obj
+
+
+def _existing_open_proposal_for_diff(store: Store, diff_ref: str) -> Optional[str]:
+    for prop in store.list_proposals("open"):
+        if prop.diff_ref == diff_ref:
+            return prop.id
+    return None
+
+
 def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
                  run_id: Optional[str], from_features: Optional[list[str]] = None,
                  now: str = "",
-                 source: Optional[DiffSource] = None) -> Optional[str]:
+                 source: Optional[DiffSource] = None) -> Optional[CaptureResult]:
     """Take a diff from `source`, segment it, store an open Proposal, and
     record comment-in/out toggle events against the capsules they touch.
 
@@ -109,11 +130,17 @@ def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
     diff = source.diff(store.root)
     if not diff.strip():
         return None
+    # Content-addressed dedup: hook + manual double-fire on the same change
+    # must return the already-open proposal, not stack a duplicate. Resolved
+    # or dismissed proposals never block a re-capture.
+    diff_ref = store.objects.put(diff.encode("utf-8", errors="replace"))
+    existing = _existing_open_proposal_for_diff(store, diff_ref)
+    if existing is not None:
+        return CaptureResult(existing, created=False)
     symbols = changed_symbols(
         diff, store.root,
         read_source=lambda file: source.read_new_side(store.root, file))
     candidates = segmenter.segment(diff, symbols)
-    diff_ref = store.objects.put(diff.encode("utf-8", errors="replace"))
     pid = store.add_proposal(Proposal(
         id="", trigger=trigger, diff_ref=diff_ref,
         candidates=candidates, status="open", run_id=run_id,
@@ -121,4 +148,4 @@ def segment_diff(store: Store, trigger: str, segmenter: Segmenter,
         source_commit=source.source_commit(store.root)))
     for ev in map_to_capsules(store, detect_toggles(diff)):
         store.add_event(ev["capsule_id"], ev["kind"], run_id, now)
-    return pid
+    return CaptureResult(pid, created=True)

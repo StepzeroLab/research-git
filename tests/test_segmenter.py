@@ -233,3 +233,24 @@ def test_segment_diff_commit_source_maps_symbols_from_the_commit(git_repo):
     seg = MockSegmenter([])
     segment_diff(store, trigger="commit", segmenter=seg, run_id=None, source=src)
     assert seg.last_symbols == [{"file": "model.py", "symbol": "forward"}]
+
+
+def test_segment_diff_dedups_identical_open_diff(git_repo):
+    # hook + manual double-fire on the same change must not stack duplicates
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    first = segment_diff(store, "manual", HeuristicSegmenter(), run_id=None)
+    again = segment_diff(store, "manual", HeuristicSegmenter(), run_id=None)
+    assert again == first
+    assert first.created is True
+    assert again.created is False
+    assert len(store.list_proposals("open")) == 1
+
+
+def test_segment_diff_resolved_proposal_does_not_block_recapture(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    pid = segment_diff(store, "manual", HeuristicSegmenter(), run_id=None)
+    store.set_proposal_status(pid, "dismissed")
+    again = segment_diff(store, "manual", HeuristicSegmenter(), run_id=None)
+    assert again != pid and again.created is True

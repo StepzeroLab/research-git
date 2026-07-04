@@ -942,3 +942,33 @@ def test_pending_json_includes_source_commit(git_repo, monkeypatch, capsys):
     assert cli.main(["pending", "--json"]) == 0
     items = json.loads(capsys.readouterr().out)
     assert items[0]["source_commit"] == current_commit(git_repo)
+
+
+def test_capture_same_diff_twice_reports_existing(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+    capsys.readouterr()
+    assert cli.main(["capture", "--commit", "HEAD"]) == 0
+    out = capsys.readouterr().out
+    assert "already exists" in out
+    assert len(Store.open(git_repo).list_proposals("open")) == 1
+
+
+def test_capture_worktree_flag_overrides_commit_trigger_default(git_repo, monkeypatch, capsys):
+    # explicit --worktree must beat the `--trigger commit` commit-diff default
+    monkeypatch.chdir(git_repo)
+    monkeypatch.setattr(cli, "_SEGMENTER", None)
+    Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x * 2\n")
+    _commit_all(git_repo, "double")
+    (git_repo / "scratch.py").write_text("SCRATCH = 1\n")
+    assert cli.main(["capture", "--trigger", "commit", "--worktree"]) == 0
+    store = Store.open(git_repo)
+    props = store.list_proposals("open")
+    assert len(props) == 1 and props[0].source_commit is None
+    diff = store.objects.get(props[0].diff_ref).decode()
+    assert "SCRATCH" in diff and "x * 2" not in diff

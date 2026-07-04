@@ -309,6 +309,10 @@ def build_parser() -> argparse.ArgumentParser:
                          help="capture committed changes across A..B "
                               "(an omitted endpoint means HEAD; A...B diffs "
                               "from the merge base)")
+    cap_src.add_argument("--worktree", action="store_true",
+                         help="capture working-tree changes (the default; "
+                              "overrides the commit-diff default of "
+                              "--trigger commit)")
     p_cap.add_argument("--init", action="store_true",
                        help="create .rgit/ at the git root if missing (no hooks)")
 
@@ -495,12 +499,12 @@ def main(argv: Optional[list[str]] = None) -> int:
                 source = RangeDiffSource(args.range_spec)
             elif args.commit is not None:
                 source = CommitDiffSource(args.commit)
-            elif args.trigger == "commit":
+            elif args.trigger == "commit" and not args.worktree:
                 # Deployed post-commit hooks run `rgit capture --trigger commit`
                 # with no explicit source. Post-commit the worktree matches
                 # HEAD, so the only useful reading is the commit that just
                 # happened — and it keeps old hook installs working without a
-                # reinstall.
+                # reinstall. An explicit --worktree wins over this default.
                 source = CommitDiffSource("HEAD")
             else:
                 source = WorktreeDiffSource()
@@ -513,9 +517,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"nothing to capture ({source.no_diff_reason(store.root)})")
             return 0
         prop = store.get_proposal(pid)
-        print(f"proposal {pid} created")
+        created = getattr(pid, "created", True)
+        if created:
+            print(f"proposal {pid} created")
+        else:
+            print(f"proposal {pid} already exists for this diff")
         _print_skip_summary(_diff_text(store, prop.diff_ref))
-        if not prop.candidates:
+        if created and not prop.candidates:
             print("note: proposal has 0 candidates; run `rgit pending --json`, "
                   "then `rgit resegment <proposal_id> --from-json <path>`")
         return 0
