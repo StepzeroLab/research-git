@@ -251,6 +251,51 @@ def _run_exit_code(returncode: int) -> int:
     return returncode if returncode > 0 else 1
 
 
+def _render_install_result(res: dict) -> None:
+    """Understand-Anything-style ✓ lines for one platform's install result.
+
+    The full machine-readable document stays available behind --json; this
+    view keeps only what a human acts on.
+    """
+    print(f"{res.get('platform', '?')}:")
+    for r in res.get("results", []):
+        mark = "✓" if r.get("rc") == 0 else "✗"
+        print(f"  {mark} {' '.join(r.get('cmd', []))}")
+        if r.get("rc") != 0 and r.get("out"):
+            print(f"      {r['out'].splitlines()[0]}")
+    for cmd in res.get("planned", []):
+        print(f"  • would run: {' '.join(cmd)}")
+    if res.get("links"):
+        if res.get("ran"):
+            print(f"  ✓ skills linked into {res.get('skills_dir')}")
+        else:
+            print(f"  • would link {len(res['links'])} skill(s) into "
+                  f"{res.get('skills_dir')}")
+    for e in res.get("errors", []):
+        print(f"  ✗ {e.get('link', '')}: {e.get('error')}")
+        if e.get("hint"):
+            print(f"      hint: {e['hint']}")
+    if res.get("would_remove") is not None:
+        print(f"  • would remove {len(res['would_remove'])} skill link(s)")
+    if res.get("removed") is not None:
+        print(f"  ✓ removed {len(res['removed'])} skill link(s)")
+    g = res.get("guidance") or {}
+    if g:
+        action = g.get("action", "?")
+        path = g.get("path", "")
+        if action == "disabled":
+            print("  • guidance: not written (mode none)")
+        elif action == "manual":
+            print("  • guidance: no managed file for this platform — run with "
+                  "--json for the block to paste")
+        elif action == "skipped_error":
+            print(f"  ✗ guidance: {g.get('error')} ({path})")
+        else:
+            print(f"  ✓ guidance {action}: {path}".rstrip(": "))
+    if res.get("instructions"):
+        print(f"  → {res['instructions']}")
+
+
 def _sole_open_proposal(store: Store) -> str:
     """The only open proposal's id; ValueError otherwise.
 
@@ -386,15 +431,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_watch.add_argument("--once", action="store_true")
 
     p_inst = sub.add_parser("install")   # wire plugin + MCP into an AI client
-    p_inst.add_argument("platform", nargs="?")
-    p_inst.add_argument("--list", action="store_true")
+    p_inst.add_argument("platform", nargs="?",
+                        help="agent client to install for; omit to auto-detect "
+                             "every client on this machine")
+    p_inst.add_argument("--list", action="store_true",
+                        help="list supported platforms")
     p_inst.add_argument("--uninstall", action="store_true")
-    p_inst.add_argument("--dry-run", action="store_true")
+    # Plumbing — permanent but hidden: --dry-run is the test seam, --scope has
+    # the right default, guidance is prompted/auto-defaulted, and --json is the
+    # machine-readable document the human lines replaced.
+    p_inst.add_argument("--dry-run", action="store_true", help=argparse.SUPPRESS)
     p_inst.add_argument("--guidance", choices=list(GUIDANCE_MODES),
-                        help="guidance to write: default | manual-only | none "
-                             "(none = skills + MCP only). If omitted, you are "
-                             "asked interactively on a TTY, else 'default' is kept.")
-    p_inst.add_argument("--scope", default="user", choices=["user", "project", "local"])
+                        help=argparse.SUPPRESS)
+    p_inst.add_argument("--scope", default="user",
+                        choices=["user", "project", "local"],
+                        help=argparse.SUPPRESS)
+    p_inst.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
 
     p_ih = sub.add_parser("install-hooks")   # git post-commit capture hook
     p_ih.add_argument("--uninstall", action="store_true")
@@ -519,10 +571,17 @@ def main(argv: Optional[list[str]] = None) -> int:
                 return 1
         results = [fn(p, scope=args.scope, dry_run=args.dry_run, mode=mode)
                    for p in platforms]
-        # Explicit platform keeps today's single-object payload; bare installs
-        # yield one entry per detected client.
-        payload = results[0] if args.platform else results
-        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        if args.json:
+            # Explicit platform keeps today's single-object payload; bare
+            # installs yield one entry per detected client.
+            payload = results[0] if args.platform else results
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            return 0
+        for res in results:
+            _render_install_result(res)
+        if not args.uninstall:
+            print("\nrestart your CLI/agent session to pick up the skills")
+            print("note: `rgit install-hooks` enables per-commit capture (opt-in)")
         return 0
 
     if args.cmd == "install-hooks":

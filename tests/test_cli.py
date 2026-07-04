@@ -357,7 +357,7 @@ def test_cli_install_codex_dry_run_emits_guidance_json(tmp_path, monkeypatch, ca
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
 
-    assert cli.main(["install", "codex", "--dry-run",
+    assert cli.main(["install", "codex", "--dry-run", "--json",
                      "--guidance", "default"]) == 0
 
     res = json.loads(capsys.readouterr().out)
@@ -374,7 +374,7 @@ def test_cli_install_generic_dry_run_guidance_is_instruction_only(
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
 
-    assert cli.main(["install", "generic", "--dry-run",
+    assert cli.main(["install", "generic", "--dry-run", "--json",
                      "--guidance", "default"]) == 0
 
     res = json.loads(capsys.readouterr().out)
@@ -391,7 +391,7 @@ def test_cli_install_codex_guidance_none_flag_disables_guidance(
     monkeypatch.setattr(installer, "_AGENTS_SKILLS_DIR",
                         tmp_path / ".agents" / "skills")
 
-    assert cli.main(["install", "codex", "--dry-run", "--guidance", "none"]) == 0
+    assert cli.main(["install", "codex", "--dry-run", "--json", "--guidance", "none"]) == 0
 
     res = json.loads(capsys.readouterr().out)
     assert res["guidance"] == {"action": "disabled"}
@@ -405,7 +405,7 @@ def test_cli_install_prompts_for_mode_on_tty_without_flag(
                         tmp_path / ".agents" / "skills")
     monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "manual-only")
 
-    assert cli.main(["install", "codex", "--dry-run"]) == 0
+    assert cli.main(["install", "codex", "--dry-run", "--json"]) == 0
 
     res = json.loads(capsys.readouterr().out)
     assert "Current mode: manual-only" in res["guidance"]["block"]
@@ -614,7 +614,7 @@ def test_install_explicit_guidance_bypasses_prompt(monkeypatch, capsys):
                         lambda platform, scope="user", dry_run=False, mode=None:
                         {"platform": platform, "mode": mode})
 
-    assert cli.main(["install", "codex", "--guidance", "manual-only"]) == 0
+    assert cli.main(["install", "codex", "--json", "--guidance", "manual-only"]) == 0
     out = capsys.readouterr().out
     assert '"mode": "manual-only"' in out
     assert prompted["called"] is False
@@ -628,7 +628,7 @@ def test_install_stdout_remains_json_when_prompting(monkeypatch, capsys):
                         lambda platform, scope="user", dry_run=False, mode=None:
                         {"platform": platform, "mode": mode})
 
-    assert cli.main(["install", "codex"]) == 0
+    assert cli.main(["install", "codex", "--json"]) == 0
     captured = capsys.readouterr()
     data = json.loads(captured.out)
     assert data["mode"] == "default"
@@ -695,7 +695,7 @@ def test_cli_install_prompts_when_not_a_tty(
                         tmp_path / ".agents" / "skills")
     monkeypatch.setattr(cli, "_prompt_guidance_mode", lambda platform: "manual-only")
 
-    assert cli.main(["install", "codex", "--dry-run"]) == 0
+    assert cli.main(["install", "codex", "--dry-run", "--json"]) == 0
 
     res = json.loads(capsys.readouterr().out)
     assert "Current mode: manual-only" in res["guidance"]["block"]
@@ -713,7 +713,7 @@ def test_cli_install_non_tty_numbered_input_selects_mode(
     answers = iter(["2"])
     monkeypatch.setattr("builtins.input", lambda: next(answers))
 
-    assert cli.main(["install", "codex", "--dry-run"]) == 0
+    assert cli.main(["install", "codex", "--dry-run", "--json"]) == 0
 
     captured = capsys.readouterr()
     res = json.loads(captured.out)
@@ -1165,3 +1165,47 @@ def test_bare_uninstall_fans_out_to_detected_platforms(monkeypatch, capsys):
                                             or {"platform": p, "ran": True}))
     assert cli.main(["install", "--uninstall"]) == 0
     assert calls == ["codex"]
+
+
+def _canned_agents_result(platform="codex"):
+    return {"platform": platform,
+            "links": [{"link": f"/tmp/skills/rgit-capture", "target": "/plug"}],
+            "skills_dir": "/tmp/skills",
+            "mcp_config": {"mcpServers": {"research-git": {"command": "rgit"}}},
+            "instructions": "add this server to ~/.codex/config.toml",
+            "guidance": {"action": "updated", "path": "/home/AGENTS.md",
+                         "reload": "restart"},
+            "ran": True}
+
+
+def test_install_prints_human_lines_by_default(monkeypatch, capsys):
+    from rgit import installer
+    monkeypatch.setattr(installer, "install",
+                        lambda p, *, scope, dry_run, mode: _canned_agents_result(p))
+    assert cli.main(["install", "codex", "--guidance", "none"]) == 0
+    out = capsys.readouterr().out
+    assert "✓" in out
+    assert "skills linked" in out and "/tmp/skills" in out
+    assert "guidance updated" in out and "/home/AGENTS.md" in out
+    assert "restart" in out
+    assert "install-hooks" in out
+    assert not out.lstrip().startswith("{")
+
+
+def test_install_json_flag_prints_todays_document(monkeypatch, capsys):
+    from rgit import installer
+    canned = _canned_agents_result()
+    monkeypatch.setattr(installer, "install",
+                        lambda p, *, scope, dry_run, mode: canned)
+    assert cli.main(["install", "codex", "--json", "--guidance", "none"]) == 0
+    out = capsys.readouterr().out
+    assert json.loads(out) == canned
+
+
+def test_install_help_hides_plumbing_flags(capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["install", "--help"])
+    out = capsys.readouterr().out
+    for hidden in ("--guidance", "--scope", "--dry-run", "--json"):
+        assert hidden not in out
+    assert "--uninstall" in out and "--list" in out
