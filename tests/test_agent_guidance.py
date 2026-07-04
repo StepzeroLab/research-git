@@ -184,9 +184,6 @@ def test_render_global_block_tells_agents_to_skip_mechanical_changes():
     assert "Skip mechanical" in render_global_block()
 
 
-import hashlib
-
-
 def test_render_emits_fingerprinted_start_marker():
     block = agent_guidance.render_global_block()
     m = agent_guidance._START_RE.match(block)
@@ -239,6 +236,27 @@ def test_refresh_replaces_pristine_and_carries_mode(tmp_path):
     text = path.read_text(encoding="utf-8")
     assert text.startswith("# mine\n")
     assert "Current mode: manual-only" in text
+
+
+def test_refresh_dry_run_reports_would_update_without_writing(tmp_path):
+    # A pristine but outdated block under --dry-run must be classified, not
+    # rewritten: report would_update and leave the file byte-for-byte unchanged.
+    path = tmp_path / "AGENTS.md"
+    # A pre-fingerprint (bare-START) block with the current body: pristine, yet
+    # refresh would rewrite the marker to the fingerprinted form — a real change.
+    fresh = agent_guidance.render_global_block()
+    legacy = fresh.replace(agent_guidance._START_RE.match(fresh).group(0),
+                          agent_guidance.START)
+    path.write_text("# mine\n\n" + legacy, encoding="utf-8")
+    assert agent_guidance.classify_block(path.read_text(encoding="utf-8")) \
+        == "pristine"
+    before = path.read_bytes()
+
+    res = agent_guidance.refresh_managed_block(path, dry_run=True)
+
+    assert res["action"] == "would_update"
+    assert res["path"] == str(path)
+    assert path.read_bytes() == before
 
 
 def test_refresh_skips_customized(tmp_path):

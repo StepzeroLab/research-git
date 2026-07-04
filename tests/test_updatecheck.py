@@ -3,7 +3,6 @@ import json
 from rgit import updatecheck
 
 import io
-import threading
 
 
 def _use_tmp_state(monkeypatch, tmp_path):
@@ -96,6 +95,22 @@ def test_render_notice_none_when_current(monkeypatch, tmp_path):
 
 def test_render_notice_none_when_no_cache(monkeypatch, tmp_path):
     _use_tmp_state(monkeypatch, tmp_path)
+    assert updatecheck.render_notice("0.0.4") is None
+
+
+def test_render_notice_none_when_permanently_disabled(monkeypatch, tmp_path):
+    # A cached newer version must stay silent once the user opted out for good.
+    _use_tmp_state(monkeypatch, tmp_path)
+    monkeypatch.delenv(updatecheck.ENV_FLAG, raising=False)
+    updatecheck.save_state({"latest_version": "99.0.0"})
+    updatecheck.set_disabled(True)
+    assert updatecheck.render_notice("0.0.4") is None
+
+
+def test_render_notice_none_when_disabled_via_env(monkeypatch, tmp_path):
+    _use_tmp_state(monkeypatch, tmp_path)
+    updatecheck.save_state({"latest_version": "99.0.0"})
+    monkeypatch.setenv(updatecheck.ENV_FLAG, "0")
     assert updatecheck.render_notice("0.0.4") is None
 
 

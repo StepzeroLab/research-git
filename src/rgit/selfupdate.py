@@ -45,14 +45,22 @@ def _rgit_cmd() -> list[str]:
 
 def _refresh_platforms() -> None:
     from . import installer as inst
-    platforms = inst.detect_platforms()
+    try:
+        platforms = inst.detect_platforms()
+    except OSError:
+        print("no agent platforms detected; nothing to refresh")
+        return
     if not platforms:
         print("no agent platforms detected; nothing to refresh")
         return
     for pf in platforms:
         cmd = _rgit_cmd() + ["install", pf, "--from-update"]
-        p = subprocess.run(cmd, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace")
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace")
+        except OSError as e:
+            print(f"{pf}: refresh FAILED ({e})")
+            continue
         print(f"{pf}: " + ("refreshed" if p.returncode == 0
                            else "refresh FAILED"))
         tail = ((p.stdout or "") + (p.stderr or "")).strip()

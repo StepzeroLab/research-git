@@ -89,7 +89,13 @@ def _newer(latest: str, current: str) -> bool:
 
 
 def render_notice(current: str) -> str | None:
-    """One-line upgrade notice from the *cached* check result, or None."""
+    """One-line upgrade notice from the *cached* check result, or None.
+
+    Honors the opt-out here too: a version cached before the user disabled the
+    check (or set RGIT_UPDATE_CHECK=0) must not keep printing the notice.
+    """
+    if disabled():
+        return None
     latest = load_state().get("latest_version")
     if not isinstance(latest, str) or not _newer(latest, current):
         return None

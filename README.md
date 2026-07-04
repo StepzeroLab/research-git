@@ -138,7 +138,7 @@ rgit update
 
 Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone — the command tells you how to restore them instead.
 
-rgit prints a one-line notice (at most once a day, terminal sessions only) when a newer release is on PyPI. Turn it off for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
+rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off — the check is throttled, the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
 
 ---
 

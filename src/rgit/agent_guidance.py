@@ -202,12 +202,14 @@ def classify_block(text: str) -> str:
     return "customized"
 
 
-def refresh_managed_block(path: Path) -> dict:
+def refresh_managed_block(path: Path, *, dry_run: bool = False) -> dict:
     """Update-path guidance refresh: replace only pristine official blocks.
 
     Unlike upsert_managed_block (explicit-install semantics), this never
     appends a missing block and never overwrites user edits - it skips and
-    explains instead.
+    explains instead. `dry_run` short-circuits the only writing path (a
+    pending update to a pristine block) and reports `would_update` instead;
+    the skip/absent branches are already read-only.
     """
     if not path.exists():
         return {"action": "absent_file", "path": str(path)}
@@ -232,6 +234,8 @@ def refresh_managed_block(path: Path) -> dict:
     new_text = text[:start] + block + text[end:]
     if new_text == text:
         return {"action": "unchanged", "path": str(path)}
+    if dry_run:
+        return {"action": "would_update", "path": str(path)}
     _atomic_write(path, new_text)
     return {"action": "updated", "path": str(path)}
 

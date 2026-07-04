@@ -46,13 +46,17 @@ def _install_guidance(platform: str, dry_run: bool, mode: str | None = None,
     if target is None:
         return agent_guidance.manual_status(mode or "default")
     if conservative:
-        res = agent_guidance.refresh_managed_block(target["path"])
-        if res.get("action") == "skipped_removed":
-            from . import updatecheck
-            if updatecheck.hint_pending(res["path"]):
-                updatecheck.mark_hint_shown(res["path"])
-            else:
-                res.pop("hint", None)
+        try:
+            res = agent_guidance.refresh_managed_block(target["path"],
+                                                       dry_run=dry_run)
+            if res.get("action") == "skipped_removed":
+                from . import updatecheck
+                if updatecheck.hint_pending(res["path"]):
+                    updatecheck.mark_hint_shown(res["path"])
+                else:
+                    res.pop("hint", None)
+        except (OSError, UnicodeDecodeError) as e:
+            return _guidance_error(target["path"], e, mode)
         res["reload"] = target["reload"]
         return res
     try:

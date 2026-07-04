@@ -290,6 +290,21 @@ def test_guidance_write_error_is_structured_not_fatal(fake_home, monkeypatch):
     assert "nope" in res["guidance"]["error"]
 
 
+def test_conservative_refresh_degrades_on_non_utf8_guidance(fake_home):
+    # A guidance file the UTF-8 codec can't decode must degrade to a structured
+    # skipped_error via the conservative (update) path, never crash the refresh.
+    guidance = fake_home / ".codex" / "AGENTS.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_bytes(b"\xff\xfe garbage")
+
+    res = installer._install_guidance("codex", dry_run=False, mode=None,
+                                      conservative=True)
+
+    assert res["action"] == "skipped_error"
+    assert res["path"] == str(guidance)
+    assert guidance.read_bytes() == b"\xff\xfe garbage"
+
+
 def test_guidance_paths_compare_as_paths(fake_home):
     res = installer.install("codex", dry_run=True)
     assert guidance_path(res) == fake_home / ".codex" / "AGENTS.md"

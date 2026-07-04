@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import types
 
 from rgit import selfupdate
 
@@ -72,6 +71,26 @@ def test_run_update_failure_skips_refresh(monkeypatch, capsys):
     monkeypatch.setattr(selfupdate.subprocess, "run", fake_run)
     assert selfupdate.run_update() == 1
     assert len(ran) == 1                      # no refresh after failed upgrade
+
+
+def test_run_update_survives_refresh_subprocess_oserror(monkeypatch, capsys):
+    # A refresh that can't even spawn (OSError) must degrade to a FAILED line,
+    # not propagate — run_update's exit code tracks the upgrade only.
+    calls = {"n": 0}
+
+    def fake_run(cmd, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _completed(0, out="upgraded")   # the upgrade itself succeeds
+        raise OSError("cannot spawn refresh")       # every refresh subprocess
+
+    monkeypatch.setattr(selfupdate.subprocess, "run", fake_run)
+    monkeypatch.setattr(selfupdate.shutil, "which",
+                        lambda name: "/usr/bin/rgit" if name == "rgit" else None)
+    import rgit.installer as installer
+    monkeypatch.setattr(installer, "detect_platforms", lambda: ["codex"])
+    assert selfupdate.run_update() == 0
+    assert "refresh FAILED" in capsys.readouterr().out
 
 
 def test_run_update_pep668_hint(monkeypatch, capsys):
