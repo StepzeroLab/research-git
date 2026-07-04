@@ -90,7 +90,7 @@ def test_generic_is_an_alias_for_the_agents_skills_install(fake_home):
     assert _path_endswith(res["skills_dir"], ".agents", "skills")
     assert res["guidance"]["action"] == "manual"
     assert "path" not in res["guidance"]
-    assert agent_guidance.START in res["guidance"]["block"]
+    assert agent_guidance._START_RE.search(res["guidance"]["block"])
 
 
 def test_uninstall_generic_guidance_is_instruction_only(fake_home):
@@ -110,7 +110,7 @@ def test_install_opencode_dry_run_reports_guidance_fallback(fake_home):
     res = installer.install("opencode", dry_run=True)
     assert res["guidance"]["action"] == "manual"
     assert "path" not in res["guidance"]
-    assert agent_guidance.START in res["guidance"]["block"]
+    assert agent_guidance._START_RE.search(res["guidance"]["block"])
 
 
 def test_guidance_target_honors_config_dir_env_vars(tmp_path, monkeypatch):
@@ -150,7 +150,7 @@ def test_uninstall_codex_mode_none_leaves_block_untouched(fake_home):
     res = installer.uninstall("codex", mode="none")
 
     assert res["guidance"] == {"action": "disabled"}
-    assert agent_guidance.START in guidance.read_text(encoding="utf-8")
+    assert agent_guidance._START_RE.search(guidance.read_text(encoding="utf-8"))
 
 
 def test_install_claude_code_mode_none_dry_run(fake_home):
@@ -224,7 +224,7 @@ def test_uninstall_claude_code_keeps_guidance_when_cli_command_fails(
 
     assert res["guidance"]["action"] == "skipped_error"
     assert "uninstall commands failed" in res["guidance"]["error"]
-    assert agent_guidance.START in guidance.read_text(encoding="utf-8")
+    assert agent_guidance._START_RE.search(guidance.read_text(encoding="utf-8"))
 
 
 def test_install_codex_writes_guidance_and_symlinks_under_fake_home(fake_home):
@@ -234,7 +234,7 @@ def test_install_codex_writes_guidance_and_symlinks_under_fake_home(fake_home):
     assert (fake_home / ".agents" / "skills" / "rgit-capture").is_symlink()
     guidance = fake_home / ".codex" / "AGENTS.md"
     assert guidance.exists()
-    assert guidance.read_text(encoding="utf-8").count(agent_guidance.START) == 1
+    assert len(agent_guidance._START_RE.findall(guidance.read_text(encoding="utf-8"))) == 1
     assert res["guidance"]["action"] == "created"
 
 
@@ -243,7 +243,7 @@ def test_install_codex_is_idempotent_for_guidance(fake_home):
     res = installer.install("codex")
 
     guidance = fake_home / ".codex" / "AGENTS.md"
-    assert guidance.read_text(encoding="utf-8").count(agent_guidance.START) == 1
+    assert len(agent_guidance._START_RE.findall(guidance.read_text(encoding="utf-8"))) == 1
     assert res["guidance"]["action"] == "unchanged"
 
 
@@ -288,6 +288,21 @@ def test_guidance_write_error_is_structured_not_fatal(fake_home, monkeypatch):
     assert res["ran"] is True
     assert res["guidance"]["action"] == "skipped_error"
     assert "nope" in res["guidance"]["error"]
+
+
+def test_conservative_refresh_degrades_on_non_utf8_guidance(fake_home):
+    # A guidance file the UTF-8 codec can't decode must degrade to a structured
+    # skipped_error via the conservative (update) path, never crash the refresh.
+    guidance = fake_home / ".codex" / "AGENTS.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_bytes(b"\xff\xfe garbage")
+
+    res = installer._install_guidance("codex", dry_run=False, mode=None,
+                                      conservative=True)
+
+    assert res["action"] == "skipped_error"
+    assert res["path"] == str(guidance)
+    assert guidance.read_bytes() == b"\xff\xfe garbage"
 
 
 def test_guidance_paths_compare_as_paths(fake_home):

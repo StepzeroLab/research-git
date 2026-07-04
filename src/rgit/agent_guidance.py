@@ -1,6 +1,7 @@
 """Managed global guidance block for agent clients."""
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from pathlib import Path
@@ -14,12 +15,34 @@ END = "<!-- research-git:end -->"
 KNOWN_MODES = ("default", "manual-only", "custom")
 _MODE_RE = re.compile(r"^Current mode:[ \t]*(.+)$", re.MULTILINE)
 
+# Fingerprinted START marker: h= is the canonical hash of the block body, so
+# the update path can tell an official block (safe to replace) from one the
+# user edited (never touch). The bare `START` form is what pre-0.0.5 releases
+# wrote; _START_RE accepts both.
+_START_RE = re.compile(r"<!-- research-git:start(?: h=([0-9a-f]{12}))? -->")
+
+# canonical_hash of every official block body ever shipped without a
+# fingerprint (see docs/superpowers/specs/2026-07-04-runtime-update-check-design.md).
+HISTORICAL_HASHES = frozenset({
+    "9e20fa27047f",   # v0.0.1 - v0.0.3
+    "c7d73fc2ba60",   # v0.0.4
+})
+
+
+def canonical_hash(block: str) -> str:
+    """12-hex digest of a block's body: markers and mode line excluded, so the
+    hash survives mode pinning and marker-format changes."""
+    lines = block.strip().splitlines()
+    body = [l.rstrip() for l in lines[1:-1]
+            if not l.startswith("Current mode:")]
+    text = "\n".join(body).strip() + "\n"
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+
 
 def render_global_block(mode: str = "default") -> str:
     if mode not in KNOWN_MODES:
         mode = "default"
-    return (
-        f"{START}\n"
+    body = (
         "## research-git\n"
         "\n"
         "research-git is installed as a default agent capability.\n"
@@ -63,8 +86,10 @@ def render_global_block(mode: str = "default") -> str:
         "silently.\n"
         "- In final feedback, mention any capsules created, approved, applied, "
         "or skipped, plus important graph relations.\n"
-        f"{END}\n"
     )
+    provisional = f"{START}\n{body}{END}\n"
+    h = canonical_hash(provisional)
+    return f"<!-- research-git:start h={h} -->\n{body}{END}\n"
 
 
 def manual_status(mode: str = "default") -> dict:
@@ -149,16 +174,70 @@ def _carry_mode(old_block: str, new_block: str) -> str:
 
 
 def _managed_span(text: str) -> tuple[int, int] | None:
-    start = text.find(START)
-    if start < 0:
+    m = _START_RE.search(text)
+    if m is None:
         return None
-    end = text.find(END, start)
+    end = text.find(END, m.start())
     if end < 0:
         return None
     after_end = end + len(END)
     if text[after_end:after_end + 1] == "\n":
         after_end += 1
-    return start, after_end
+    return m.start(), after_end
+
+
+def classify_block(text: str) -> str:
+    """absent | broken | pristine | customized (update-path policy input)."""
+    span = _managed_span(text)
+    if span is None:
+        if _START_RE.search(text) or END in text:
+            return "broken"
+        return "absent"
+    block = text[span[0]:span[1]]
+    h = canonical_hash(block)
+    stamped = _START_RE.match(block).group(1)
+    if h == stamped or h in HISTORICAL_HASHES \
+            or h == canonical_hash(render_global_block()):
+        return "pristine"
+    return "customized"
+
+
+def refresh_managed_block(path: Path, *, dry_run: bool = False) -> dict:
+    """Update-path guidance refresh: replace only pristine official blocks.
+
+    Unlike upsert_managed_block (explicit-install semantics), this never
+    appends a missing block and never overwrites user edits - it skips and
+    explains instead. `dry_run` short-circuits the only writing path (a
+    pending update to a pristine block) and reports `would_update` instead;
+    the skip/absent branches are already read-only.
+    """
+    if not path.exists():
+        return {"action": "absent_file", "path": str(path)}
+    text = path.read_text(encoding="utf-8")
+    kind = classify_block(text)
+    if kind == "absent":
+        return {"action": "skipped_removed", "path": str(path),
+                "hint": (f"no research-git block in {path} (removed on "
+                         f"purpose?) — run `rgit install` to restore it")}
+    if kind == "broken":
+        return {"action": "skipped_broken", "path": str(path),
+                "hint": (f"research-git markers in {path} look damaged (one "
+                         f"of the start/end pair is missing) — fix or remove "
+                         f"them manually, then run `rgit install`")}
+    if kind == "customized":
+        return {"action": "skipped_customized", "path": str(path),
+                "hint": (f"customized research-git block in {path} left "
+                         f"untouched — run `rgit install` to overwrite it "
+                         f"with the new official version")}
+    start, end = _managed_span(text)
+    block = _carry_mode(text[start:end], render_global_block("default"))
+    new_text = text[:start] + block + text[end:]
+    if new_text == text:
+        return {"action": "unchanged", "path": str(path)}
+    if dry_run:
+        return {"action": "would_update", "path": str(path)}
+    _atomic_write(path, new_text)
+    return {"action": "updated", "path": str(path)}
 
 
 def _dry_action(action: str) -> str:
