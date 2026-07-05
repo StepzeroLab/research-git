@@ -381,6 +381,13 @@ class _Parser(argparse.ArgumentParser):
 
     commands: tuple = ()
 
+    def __init__(self, *args, **kwargs):
+        # No prefix abbreviation: once --decide exists, `--d` is ambiguous with
+        # --dismiss, and abbreviations silently resolving to the wrong flag are a
+        # footgun. Subparsers inherit this class, so they inherit the setting too.
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
+
     def error(self, message):
         m = re.search(r"invalid choice: '([^']+)'", message)
         if m and self.commands:

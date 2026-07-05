@@ -1323,6 +1323,23 @@ def test_review_decide_unknown_id_prints_review_hint(git_repo, monkeypatch, caps
     assert "resegment" not in out                 # id error, not a name error
 
 
+def test_review_flag_abbreviation_is_rejected(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    # --d is ambiguous between --dismiss and --decide; abbreviations are disabled
+    with pytest.raises(SystemExit):
+        cli.main(["review", "--d", "x"])
+
+
+def test_review_full_flag_names_still_parse(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    # the full names remain valid (here they resolve no proposal → exit 1, not 2)
+    assert cli.main(["review", "--dismiss", "prop_nope"]) == 1
+    capsys.readouterr()
+    assert cli.main(["review", "--decide", "prop_nope", "--keep", "x"]) == 1
+
+
 def test_review_modes_are_mutually_exclusive(git_repo, monkeypatch):
     monkeypatch.chdir(git_repo)
     Store.init(git_repo)
