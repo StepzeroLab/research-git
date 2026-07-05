@@ -35,13 +35,12 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
         raise ValueError(
             f"candidate index {idx} out of range for proposal {proposal_id!r} "
             f"with {len(prop.candidates)} candidate(s)")
-    fid = _capsule_from_candidate(store, prop, idx, name)
+    fid = _capsule_from_candidate(store, prop, idx)
     store.set_proposal_status(proposal_id, "resolved")
     return fid
 
 
-def _capsule_from_candidate(store: Store, prop, idx: int,
-                            name: Optional[str] = None) -> str:
+def _capsule_from_candidate(store: Store, prop, idx: int) -> str:
     """Materialize candidate `idx` as an approved Capsule with its edges.
 
     Shared by approve() and decide(); does not touch proposal status.
@@ -51,7 +50,7 @@ def _capsule_from_candidate(store: Store, prop, idx: int,
     # change; only worktree captures fall back to HEAD at approve time.
     base = prop.source_commit or current_commit(store.root)
     cap = Capsule(
-        id="", name=name or cand["name"], intent=cand["intent"],
+        id="", name=cand["name"], intent=cand["intent"],
         status="approved", base_commit=base,
         knobs=cand.get("knobs", {}), data_assumptions=cand.get("data_assumptions"),
         resurrection_guide=cand.get("resurrection_guide"), result_summary=None,
