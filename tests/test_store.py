@@ -168,3 +168,31 @@ def test_open_migrates_proposals_without_source_commit(git_repo):
     pid = store.add_proposal(Proposal(id="", trigger="commit", diff_ref="d",
                                       candidates=[], source_commit="c" * 40))
     assert store.get_proposal(pid).source_commit == "c" * 40
+
+
+def test_open_readonly_refuses_writes_and_skips_migrations(git_repo):
+    import sqlite3
+    Store.init(git_repo)
+    ro = Store.open(git_repo, readonly=True)
+    try:
+        with __import__("pytest").raises(sqlite3.OperationalError):
+            ro.conn.execute("INSERT INTO edges VALUES ('a','b','overlaps')")
+    finally:
+        ro.conn.close()
+
+
+def test_open_readonly_missing_db_raises_filenotfound(git_repo):
+    import pytest
+    (git_repo / ".rgit").mkdir()          # dir exists, graph.db does not
+    with pytest.raises(FileNotFoundError):
+        Store.open(git_repo, readonly=True)
+
+
+def test_objectstore_path_for_matches_layout_and_no_create(tmp_path):
+    from rgit.store.objects import ObjectStore
+    target = tmp_path / "objects"
+    ro = ObjectStore(target, create=False)
+    assert not target.exists()            # create=False must not mkdir
+    digest = "ab" + "c" * 62
+    assert ro.path_for(digest) == target / "ab" / ("c" * 62)
+    assert ro.path_for(digest) == ro._path(digest)   # legacy alias intact

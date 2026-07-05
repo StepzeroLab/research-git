@@ -12,23 +12,32 @@ from .objects import ObjectStore
 class Store:
     """Facade over the graph DB and object store under <root>/.rgit/."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, readonly: bool = False):
         self.root = Path(root)
         self.dir = self.root / ".rgit"
-        self.objects = ObjectStore(self.dir / "objects")
-        self.conn = connect(self.dir / "graph.db")
-        init_schema(self.conn)   # idempotent: ensures schema + migrations on every open
+        self.objects = ObjectStore(self.dir / "objects", create=not readonly)
+        if readonly:
+            # Diagnostic consumers (doctor) must observe, never repair: no
+            # directory creation, no migrations, engine-enforced read-only.
+            db_path = self.dir / "graph.db"
+            if not db_path.exists():
+                raise FileNotFoundError("no .rgit/graph.db found (run `rgit init`)")
+            self.conn = connect(db_path, readonly=True)
+        else:
+            self.conn = connect(self.dir / "graph.db")
+            init_schema(self.conn)   # idempotent: ensures schema + migrations on every open
 
     @classmethod
     def init(cls, root: Path) -> "Store":
         return cls(root)
 
     @classmethod
-    def open(cls, start: Optional[Path] = None) -> "Store":
+    def open(cls, start: Optional[Path] = None, *,
+             readonly: bool = False) -> "Store":
         cur = Path(start or Path.cwd()).resolve()
         for cand in [cur, *cur.parents]:
             if (cand / ".rgit").is_dir():
-                return cls(cand)
+                return cls(cand, readonly=readonly)
         raise FileNotFoundError("no .rgit/ found (run `rgit init`)")
 
     # ---- features -----------------------------------------------------

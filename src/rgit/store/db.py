@@ -60,9 +60,14 @@ CREATE TABLE IF NOT EXISTS schema_metadata (
 """
 
 
-def connect(path: Path) -> sqlite3.Connection:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+def connect(path: Path, readonly: bool = False) -> sqlite3.Connection:
+    path = Path(path)
+    if readonly:
+        # URI mode=ro: the engine refuses writes and never creates the file.
+        conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

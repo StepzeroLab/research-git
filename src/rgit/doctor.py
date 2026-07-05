@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
 from typing import Any
 
 from .curation import validate_candidates
 from .store.db import SCHEMA_VERSION
 from .store.models import CodeSlice
+from .store.store import Store
 
 CAPSULE_EDGE_TYPES = {
     "variant_of",
@@ -27,35 +27,10 @@ SYMMETRIC_EDGE_TYPES = {
 }
 
 
-class _ReadOnlyObjectStore:
-    def __init__(self, root: Path):
-        self.root = root
-
-    def _path(self, digest: str) -> Path:
-        return self.root / digest[:2] / digest[2:]
-
-    def get(self, digest: str) -> bytes:
-        return self._path(digest).read_bytes()
-
-
-class _DoctorStore:
-    def __init__(self, root: Path):
-        db_path = root / ".rgit" / "graph.db"
-        if not db_path.exists():
-            raise FileNotFoundError("no .rgit/graph.db found (run `rgit init`)")
-        self.root = root
-        self.dir = root / ".rgit"
-        self.objects = _ReadOnlyObjectStore(self.dir / "objects")
-        self.conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
-        self.conn.row_factory = sqlite3.Row
-
-
-def open_doctor_store(start: Path | None = None):
-    cur = Path(start or Path.cwd()).resolve()
-    for cand in [cur, *cur.parents]:
-        if (cand / ".rgit").is_dir():
-            return _DoctorStore(cand)
-    raise FileNotFoundError("no .rgit/ found (run `rgit init`)")
+def open_doctor_store(start: Path | None = None) -> Store:
+    """A store the doctor can only observe: same discovery and layout as every
+    other command (via Store), but read-only — no migrations, no repairs."""
+    return Store.open(start, readonly=True)
 
 
 def run_doctor(store) -> dict[str, Any]:
@@ -245,7 +220,7 @@ def _check_run_artifacts(store, findings: list[dict[str, Any]]) -> None:
                 rid,
             )
             continue
-        if not store.objects._path(digest).exists():
+        if not store.objects.path_for(digest).exists():
             _add(
                 findings,
                 "error",
@@ -267,7 +242,7 @@ def _check_proposals(store, findings: list[dict[str, Any]]) -> None:
                 "proposal has no diff_ref",
                 pid,
             )
-        elif not store.objects._path(diff_ref).exists():
+        elif not store.objects.path_for(diff_ref).exists():
             _add(
                 findings,
                 "error",
