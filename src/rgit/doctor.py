@@ -6,25 +6,8 @@ from typing import Any
 
 from .curation import validate_candidates
 from .store.db import SCHEMA_VERSION
-from .store.models import CodeSlice
+from .store.models import CAPSULE_EDGE_TYPES, SYMMETRIC_EDGE_TYPES, CodeSlice
 from .store.store import Store
-
-CAPSULE_EDGE_TYPES = {
-    "variant_of",
-    "depends_on",
-    "overlaps",
-    "alternative_to",
-    "composable_with",
-    "supersedes",
-    "conflicts_with",
-    "derived_from",
-}
-SYMMETRIC_EDGE_TYPES = {
-    "overlaps",
-    "alternative_to",
-    "composable_with",
-    "conflicts_with",
-}
 
 
 def open_doctor_store(start: Path | None = None) -> Store:

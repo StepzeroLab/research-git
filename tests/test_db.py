@@ -54,3 +54,12 @@ def test_schema_stamp_updates_after_migrations(tmp_path):
         "SELECT value FROM schema_metadata WHERE key='schema_version'").fetchone()
     from rgit.store.db import SCHEMA_VERSION
     assert row["value"] == SCHEMA_VERSION
+
+
+def test_edge_type_vocabulary_is_centralized():
+    # doctor (and future write-side validation) must share one definition
+    from rgit import doctor
+    from rgit.store.models import CAPSULE_EDGE_TYPES, SYMMETRIC_EDGE_TYPES
+    assert doctor.CAPSULE_EDGE_TYPES is CAPSULE_EDGE_TYPES
+    assert doctor.SYMMETRIC_EDGE_TYPES is SYMMETRIC_EDGE_TYPES
+    assert SYMMETRIC_EDGE_TYPES <= CAPSULE_EDGE_TYPES
