@@ -513,6 +513,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_graph.add_argument("--runs", action="store_true",
                          help="include run nodes + produced/active edges")
 
+    p_doc = sub.add_parser("doctor")
+    p_doc.add_argument("--json", action="store_true")
+
     parser.commands = tuple(sub.choices)
     return parser
 
@@ -667,6 +670,24 @@ def _dispatch(args, parser) -> int:
             res = install_hooks(_find_root(), dry_run=args.dry_run)
         print(json.dumps(res, indent=2, ensure_ascii=False))
         return 0
+
+    if args.cmd == "doctor":
+        from .doctor import error_report, format_report, open_doctor_store, run_doctor
+        try:
+            store = open_doctor_store()
+        except FileNotFoundError as e:
+            report = error_report("store_open_failed", str(e), ".rgit")
+            if args.json:
+                print(json.dumps(report, indent=2, ensure_ascii=False))
+            else:
+                print(format_report(report))
+            return 1
+        report = run_doctor(store)
+        if args.json:
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+        else:
+            print(format_report(report))
+        return 1 if report["summary"]["errors"] else 0
 
     try:
         store = Store.open()

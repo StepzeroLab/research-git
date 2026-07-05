@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+SCHEMA_VERSION = "1"
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS features (
     id TEXT PRIMARY KEY,
@@ -51,12 +53,21 @@ CREATE TABLE IF NOT EXISTS metric_directions (
     metric TEXT PRIMARY KEY,
     direction TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS schema_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
-def connect(path: Path) -> sqlite3.Connection:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+def connect(path: Path, readonly: bool = False) -> sqlite3.Connection:
+    path = Path(path)
+    if readonly:
+        # URI mode=ro: the engine refuses writes and never creates the file.
+        conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -73,4 +84,12 @@ def init_schema(conn: sqlite3.Connection) -> None:
     rcols = {r[1] for r in conn.execute("PRAGMA table_info(runs)")}
     if "returncode" not in rcols:
         conn.execute("ALTER TABLE runs ADD COLUMN returncode INTEGER")
+    # Stamp AFTER the migrations above so the value always means "migrations
+    # up to this version have been applied". INSERT OR IGNORE would freeze the
+    # first-ever stamp and make doctor warn schema_version_mismatch forever
+    # once SCHEMA_VERSION moves.
+    conn.execute(
+        "INSERT INTO schema_metadata VALUES (?,?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        ("schema_version", SCHEMA_VERSION))
     conn.commit()

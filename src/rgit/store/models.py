@@ -2,6 +2,27 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any, Optional
 
+# Capsule-to-capsule edge vocabulary — the single definition consumers
+# (doctor checks, future write-side validation) must import, so a new edge
+# type cannot silently drift out of sync with its validators.
+CAPSULE_EDGE_TYPES = frozenset({
+    "variant_of",
+    "depends_on",
+    "overlaps",
+    "alternative_to",
+    "composable_with",
+    "supersedes",
+    "conflicts_with",
+    "derived_from",
+})
+# Types where an edge A->B implies B->A must also exist.
+SYMMETRIC_EDGE_TYPES = frozenset({
+    "overlaps",
+    "alternative_to",
+    "composable_with",
+    "conflicts_with",
+})
+
 
 @dataclass
 class CodeSlice:
