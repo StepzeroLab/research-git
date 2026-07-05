@@ -814,10 +814,17 @@ def _dispatch(args, parser) -> int:
             try:
                 target = args.decide or _sole_open_proposal(store)
                 approved, dropped = decide(store, target, keep)
-            except (KeyError, ValueError) as e:
+            except KeyError as e:
                 print(str(e))
-                print("hint: inspect with `rgit pending --json`; if there are "
-                      "0 candidates, resegment before deciding.")
+                print("hint: run `rgit review` to list open proposals")
+                return 1
+            except ValueError as e:
+                print(str(e))
+                # Only an unknown-name / 0-candidate failure is fixed by
+                # resegmenting; ambiguity errors already carry their own listing.
+                if "no candidate" in str(e):
+                    print("hint: inspect with `rgit pending --json`; if there "
+                          "are 0 candidates, resegment before deciding.")
                 return 1
             for name, fid in approved:
                 print(f"approved -> {fid}  {name}")

@@ -1303,6 +1303,16 @@ def test_review_decide_requires_keep(git_repo, monkeypatch, capsys):
     assert "--keep" in out and "--dismiss" in out
 
 
+def test_review_decide_unknown_id_prints_review_hint(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--decide", "prop_nope", "--keep", "x"]) == 1
+    out = capsys.readouterr().out
+    assert "prop_nope" in out
+    assert "rgit review" in out
+    assert "resegment" not in out                 # id error, not a name error
+
+
 def test_review_modes_are_mutually_exclusive(git_repo, monkeypatch):
     monkeypatch.chdir(git_repo)
     Store.init(git_repo)
