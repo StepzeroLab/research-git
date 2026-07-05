@@ -146,8 +146,18 @@ def validate_candidates(candidates: object) -> None:
             if not isinstance(c.get(field), str) or not c[field].strip():
                 raise ValueError(f"{where} is missing a non-empty {field!r}")
         name = c["name"]
-        # Names address candidates from the CLI (`--keep`, `--name`); a duplicate
-        # would make one unreachable, so reject it at the write boundary.
+        # Names address candidates from the CLI (`--keep`, `--name`), which is
+        # comma-separated and whitespace-trimmed — a name with a comma or
+        # leading/trailing space could never be selected there.
+        if "," in name:
+            raise ValueError(
+                f"{where} name {name!r} contains a comma; candidate names must "
+                f"not contain ',' (unaddressable via --keep)")
+        if name != name.strip():
+            raise ValueError(
+                f"{where} name {name!r} has leading/trailing whitespace; "
+                f"candidate names must be trimmed (unaddressable via --keep)")
+        # A duplicate would make one candidate unreachable, so reject it too.
         if name in seen_names:
             raise ValueError(
                 f"duplicate candidate name {name!r}; candidate names must be "

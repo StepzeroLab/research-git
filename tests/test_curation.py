@@ -160,6 +160,22 @@ def test_validate_candidates_rejects_duplicate_names():
         ])
 
 
+def test_validate_candidates_rejects_comma_in_name():
+    from rgit.curation import validate_candidates
+    with pytest.raises(ValueError, match="--keep"):
+        validate_candidates([
+            {"name": "a,b", "intent": "i", "code_slices": []},
+        ])
+
+
+def test_validate_candidates_rejects_untrimmed_name():
+    from rgit.curation import validate_candidates
+    with pytest.raises(ValueError, match="--keep"):
+        validate_candidates([
+            {"name": " padded ", "intent": "i", "code_slices": []},
+        ])
+
+
 def test_approve_stamps_base_commit_from_commit_sourced_proposal(git_repo):
     # A committed-diff capture pins the capsule to the commit that contains the
     # change — approving later, after HEAD moved on, must not re-stamp it.
