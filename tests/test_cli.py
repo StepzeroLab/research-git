@@ -1303,6 +1303,20 @@ def test_review_decide_requires_keep(git_repo, monkeypatch, capsys):
     assert "--keep" in out and "--dismiss" in out
 
 
+def test_review_modes_are_mutually_exclusive(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    with pytest.raises(SystemExit):
+        cli.main(["review", "--approve", "X", "--decide", "Y"])
+
+
+def test_review_keep_without_decide_is_an_error(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--keep", "a"]) == 1
+    assert "--decide" in capsys.readouterr().out
+
+
 def test_review_decide_unknown_name_fails_with_hint(git_repo, monkeypatch, capsys):
     monkeypatch.chdir(git_repo)
     store, pid = _seed_three_candidates(git_repo)

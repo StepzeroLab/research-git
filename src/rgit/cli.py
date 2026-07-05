@@ -418,20 +418,23 @@ def build_parser() -> argparse.ArgumentParser:
                        help="create .rgit/ at the git root if missing (no hooks)")
 
     p_rev = sub.add_parser("review")
-    p_rev.add_argument("--approve", nargs="?", const="", default=None,
-                       metavar="PROPOSAL_ID",
-                       help="approve PROPOSAL_ID — or, with no id, the only "
-                            "open proposal")
+    # approve / dismiss / decide are three ways to resolve one proposal — at most
+    # one per invocation.
+    rev_mode = p_rev.add_mutually_exclusive_group()
+    rev_mode.add_argument("--approve", nargs="?", const="", default=None,
+                          metavar="PROPOSAL_ID",
+                          help="approve PROPOSAL_ID — or, with no id, the only "
+                               "open proposal")
+    rev_mode.add_argument("--dismiss", nargs="?", const="", default=None,
+                          metavar="PROPOSAL_ID",
+                          help="dismiss PROPOSAL_ID — or, with no id, the only "
+                               "open proposal")
+    rev_mode.add_argument("--decide", nargs="?", const="", default=None,
+                          metavar="PROPOSAL_ID",
+                          help="decide PROPOSAL_ID in one shot — or, with no id, "
+                               "the only open proposal; requires --keep")
     p_rev.add_argument("--name")
     p_rev.add_argument("--index", type=int, default=0)
-    p_rev.add_argument("--dismiss", nargs="?", const="", default=None,
-                       metavar="PROPOSAL_ID",
-                       help="dismiss PROPOSAL_ID — or, with no id, the only "
-                            "open proposal")
-    p_rev.add_argument("--decide", nargs="?", const="", default=None,
-                       metavar="PROPOSAL_ID",
-                       help="decide PROPOSAL_ID in one shot — or, with no id, "
-                            "the only open proposal; requires --keep")
     p_rev.add_argument("--keep", action="append", default=None,
                        metavar="NAME[,NAME...]",
                        help="with --decide: candidate names to approve; every "
@@ -798,6 +801,9 @@ def _dispatch(args, parser) -> int:
         return 0
 
     if args.cmd == "review":
+        if args.keep and args.decide is None:
+            print("--keep requires --decide")
+            return 1
         if args.decide is not None:
             keep = [n.strip() for chunk in (args.keep or [])
                     for n in chunk.split(",") if n.strip()]
