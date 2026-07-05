@@ -6,6 +6,18 @@ from .store.models import Capsule, CodeSlice
 from .store.store import Store
 
 
+def _require_open(prop, proposal_id: str, verb: str) -> None:
+    """Guard the write path: reject a proposal that is no longer open.
+
+    Shared by approve/decide/dismiss so re-resolving a proposal can't create a
+    duplicate capsule. `verb` carries the action (and any parenthetical) so each
+    caller keeps its own tailored message.
+    """
+    if prop.status != "open":
+        raise ValueError(
+            f"proposal {proposal_id!r} is {prop.status}, not open; cannot {verb}")
+
+
 def approve(store: Store, proposal_id: str, candidate_index: int = 0,
             name: Optional[str] = None) -> str:
     """Turn one candidate into an approved Capsule; link it to the run.
@@ -17,10 +29,8 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
     (and mislabel) the wrong candidate. Otherwise `candidate_index` is used.
     """
     prop = store.get_proposal(proposal_id)
-    if prop.status != "open":
-        raise ValueError(
-            f"proposal {proposal_id!r} is {prop.status}, not open; cannot approve "
-            f"(re-approving would create a duplicate capsule)")
+    _require_open(prop, proposal_id,
+                  "approve (re-approving would create a duplicate capsule)")
     if not prop.candidates:
         raise ValueError(f"proposal {proposal_id!r} has no candidates to approve")
     by_name = [i for i, c in enumerate(prop.candidates) if c.get("name") == name]
@@ -75,10 +85,8 @@ def decide(store: Store, proposal_id: str, keep: list[str]) -> list[tuple[str, s
     rejects the whole call with no partial writes.
     """
     prop = store.get_proposal(proposal_id)
-    if prop.status != "open":
-        raise ValueError(
-            f"proposal {proposal_id!r} is {prop.status}, not open; cannot decide "
-            f"(re-deciding would create duplicate capsules)")
+    _require_open(prop, proposal_id,
+                  "decide (re-deciding would create duplicate capsules)")
     ordered = list(dict.fromkeys(keep))          # dedupe, keep order
     if not ordered:
         raise ValueError("nothing to keep; use dismiss to drop the whole proposal")
@@ -99,9 +107,7 @@ def decide(store: Store, proposal_id: str, keep: list[str]) -> list[tuple[str, s
 
 def dismiss(store: Store, proposal_id: str) -> None:
     prop = store.get_proposal(proposal_id)
-    if prop.status != "open":
-        raise ValueError(
-            f"proposal {proposal_id!r} is {prop.status}, not open; cannot dismiss")
+    _require_open(prop, proposal_id, "dismiss")
     store.set_proposal_status(proposal_id, "dismissed")
 
 
