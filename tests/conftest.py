@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 import pytest
@@ -40,4 +41,67 @@ def git_repo(tmp_path: Path) -> Path:
     (tmp_path / "model.py").write_text("def forward(x):\n    return x\n")
     _run(["git", "add", "."], tmp_path)
     _run(["git", "commit", "-q", "-m", "init"], tmp_path)
+    return tmp_path
+
+
+def _commit_env(when: int, author: str) -> dict:
+    """Env pinning author+committer identity and timestamps, for determinism."""
+    return {
+        "GIT_AUTHOR_NAME": author, "GIT_AUTHOR_EMAIL": f"{author}@t.t",
+        "GIT_COMMITTER_NAME": author, "GIT_COMMITTER_EMAIL": f"{author}@t.t",
+        "GIT_AUTHOR_DATE": f"{when} +0000", "GIT_COMMITTER_DATE": f"{when} +0000",
+    }
+
+
+def _head_sha(repo: Path) -> str:
+    out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+                         capture_output=True, text=True)
+    return out.stdout.strip()
+
+
+def commit_file(repo: Path, path: str, content: str, subject: str, *,
+                when: int, author: str = "t") -> str:
+    """One commit touching one file, with pinned author/date. Returns the sha."""
+    p = repo / path
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content)
+    _run(["git", "add", "-A"], repo)
+    subprocess.run(["git", "commit", "-q", "-m", subject], cwd=repo, check=True,
+                   capture_output=True, env={**os.environ, **_commit_env(when, author)})
+    return _head_sha(repo)
+
+
+def revert_head(repo: Path, *, when: int, author: str = "t") -> str:
+    """`git revert --no-edit HEAD` (writes the standard 'This reverts commit'
+    trailer the scanner detects). Returns the revert commit's sha."""
+    subprocess.run(["git", "revert", "--no-edit", "HEAD"], cwd=repo, check=True,
+                   capture_output=True, env={**os.environ, **_commit_env(when, author)})
+    return _head_sha(repo)
+
+
+def merge_branch(repo: Path, files: list, subject: str, *,
+                 when: int, author: str = "t") -> str:
+    """Side branch off HEAD with one commit per (path, content, subject) in
+    `files`, merged back --no-ff. Returns the merge commit's sha."""
+    main = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo,
+                          check=True, capture_output=True, text=True).stdout.strip()
+    _run(["git", "checkout", "-q", "-b", "side"], repo)
+    for i, (path, content, sub) in enumerate(files):
+        commit_file(repo, path, content, sub, when=when + i, author=author)
+    _run(["git", "checkout", "-q", main], repo)
+    subprocess.run(["git", "merge", "--no-ff", "-q", "-m", subject, "side"],
+                   cwd=repo, check=True, capture_output=True,
+                   env={**os.environ, **_commit_env(when + len(files), author)})
+    _run(["git", "branch", "-q", "-D", "side"], repo)
+    return _head_sha(repo)
+
+
+@pytest.fixture
+def history_repo(tmp_path: Path) -> Path:
+    """Initialized git repo with NO commits — tests script the whole history
+    with pinned dates so clustering decisions are deterministic."""
+    _run(["git", "init", "-q"], tmp_path)
+    _run(["git", "config", "user.email", "t@t.t"], tmp_path)
+    _run(["git", "config", "user.name", "t"], tmp_path)
+    _run(["git", "config", "core.autocrlf", "false"], tmp_path)
     return tmp_path
