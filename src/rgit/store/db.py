@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS proposals (
     candidates TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'open',
     run_id TEXT,
-    from_features TEXT
+    from_features TEXT,
+    source_commit TEXT
 );
 CREATE TABLE IF NOT EXISTS events (
     id TEXT PRIMARY KEY,
@@ -73,6 +74,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
     pcols = {r[1] for r in conn.execute("PRAGMA table_info(proposals)")}
     if "from_features" not in pcols:
         conn.execute("ALTER TABLE proposals ADD COLUMN from_features TEXT")
+    if "source_commit" not in pcols:
+        conn.execute("ALTER TABLE proposals ADD COLUMN source_commit TEXT")
     rcols = {r[1] for r in conn.execute("PRAGMA table_info(runs)")}
     if "returncode" not in rcols:
         conn.execute("ALTER TABLE runs ADD COLUMN returncode INTEGER")

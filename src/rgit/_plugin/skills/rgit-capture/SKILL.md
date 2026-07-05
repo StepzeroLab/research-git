@@ -1,7 +1,6 @@
 ---
 name: rgit-capture
-description: |
-  Proactively segment pending research-git captures into high-quality Feature Capsules and wire up their graph edges — invoke this on your own, without waiting to be asked, whenever the research-git proposal queue is non-empty (a quick `rgit pending` confirms). Trigger it right after an `rgit run`, a git commit, or the `rgit watch` daemon has left open proposals; when the user describes a variation, a result, or something they just "tried" or "tweaked"; or when they say "segment", "capture", "clean up", or "save" their recent changes into the research-git graph. Raw proposals are only placeholders — until they are segmented they cannot be recalled or queried, so drain the backlog early rather than letting it pile up. Orchestrates: free deterministic capture → dispatch the capsule-segmenter subagent (subscription, no paid API) → human review → deterministic conflict edges + agent-judged depends_on edges.
+description: Use when the research-git proposal queue is non-empty (`rgit pending`) — after an `rgit run`, a commit, or the watch daemon leaves open proposals, or when the user wants to segment, capture, or save recent changes. Invoke proactively without being asked; unsegmented proposals cannot be recalled or queried.
 ---
 
 # rgit-capture
@@ -26,8 +25,11 @@ Every `agents/<name>.md` reference below (`agents/capsule-segmenter.md`, `agents
 If the user just made changes and there is no open proposal yet, create one:
 
 ```
-rgit capture --trigger manual
+rgit capture                 # picks for you: uncommitted work, or the last commit when the tree is clean
+rgit capture main..HEAD      # a specific span of commits (any A..B range)
 ```
+
+The bare form auto-picks its source, so it works the same before or after a `git commit`; repeated captures of the same diff dedup into the existing proposal. If the repo has the post-commit hook installed (`rgit install-hooks`), each commit is captured automatically; don't capture the same commit twice.
 
 This runs the libcst symbol mapping + the free heuristic, producing one or more open proposals with a raw diff and a crude candidate. Proposals also appear automatically from `rgit run`, the post-commit hook, and the `rgit watch` daemon.
 

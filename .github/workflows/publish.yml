@@ -26,6 +26,11 @@ jobs:
             echo "::error::tag v$tag does not match pyproject version $pkg"
             exit 1
           fi
+          plugin="$(python3 -c 'import json; print(json.load(open("src/rgit/_plugin/.claude-plugin/plugin.json"))["version"])')"
+          if [ "$plugin" != "$pkg" ]; then
+            echo "::error::plugin.json version $plugin does not match pyproject version $pkg"
+            exit 1
+          fi
       - name: Build
         run: uv build
       - uses: actions/upload-artifact@v4

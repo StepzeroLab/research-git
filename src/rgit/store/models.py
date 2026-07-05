@@ -90,3 +90,4 @@ class Proposal:
     status: str = "open"                # "open" | "resolved" | "dismissed"
     run_id: Optional[str] = None
     from_features: Optional[list[str]] = None   # source capsule(s) this run regenerated
+    source_commit: Optional[str] = None  # commit whose diff was captured (None = worktree)

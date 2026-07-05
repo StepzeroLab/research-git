@@ -4,6 +4,7 @@ The plugin assets ship inside the wheel at `rgit/_plugin/`, so after `pip instal
 """
 from __future__ import annotations
 import json
+import shutil
 import subprocess
 from functools import partial
 from importlib.resources import files
@@ -37,12 +38,27 @@ def _run(plan: list[list[str]]) -> list[dict]:
     return results
 
 
-def _install_guidance(platform: str, dry_run: bool, mode: str | None = None) -> dict:
+def _install_guidance(platform: str, dry_run: bool, mode: str | None = None,
+                      conservative: bool = False) -> dict:
     if mode == "none":
         return {"action": "disabled"}
     target = agent_platforms.guidance_target(platform)
     if target is None:
         return agent_guidance.manual_status(mode or "default")
+    if conservative:
+        try:
+            res = agent_guidance.refresh_managed_block(target["path"],
+                                                       dry_run=dry_run)
+            if res.get("action") == "skipped_removed":
+                from . import updatecheck
+                if updatecheck.hint_pending(res["path"]):
+                    updatecheck.mark_hint_shown(res["path"])
+                else:
+                    res.pop("hint", None)
+        except (OSError, UnicodeDecodeError) as e:
+            return _guidance_error(target["path"], e, mode)
+        res["reload"] = target["reload"]
+        return res
     try:
         res = agent_guidance.upsert_managed_block(target["path"], mode=mode,
                                                   dry_run=dry_run)
@@ -93,18 +109,20 @@ def _plan_claude_code(scope: str) -> list[list[str]]:
     ]
 
 
-def _install_claude_code(scope: str, dry_run: bool, mode: str | None = None) -> dict:
+def _install_claude_code(scope: str, dry_run: bool, mode: str | None = None,
+                         conservative: bool = False) -> dict:
     plan = _plan_claude_code(scope)
     if dry_run:
         return {"platform": "claude-code", "planned": plan,
-                "guidance": _install_guidance("claude-code", dry_run, mode),
+                "guidance": _install_guidance("claude-code", dry_run, mode,
+                                              conservative),
                 "ran": False}
     results = _run(plan)
     if mode != "none" and not _all_ok(results):
         g = _guidance_error(agent_platforms.guidance_target("claude-code")["path"],
                             "install commands failed", mode)
     else:
-        g = _install_guidance("claude-code", dry_run, mode)
+        g = _install_guidance("claude-code", dry_run, mode, conservative)
     return {"platform": "claude-code", "results": results,
             "guidance": g, "ran": True}
 
@@ -157,7 +175,8 @@ def _skill_links() -> list[tuple[Path, Path]]:
 
 
 def _install_agents_cli(platform: str, scope: str, dry_run: bool,
-                        mode: str | None = None) -> dict:
+                        mode: str | None = None,
+                        conservative: bool = False) -> dict:
     links = _skill_links()
     planned = [{"link": str(dst), "target": str(src)} for dst, src in links]
     mcp = mcp_config()
@@ -171,7 +190,7 @@ def _install_agents_cli(platform: str, scope: str, dry_run: bool,
            "skills_dir": str(_AGENTS_SKILLS_DIR), "mcp_config": mcp,
            "instructions": instructions, "ran": not dry_run}
     if dry_run:
-        out["guidance"] = _install_guidance(platform, dry_run, mode)
+        out["guidance"] = _install_guidance(platform, dry_run, mode, conservative)
         return out
     _AGENTS_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
     errors = []
@@ -193,7 +212,7 @@ def _install_agents_cli(platform: str, scope: str, dry_run: bool,
             if target is not None
             else {"action": "skipped", "reason": "skill symlink failed"})
     else:
-        out["guidance"] = _install_guidance(platform, dry_run, mode)
+        out["guidance"] = _install_guidance(platform, dry_run, mode, conservative)
     return out
 
 
@@ -234,17 +253,41 @@ for _pid in _AGENT_CLI_IDS:
 PLATFORMS = tuple(_INSTALL)
 
 
+def detect_platforms() -> list[str]:
+    """Agent clients present on this machine, in PLATFORMS order.
+
+    `generic` is deliberately never detected — it is an alias for "any
+    ~/.agents/skills client", not an installation signal. Bare `rgit install`
+    uses this so the common case needs no platform choice at all.
+    """
+    home = Path.home()
+    found = []
+    if shutil.which("claude"):
+        found.append("claude-code")
+    if (home / ".codex").is_dir():
+        found.append("codex")
+    if (home / ".gemini").is_dir():
+        found.append("gemini")
+    if shutil.which("opencode") or (home / ".config" / "opencode").is_dir():
+        found.append("opencode")
+    return found
+
+
 def install(platform: str, *, scope: str = "user", dry_run: bool = False,
-            mode: str | None = None) -> dict:
+            mode: str | None = None, conservative: bool = False) -> dict:
     """Install for `platform`.
 
     `mode` selects the guidance written: None (default behavior, preserving any
     mode the user pinned earlier), "default"/"manual-only" (write that mode), or
     "none" (skills + MCP only, no guidance write).
+
+    `conservative` (used by `rgit update`) refreshes an existing managed
+    guidance block in place instead of prompting/rewriting: customized or
+    user-removed blocks are left untouched.
     """
     if platform not in _INSTALL:
         raise ValueError(f"unknown platform '{platform}'. Known: {', '.join(PLATFORMS)}")
-    return _INSTALL[platform](scope, dry_run, mode)
+    return _INSTALL[platform](scope, dry_run, mode, conservative)
 
 
 def uninstall(platform: str, *, scope: str = "user", dry_run: bool = False,

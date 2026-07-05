@@ -68,55 +68,58 @@ Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git
 
 ## 🚀 Quick Start
 
-Five steps: install → init → run → capture → recall.
-
 ### 1. Install
 
 ```bash
-pip install research-git        # or, from a clone: pip install -e .
-
-# wire the plugin (agents + skills) and the MCP server into your client
-rgit install claude-code        # Claude Code (via the official `claude` CLI)
-rgit install codex              # Codex / Gemini / opencode: symlinks the skills into ~/.agents/skills/
-rgit install --list             # all platforms; add --dry-run to preview, --uninstall to remove
-```
-
-`codex`, `gemini`, and `opencode` share the `~/.agents/skills/` convention — the installer symlinks each skill there and prints the one-line MCP server entry to drop into that client's config. It also writes a managed research-git guidance block into the client's global guidance file when the platform has one (`~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, or `~/.gemini/GEMINI.md`). On an interactive terminal you're asked how proactive capture should be — `default`, `manual-only`, or `none`; pass `--guidance <mode>` to choose non-interactively. Start a new agent session after install so the guidance is loaded. Prefer the manual route on Claude Code? `/plugin marketplace add StepzeroLab/research-git` then `/plugin install research-git@research-git`.
-
-### 2. Initialize in your repo
-
-```bash
+pip install research-git
+rgit install        # wires research-git into every agent client on this machine
 cd your-project
-rgit init                       # creates .rgit/ (the store) at the git root
+rgit init           # creates the .rgit/ store in your repo
 ```
 
-### 3. Run a variation and capture the idea
+That's the whole setup. Start a new agent session afterwards so it picks everything up.
 
-Launch your work through `rgit run` — it executes your command, freezes a reproducible artifact, records the run + any metrics, and stages what changed:
+<details>
+<summary>Install details: choosing platforms, guidance modes, capture-on-commit</summary>
+
+- `rgit install claude-code` (or `codex` / `gemini` / `opencode` / `generic`) targets one client; `--list` shows all; `--uninstall` removes.
+- The installer also writes a short guidance block into your client's global file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, …) so the agent knows when to save ideas. On an interactive terminal you pick how proactive that should be (`default` / `manual-only` / `none`); pass `--guidance <mode>` to choose non-interactively.
+- **Optional:** `rgit install-hooks` (per repo) makes every `git commit` stage its own snapshot automatically, so nothing slips through even when you forget. It never touches an existing hook, hooks never approve anything, and `rgit install-hooks --uninstall` removes it. Skip it in CI or shared clones.
+- Manual route on Claude Code: `/plugin marketplace add StepzeroLab/research-git` then `/plugin install research-git@research-git`.
+
+</details>
+
+### 2. Working with an agent? Just talk to it
+
+After install your agent does the remembering. Work as usual — it saves each meaningful idea as a Feature Capsule (asking you before anything is kept). Weeks later, when the code has moved on, just ask:
+
+> *"bring back the re-ranking retrieval step"*
+
+The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. No commands to memorize — but if you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
+
+### 3. Working in the terminal? Three commands
 
 ```bash
-rgit run -- python eval_agent.py --retrieval rerank
+rgit run -- python eval_agent.py --retrieval rerank   # run an experiment; freezes a byte-exact snapshot + metrics
+rgit review                                           # see what's been captured, approve what's worth keeping
+rgit compare rerank                                   # which variant won?
 ```
 
-Then turn that raw material into a clean capsule (in a Claude Code session):
+`rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session — that's where the intelligence lives; from the terminal you can always browse the memory with `rgit features` and `rgit graph`.
 
-```
-/rgit-capture            # segments the diff into Feature Capsules, then wires up graph edges
-rgit review              # list proposals
-rgit review --approve <proposal_id> --name rerank-retrieval
-```
+More commands as your store grows: [More commands](#more-commands).
 
-### 4. Bring an idea back onto today's code
+---
 
-Weeks later, after the agent has moved on:
+## Updating
 
-```
-/rgit-recall  bring back the re-ranking retrieval step
+```bash
+rgit update
 ```
 
-Recall scores capsules against your query, surfaces each hit with its related neighbors, then dispatches a subagent that *re-implements* the idea onto today's structure — adapting to refactors and leaving you a reviewable diff.
+Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone — the command tells you how to restore them instead.
 
-That's the whole loop. The rest of the commands you'll meet as you need them — see [More commands](#more-commands).
+rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off — the check is throttled, the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
 
 ---
 
@@ -170,7 +173,8 @@ The five-step loop above is the core. These show up as your store grows — run 
 | Command | What it does |
 |---------|--------------|
 | `rgit watch` | free, deterministic background capture — stages raw material as you edit, so fleeting in-between states aren't lost |
-| `rgit install-hooks` | stage on every commit via a post-commit hook (won't touch an existing hook) |
+| `rgit capture [REV \| A..B]` | bare: auto-picks the working tree or, when clean, the last commit; pass a commit or an A..B range for precise control |
+| `rgit install-hooks` | opt-in: stage every commit's diff via a post-commit hook (not installed by `rgit install`; won't touch an existing hook) — see install details above |
 | `rgit run --from <capsule>` | run a recalled variant and link the new run as a `variant_of` the original |
 | `rgit compare <query>` | which variant won: ranked table, Δ vs baseline, ★ winner |
 | `rgit provenance <run_id>` | per-feature clean (capsule) vs agent-adapted (frozen) diff for a run |

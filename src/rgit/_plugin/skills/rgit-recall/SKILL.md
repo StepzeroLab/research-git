@@ -1,7 +1,6 @@
 ---
 name: rgit-recall
-description: |
-  Bring a past idea back onto today's codebase. Use when the user wants to "recall", "resurrect", "bring back", or "re-apply" a feature/idea they captured before (e.g. "bring back the re-ranking retrieval step"). Orchestrates: recall the capsule(s) → compose a regeneration brief against current code → dispatch the capsule-regenerator subagent to re-implement it → human review + `rgit run`. No paid API.
+description: Use when the user wants to recall, resurrect, bring back, or re-apply a previously captured feature/idea onto today's codebase (e.g. "bring back the re-ranking retrieval step").
 ---
 
 # rgit-recall

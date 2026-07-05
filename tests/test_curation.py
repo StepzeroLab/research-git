@@ -149,3 +149,34 @@ def test_validate_candidates_accepts_wellformed_and_rejects_malformed():
         validate_candidates([{"name": "n", "intent": "i", "code_slices": [
             {"file": "m.py", "symbol": None, "anchor": None, "code": "x",
              "kind": "add", "bogus": 1}]}])                                 # slice extra field
+
+
+def test_approve_stamps_base_commit_from_commit_sourced_proposal(git_repo):
+    # A committed-diff capture pins the capsule to the commit that contains the
+    # change — approving later, after HEAD moved on, must not re-stamp it.
+    import subprocess
+    from rgit.gitutil import CommitDiffSource, current_commit
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    subprocess.run(["git", "add", "-A"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "double"], cwd=git_repo,
+                   check=True, capture_output=True)
+    captured = current_commit(git_repo)
+    candidate = {
+        "name": "double-forward", "intent": "scale forward output by 2",
+        "code_slices": [{"file": "model.py", "symbol": "forward",
+                         "anchor": "L1", "code": "return x*2", "kind": "wrap"}],
+        "knobs": {}, "data_assumptions": None,
+        "resurrection_guide": "multiply forward output", "confidence": 0.9,
+    }
+    pid = segment_diff(store, "commit", MockSegmenter([candidate]), None,
+                       source=CommitDiffSource("HEAD"))
+    (git_repo / "other.py").write_text("OTHER = 1\n")
+    subprocess.run(["git", "add", "-A"], cwd=git_repo, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "move HEAD"], cwd=git_repo,
+                   check=True, capture_output=True)
+    fid = approve(store, pid, 0)
+    assert store.get_feature(fid).base_commit == captured
+    assert captured != current_commit(git_repo)

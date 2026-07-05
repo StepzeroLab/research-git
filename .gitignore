@@ -6,6 +6,7 @@ __pycache__/
 dist/
 build/
 .rgit/
+uv.lock
 
 # personal research notes (not part of the project)
 多图.md
