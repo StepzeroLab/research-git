@@ -66,11 +66,13 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
     return fid
 
 
-def _capsule_from_candidate(store: Store, prop, idx: int, base: str) -> str:
+def _capsule_from_candidate(store: Store, prop, idx: int, base: str,
+                            origin: str = "live") -> str:
     """Materialize candidate `idx` as an approved Capsule with its edges.
 
     Shared by approve() and decide(); does not touch proposal status. `base` is
-    the capsule's base_commit, resolved once by the caller.
+    the capsule's base_commit, resolved once by the caller. `origin` defaults to
+    "live" so approve/decide are unchanged; the backfill queue passes "backfill".
     """
     cand = prop.candidates[idx]
     cap = Capsule(
@@ -79,7 +81,8 @@ def _capsule_from_candidate(store: Store, prop, idx: int, base: str) -> str:
         knobs=cand.get("knobs", {}), data_assumptions=cand.get("data_assumptions"),
         resurrection_guide=cand.get("resurrection_guide"), result_summary=None,
         payload_hash=None,
-        code_slices=[CodeSlice(**c) for c in cand["code_slices"]])
+        code_slices=[CodeSlice(**c) for c in cand["code_slices"]],
+        origin=origin)
     fid = store.add_feature(cap)
     for slice_ in cap.code_slices:                       # touches edges
         store.add_edge(fid, f"module:{slice_.file}", "touches")
