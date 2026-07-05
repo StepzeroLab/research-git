@@ -432,9 +432,11 @@ def build_parser() -> argparse.ArgumentParser:
                        metavar="PROPOSAL_ID",
                        help="decide PROPOSAL_ID in one shot — or, with no id, "
                             "the only open proposal; requires --keep")
-    p_rev.add_argument("--keep", default=None, metavar="NAME[,NAME...]",
-                       help="with --decide: comma-separated candidate names "
-                            "to approve; every other candidate is dropped")
+    p_rev.add_argument("--keep", action="append", default=None,
+                       metavar="NAME[,NAME...]",
+                       help="with --decide: candidate names to approve; every "
+                            "other candidate is dropped. Comma-separated and/or "
+                            "repeatable")
 
     sub.add_parser("features")
     sub.add_parser("mcp")          # run the MCP server (the query/share surface)
@@ -797,7 +799,8 @@ def _dispatch(args, parser) -> int:
 
     if args.cmd == "review":
         if args.decide is not None:
-            keep = [n.strip() for n in (args.keep or "").split(",") if n.strip()]
+            keep = [n.strip() for chunk in (args.keep or [])
+                    for n in chunk.split(",") if n.strip()]
             if not keep:
                 print("--decide requires --keep NAME[,NAME...]; "
                       "to keep nothing, use --dismiss")

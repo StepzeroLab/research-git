@@ -1277,6 +1277,15 @@ def test_review_decide_keeps_and_drops(git_repo, monkeypatch, capsys):
     assert {c.name for c in store.list_features()} == {"rerank", "cache"}
 
 
+def test_review_decide_keep_accumulates_across_repeats(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store, pid = _seed_three_candidates(git_repo)
+    # repeated --keep must accumulate, not last-win
+    assert cli.main(["review", "--decide", pid,
+                     "--keep", "rerank", "--keep", "cache"]) == 0
+    assert {c.name for c in store.list_features()} == {"rerank", "cache"}
+
+
 def test_review_decide_defaults_to_sole_open_proposal(git_repo, monkeypatch, capsys):
     monkeypatch.chdir(git_repo)
     store, pid = _seed_three_candidates(git_repo)
