@@ -46,7 +46,11 @@ Hand them a complete, paste-ready command with the real capsule id filled in —
 rgit run --from feat_ab12 -- python eval.py --retrieval rerank
 ```
 
-That records a new `run` node, freezes a byte-exact artifact, links a `produced` edge from the source capsule, and (on approving the resulting proposal) establishes `variant_of` back to the original. If the subagent returned an `updated_resurrection_guide`, write it to a file and add `--refresh-guide-file <path>` to that same command.
+That records a new `run` node, freezes a byte-exact artifact, links a `produced` edge from the source capsule, and (on approving the resulting proposal) establishes `variant_of` back to the original. If the subagent returned an `updated_resurrection_guide`, write it to a file and pass `--refresh-guide-file <path>` on that same run — placed **before** the `--`, since every `rgit` flag goes before the separator and everything after `--` is the experiment command:
+
+```
+rgit run --from feat_ab12 --refresh-guide-file guide.md -- python eval.py --retrieval rerank
+```
 
 ## Notes
 
