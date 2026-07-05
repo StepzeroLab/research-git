@@ -18,6 +18,18 @@ def _require_open(prop, proposal_id: str, verb: str) -> None:
             f"proposal {proposal_id!r} is {prop.status}, not open; cannot {verb}")
 
 
+def _index_by_name(candidates) -> dict:
+    """Map each candidate name to its index; first occurrence wins.
+
+    Shared by approve() and decide() so both resolve a name to the same
+    candidate when names repeat.
+    """
+    by_name: dict = {}
+    for i, c in enumerate(candidates):
+        by_name.setdefault(c.get("name"), i)
+    return by_name
+
+
 def approve(store: Store, proposal_id: str, candidate_index: int = 0,
             name: Optional[str] = None) -> str:
     """Turn one candidate into an approved Capsule; link it to the run.
@@ -33,14 +45,14 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
                   "approve (re-approving would create a duplicate capsule)")
     if not prop.candidates:
         raise ValueError(f"proposal {proposal_id!r} has no candidates to approve")
-    by_name = [i for i, c in enumerate(prop.candidates) if c.get("name") == name]
-    if name is not None and not by_name:
+    by_name = _index_by_name(prop.candidates)
+    if name is not None and name not in by_name:
         # A typo must fail loudly, not silently approve (and mislabel) candidate 0.
         available = [c.get("name") for c in prop.candidates]
         raise ValueError(
             f"no candidate named {name!r} in proposal {proposal_id!r}; "
             f"available: {available}")
-    idx = by_name[0] if name is not None else candidate_index
+    idx = by_name[name] if name is not None else candidate_index
     if idx < 0 or idx >= len(prop.candidates):
         raise ValueError(
             f"candidate index {idx} out of range for proposal {proposal_id!r} "
@@ -90,9 +102,7 @@ def decide(store: Store, proposal_id: str, keep: list[str]) -> list[tuple[str, s
     ordered = list(dict.fromkeys(keep))          # dedupe, keep order
     if not ordered:
         raise ValueError("nothing to keep; use dismiss to drop the whole proposal")
-    by_name: dict[str, int] = {}
-    for i, c in enumerate(prop.candidates):      # first occurrence wins, like approve()
-        by_name.setdefault(c.get("name"), i)
+    by_name = _index_by_name(prop.candidates)    # first occurrence wins, like approve()
     unknown = [n for n in ordered if n not in by_name]
     if unknown:
         available = [c.get("name") for c in prop.candidates]
