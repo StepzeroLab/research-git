@@ -137,6 +137,7 @@ def validate_candidates(candidates: object) -> None:
     """
     if not isinstance(candidates, list):
         raise ValueError("candidates must be a JSON list of candidate objects")
+    seen_names: set = set()
     for i, c in enumerate(candidates):
         where = f"candidate {i}"
         if not isinstance(c, dict):
@@ -144,6 +145,14 @@ def validate_candidates(candidates: object) -> None:
         for field in ("name", "intent"):
             if not isinstance(c.get(field), str) or not c[field].strip():
                 raise ValueError(f"{where} is missing a non-empty {field!r}")
+        name = c["name"]
+        # Names address candidates from the CLI (`--keep`, `--name`); a duplicate
+        # would make one unreachable, so reject it at the write boundary.
+        if name in seen_names:
+            raise ValueError(
+                f"duplicate candidate name {name!r}; candidate names must be "
+                f"unique within a proposal")
+        seen_names.add(name)
         slices = c.get("code_slices")
         if not isinstance(slices, list):
             raise ValueError(f"{where} must have a 'code_slices' list")

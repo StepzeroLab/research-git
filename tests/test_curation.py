@@ -151,6 +151,15 @@ def test_validate_candidates_accepts_wellformed_and_rejects_malformed():
              "kind": "add", "bogus": 1}]}])                                 # slice extra field
 
 
+def test_validate_candidates_rejects_duplicate_names():
+    from rgit.curation import validate_candidates
+    with pytest.raises(ValueError, match="duplicate candidate name"):
+        validate_candidates([
+            {"name": "dup", "intent": "first", "code_slices": []},
+            {"name": "dup", "intent": "second", "code_slices": []},
+        ])
+
+
 def test_approve_stamps_base_commit_from_commit_sourced_proposal(git_repo):
     # A committed-diff capture pins the capsule to the commit that contains the
     # change — approving later, after HEAD moved on, must not re-stamp it.
