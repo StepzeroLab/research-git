@@ -63,3 +63,31 @@ def test_edge_type_vocabulary_is_centralized():
     assert doctor.CAPSULE_EDGE_TYPES is CAPSULE_EDGE_TYPES
     assert doctor.SYMMETRIC_EDGE_TYPES is SYMMETRIC_EDGE_TYPES
     assert SYMMETRIC_EDGE_TYPES <= CAPSULE_EDGE_TYPES
+
+
+def test_digest_tables_and_origin_column_exist(tmp_path):
+    from rgit.store.db import connect, init_schema
+    conn = connect(tmp_path / "g.db")
+    init_schema(conn)
+    tables = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    assert {"digest_units", "digest_meta"} <= tables
+    fcols = {r[1] for r in conn.execute("PRAGMA table_info(features)")}
+    assert "origin" in fcols
+
+
+def test_origin_migration_adds_column_to_old_features(tmp_path):
+    import sqlite3
+    from rgit.store.db import init_schema
+    conn = sqlite3.connect(tmp_path / "old.db")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE features (id TEXT PRIMARY KEY, name TEXT NOT NULL, "
+                 "intent TEXT NOT NULL, status TEXT NOT NULL, base_commit TEXT NOT NULL, "
+                 "knobs TEXT NOT NULL DEFAULT '{}', data_assumptions TEXT, "
+                 "resurrection_guide TEXT, result_summary TEXT, payload_hash TEXT)")
+    conn.execute("INSERT INTO features (id, name, intent, status, base_commit) "
+                 "VALUES ('f1', 'n', 'i', 'approved', 'c')")
+    conn.commit()
+    init_schema(conn)
+    row = conn.execute("SELECT origin FROM features WHERE id='f1'").fetchone()
+    assert row["origin"] == "live"
