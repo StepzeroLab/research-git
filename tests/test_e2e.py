@@ -121,8 +121,9 @@ def test_decide_multi_capsule_end_to_end(git_repo):
         cand("debug-logging", "temporary logging"),
     ]), None)
 
-    approved = decide(store, pid, ["rerank-retrieval", "query-cache"])
+    approved, dropped = decide(store, pid, ["rerank-retrieval", "query-cache"])
     assert len(approved) == 2
+    assert dropped == ["debug-logging"]
 
     hits = recall(store, "rerank retrieved")
     assert hits and hits[0]["capsule"].name == "rerank-retrieval"

@@ -804,18 +804,16 @@ def _dispatch(args, parser) -> int:
                 return 1
             try:
                 target = args.decide or _sole_open_proposal(store)
-                approved = decide(store, target, keep)
+                approved, dropped = decide(store, target, keep)
             except (KeyError, ValueError) as e:
                 print(str(e))
                 print("hint: inspect with `rgit pending --json`; if there are "
                       "0 candidates, resegment before deciding.")
                 return 1
-            kept = {n for n, _ in approved}
             for name, fid in approved:
                 print(f"approved -> {fid}  {name}")
-            for c in store.get_proposal(target).candidates:
-                if c.get("name") not in kept:
-                    print(f"dropped     {c.get('name')}")
+            for name in dropped:
+                print(f"dropped     {name}")
             print(f"proposal {target} resolved")
             return 0
         if args.dismiss is not None:

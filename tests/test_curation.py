@@ -230,8 +230,9 @@ def test_decide_keeps_multiple_drops_rest_and_resolves(git_repo):
     rid = store.add_run(Run("", "python train.py", "aa", {"acc": 0.9},
                             "abc", None, "2026-06-16T00:00:00"))
     pid = _seed_multi_proposal(store, run_id=rid)
-    approved = decide(store, pid, ["rerank", "cache"])
+    approved, dropped = decide(store, pid, ["rerank", "cache"])
     assert [n for n, _ in approved] == ["rerank", "cache"]
+    assert dropped == ["logging"]
     assert {c.name for c in store.list_features()} == {"rerank", "cache"}
     for _, fid in approved:
         assert store.neighbors(fid, "produced") == [rid]
@@ -272,7 +273,9 @@ def test_decide_single_name_matches_approve_semantics(git_repo):
     store = Store.init(git_repo)
     (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
     pid = _seed_proposal(store)
-    [(name, fid)] = decide(store, pid, ["double-forward"])
+    approved, dropped = decide(store, pid, ["double-forward"])
+    [(name, fid)] = approved
+    assert dropped == []
     cap = store.get_feature(fid)
     assert name == "double-forward"
     assert cap.status == "approved"
@@ -284,6 +287,7 @@ def test_decide_dedupes_repeated_names(git_repo):
     store = Store.init(git_repo)
     (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
     pid = _seed_multi_proposal(store)
-    approved = decide(store, pid, ["rerank", "rerank"])
+    approved, dropped = decide(store, pid, ["rerank", "rerank"])
     assert len(approved) == 1
+    assert set(dropped) == {"cache", "logging"}
     assert len(store.list_features()) == 1

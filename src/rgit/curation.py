@@ -90,13 +90,19 @@ def _capsule_from_candidate(store: Store, prop, idx: int, base: str) -> str:
     return fid
 
 
-def decide(store: Store, proposal_id: str, keep: list[str]) -> list[tuple[str, str]]:
+def decide(store: Store, proposal_id: str,
+           keep: list[str]) -> tuple[list[tuple[str, str]], list[str]]:
     """Approve the named candidates, drop the rest, resolve the proposal.
 
     One call expresses a whole review decision ("keep these"), so an agent
     driving a conversational review executes the user's answer atomically.
     Everything is validated before anything is written: an unknown name
     rejects the whole call with no partial writes.
+
+    Returns `(approved, dropped_names)` where `approved` is `(name, feature_id)`
+    per kept candidate and `dropped_names` are the candidates not kept, in
+    candidate order — so the caller reports the outcome without re-reading the
+    (now resolved) proposal.
     """
     prop = store.get_proposal(proposal_id)
     _require_open(prop, proposal_id,
@@ -114,8 +120,11 @@ def decide(store: Store, proposal_id: str, keep: list[str]) -> list[tuple[str, s
     base = prop.source_commit or current_commit(store.root)
     approved = [(n, _capsule_from_candidate(store, prop, by_name[n], base))
                 for n in ordered]
+    kept_indices = {by_name[n] for n in ordered}
+    dropped = [c.get("name") for i, c in enumerate(prop.candidates)
+               if i not in kept_indices]
     store.set_proposal_status(proposal_id, "resolved")
-    return approved
+    return approved, dropped
 
 
 def dismiss(store: Store, proposal_id: str) -> None:
