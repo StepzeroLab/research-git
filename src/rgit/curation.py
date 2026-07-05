@@ -35,6 +35,17 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
         raise ValueError(
             f"candidate index {idx} out of range for proposal {proposal_id!r} "
             f"with {len(prop.candidates)} candidate(s)")
+    fid = _capsule_from_candidate(store, prop, idx, name)
+    store.set_proposal_status(proposal_id, "resolved")
+    return fid
+
+
+def _capsule_from_candidate(store: Store, prop, idx: int,
+                            name: Optional[str] = None) -> str:
+    """Materialize candidate `idx` as an approved Capsule with its edges.
+
+    Shared by approve() and decide(); does not touch proposal status.
+    """
     cand = prop.candidates[idx]
     # A committed-diff capture pins the capsule to the commit that contains the
     # change; only worktree captures fall back to HEAD at approve time.
@@ -53,8 +64,38 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
         store.add_edge(fid, prop.run_id, "produced")
     for src in (prop.from_features or []):               # regenerated from -> variant_of
         store.add_edge(fid, src, "variant_of")
-    store.set_proposal_status(proposal_id, "resolved")
     return fid
+
+
+def decide(store: Store, proposal_id: str, keep: list[str]) -> list[tuple[str, str]]:
+    """Approve the named candidates, drop the rest, resolve the proposal.
+
+    One call expresses a whole review decision ("keep these"), so an agent
+    driving a conversational review executes the user's answer atomically.
+    Everything is validated before anything is written: an unknown name
+    rejects the whole call with no partial writes.
+    """
+    prop = store.get_proposal(proposal_id)
+    if prop.status != "open":
+        raise ValueError(
+            f"proposal {proposal_id!r} is {prop.status}, not open; cannot decide "
+            f"(re-deciding would create duplicate capsules)")
+    ordered = list(dict.fromkeys(keep))          # dedupe, keep order
+    if not ordered:
+        raise ValueError("nothing to keep; use dismiss to drop the whole proposal")
+    by_name: dict[str, int] = {}
+    for i, c in enumerate(prop.candidates):      # first occurrence wins, like approve()
+        by_name.setdefault(c.get("name"), i)
+    unknown = [n for n in ordered if n not in by_name]
+    if unknown:
+        available = [c.get("name") for c in prop.candidates]
+        raise ValueError(
+            f"no candidate(s) named {unknown!r} in proposal {proposal_id!r}; "
+            f"available: {available}")
+    approved = [(n, _capsule_from_candidate(store, prop, by_name[n]))
+                for n in ordered]
+    store.set_proposal_status(proposal_id, "resolved")
+    return approved
 
 
 def dismiss(store: Store, proposal_id: str) -> None:
