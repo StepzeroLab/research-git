@@ -230,6 +230,10 @@ from .store.store import Store
 # Test seam: when set, used instead of the default free HeuristicSegmenter.
 _SEGMENTER: Optional[Segmenter] = None
 
+# Sentinel for a bare review flag (`--approve` with no id): resolve the sole
+# open proposal. Distinct from an explicit empty id (""), which is an error.
+_SOLE = "\x00sole"
+
 
 def _segmenter() -> Segmenter:
     if _SEGMENTER is not None:
@@ -318,6 +322,15 @@ def _sole_open_proposal(store: Store) -> str:
         raise ValueError("several proposals are open; pass an id:\n"
                          + "\n".join(lines))
     return opens[0].id
+
+
+def _resolve_review_target(value: str, store: Store) -> str:
+    """Map a review flag's value to a proposal id.
+
+    `_SOLE` (a bare flag) resolves the only open proposal; any other value is
+    used as-is. An explicit empty id is rejected by the caller before here.
+    """
+    return _sole_open_proposal(store) if value is _SOLE else value
 
 
 def _diff_text(store: Store, diff_ref: Optional[str]) -> str:
@@ -421,15 +434,15 @@ def build_parser() -> argparse.ArgumentParser:
     # approve / dismiss / decide are three ways to resolve one proposal — at most
     # one per invocation.
     rev_mode = p_rev.add_mutually_exclusive_group()
-    rev_mode.add_argument("--approve", nargs="?", const="", default=None,
+    rev_mode.add_argument("--approve", nargs="?", const=_SOLE, default=None,
                           metavar="PROPOSAL_ID",
                           help="approve PROPOSAL_ID — or, with no id, the only "
                                "open proposal")
-    rev_mode.add_argument("--dismiss", nargs="?", const="", default=None,
+    rev_mode.add_argument("--dismiss", nargs="?", const=_SOLE, default=None,
                           metavar="PROPOSAL_ID",
                           help="dismiss PROPOSAL_ID — or, with no id, the only "
                                "open proposal")
-    rev_mode.add_argument("--decide", nargs="?", const="", default=None,
+    rev_mode.add_argument("--decide", nargs="?", const=_SOLE, default=None,
                           metavar="PROPOSAL_ID",
                           help="decide PROPOSAL_ID in one shot — or, with no id, "
                                "the only open proposal; requires --keep")
@@ -805,6 +818,10 @@ def _dispatch(args, parser) -> int:
             print("--keep requires --decide")
             return 1
         if args.decide is not None:
+            if args.decide == "":
+                print("empty PROPOSAL_ID; pass an id, or omit the value to use "
+                      "the sole open proposal")
+                return 1
             keep = [n.strip() for chunk in (args.keep or [])
                     for n in chunk.split(",") if n.strip()]
             if not keep:
@@ -812,7 +829,7 @@ def _dispatch(args, parser) -> int:
                       "to keep nothing, use --dismiss")
                 return 1
             try:
-                target = args.decide or _sole_open_proposal(store)
+                target = _resolve_review_target(args.decide, store)
                 approved, dropped = decide(store, target, keep)
             except KeyError as e:
                 print(str(e))
@@ -833,8 +850,12 @@ def _dispatch(args, parser) -> int:
             print(f"proposal {target} resolved")
             return 0
         if args.dismiss is not None:
+            if args.dismiss == "":
+                print("empty PROPOSAL_ID; pass an id, or omit the value to use "
+                      "the sole open proposal")
+                return 1
             try:
-                target = args.dismiss or _sole_open_proposal(store)
+                target = _resolve_review_target(args.dismiss, store)
                 dismiss(store, target)
             except KeyError as e:
                 print(str(e))
@@ -846,8 +867,12 @@ def _dispatch(args, parser) -> int:
             print(f"dismissed {target}")
             return 0
         if args.approve is not None:
+            if args.approve == "":
+                print("empty PROPOSAL_ID; pass an id, or omit the value to use "
+                      "the sole open proposal")
+                return 1
             try:
-                target = args.approve or _sole_open_proposal(store)
+                target = _resolve_review_target(args.approve, store)
                 fid = approve(store, target, args.index, args.name)
             except (KeyError, ValueError) as e:
                 print(str(e))

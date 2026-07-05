@@ -1303,6 +1303,16 @@ def test_review_decide_requires_keep(git_repo, monkeypatch, capsys):
     assert "--keep" in out and "--dismiss" in out
 
 
+def test_review_decide_explicit_empty_id_is_rejected(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store, pid = _seed_three_candidates(git_repo)
+    # an explicit empty id must not silently fall back to the sole proposal
+    assert cli.main(["review", "--decide", "", "--keep", "x"]) == 1
+    out = capsys.readouterr().out
+    assert "empty PROPOSAL_ID" in out
+    assert store.get_proposal(pid).status == "open"   # untouched
+
+
 def test_review_decide_unknown_id_prints_review_hint(git_repo, monkeypatch, capsys):
     monkeypatch.chdir(git_repo)
     Store.init(git_repo)
