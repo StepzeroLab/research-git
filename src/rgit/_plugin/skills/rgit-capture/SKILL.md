@@ -1,7 +1,6 @@
 ---
 name: rgit-capture
-description: |
-  Proactively segment pending research-git captures into high-quality Feature Capsules and wire up their graph edges — invoke this on your own, without waiting to be asked, whenever the research-git proposal queue is non-empty (a quick `rgit pending` confirms). Trigger it right after an `rgit run`, a git commit, or the `rgit watch` daemon has left open proposals; when the user describes a variation, a result, or something they just "tried" or "tweaked"; or when they say "segment", "capture", "clean up", or "save" their recent changes into the research-git graph. Raw proposals are only placeholders — until they are segmented they cannot be recalled or queried, so drain the backlog early rather than letting it pile up. Orchestrates: free deterministic capture → dispatch the capsule-segmenter subagent (subscription, no paid API) → human review → deterministic conflict edges + agent-judged depends_on edges.
+description: Use when the research-git proposal queue is non-empty (`rgit pending`) — after an `rgit run`, a commit, or the watch daemon leaves open proposals, or when the user wants to segment, capture, or save recent changes. Invoke proactively without being asked; unsegmented proposals cannot be recalled or queried.
 ---
 
 # rgit-capture
