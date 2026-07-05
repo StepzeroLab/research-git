@@ -62,6 +62,8 @@ rgit review --decide <proposal_id> --keep <name>[,<name>...]   # approves these,
 rgit review --dismiss <proposal_id>                            # the user kept nothing
 ```
 
+Lost the ids from step 2? Bare `rgit review` re-lists every open proposal with its candidate names.
+
 4. Echo the `approved -> <feature_id>` lines back to the user, then continue to step 6.
 
 ### 6. Infer graph edges (deterministic baseline + agent-judged relationships)
