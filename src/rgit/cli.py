@@ -222,13 +222,17 @@ def _read_prompt_key_windows() -> str:
             return "down"
     return "other"
 
-from .curation import approve, dismiss
+from .curation import approve, decide, dismiss
 from .runner import run_experiment
 from .segmenter import Segmenter, segment_diff
 from .store.store import Store
 
 # Test seam: when set, used instead of the default free HeuristicSegmenter.
 _SEGMENTER: Optional[Segmenter] = None
+
+# Sentinel for a bare review flag (`--approve` with no id): resolve the sole
+# open proposal. Distinct from an explicit empty id (""), which is an error.
+_SOLE = "\x00sole"
 
 
 def _segmenter() -> Segmenter:
@@ -320,6 +324,15 @@ def _sole_open_proposal(store: Store) -> str:
     return opens[0].id
 
 
+def _resolve_review_target(value: str, store: Store) -> str:
+    """Map a review flag's value to a proposal id.
+
+    `_SOLE` (a bare flag) resolves the only open proposal; any other value is
+    used as-is. An explicit empty id is rejected by the caller before here.
+    """
+    return _sole_open_proposal(store) if value is _SOLE else value
+
+
 def _diff_text(store: Store, diff_ref: Optional[str]) -> str:
     return store.objects.get(diff_ref).decode(errors="replace") if diff_ref else ""
 
@@ -367,6 +380,13 @@ class _Parser(argparse.ArgumentParser):
     """ArgumentParser with a git-style did-you-mean on unknown subcommands."""
 
     commands: tuple = ()
+
+    def __init__(self, *args, **kwargs):
+        # No prefix abbreviation: once --decide exists, `--d` is ambiguous with
+        # --dismiss, and abbreviations silently resolving to the wrong flag are a
+        # footgun. Subparsers inherit this class, so they inherit the setting too.
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
 
     def error(self, message):
         m = re.search(r"invalid choice: '([^']+)'", message)
@@ -418,16 +438,28 @@ def build_parser() -> argparse.ArgumentParser:
                        help="create .rgit/ at the git root if missing (no hooks)")
 
     p_rev = sub.add_parser("review")
-    p_rev.add_argument("--approve", nargs="?", const="", default=None,
-                       metavar="PROPOSAL_ID",
-                       help="approve PROPOSAL_ID — or, with no id, the only "
-                            "open proposal")
+    # approve / dismiss / decide are three ways to resolve one proposal — at most
+    # one per invocation.
+    rev_mode = p_rev.add_mutually_exclusive_group()
+    rev_mode.add_argument("--approve", nargs="?", const=_SOLE, default=None,
+                          metavar="PROPOSAL_ID",
+                          help="approve PROPOSAL_ID — or, with no id, the only "
+                               "open proposal")
+    rev_mode.add_argument("--dismiss", nargs="?", const=_SOLE, default=None,
+                          metavar="PROPOSAL_ID",
+                          help="dismiss PROPOSAL_ID — or, with no id, the only "
+                               "open proposal")
+    rev_mode.add_argument("--decide", nargs="?", const=_SOLE, default=None,
+                          metavar="PROPOSAL_ID",
+                          help="decide PROPOSAL_ID in one shot — or, with no id, "
+                               "the only open proposal; requires --keep")
     p_rev.add_argument("--name")
     p_rev.add_argument("--index", type=int, default=0)
-    p_rev.add_argument("--dismiss", nargs="?", const="", default=None,
-                       metavar="PROPOSAL_ID",
-                       help="dismiss PROPOSAL_ID — or, with no id, the only "
-                            "open proposal")
+    p_rev.add_argument("--keep", action="append", default=None,
+                       metavar="NAME[,NAME...]",
+                       help="with --decide: candidate names to approve; every "
+                            "other candidate is dropped. Comma-separated and/or "
+                            "repeatable")
 
     sub.add_parser("features")
     sub.add_parser("mcp")          # run the MCP server (the query/share surface)
@@ -789,9 +821,48 @@ def _dispatch(args, parser) -> int:
         return 0
 
     if args.cmd == "review":
-        if args.dismiss is not None:
+        if args.keep and args.decide is None:
+            print("--keep requires --decide")
+            return 1
+        if args.decide is not None:
+            if args.decide == "":
+                print("empty PROPOSAL_ID; pass an id, or omit the value to use "
+                      "the sole open proposal")
+                return 1
+            keep = [n.strip() for chunk in (args.keep or [])
+                    for n in chunk.split(",") if n.strip()]
+            if not keep:
+                print("--decide requires --keep NAME[,NAME...]; "
+                      "to keep nothing, use --dismiss")
+                return 1
             try:
-                target = args.dismiss or _sole_open_proposal(store)
+                target = _resolve_review_target(args.decide, store)
+                approved, dropped = decide(store, target, keep)
+            except KeyError as e:
+                print(str(e))
+                print("hint: run `rgit review` to list open proposals")
+                return 1
+            except ValueError as e:
+                print(str(e))
+                # Only an unknown-name / 0-candidate failure is fixed by
+                # resegmenting; ambiguity errors already carry their own listing.
+                if "no candidate" in str(e):
+                    print("hint: inspect with `rgit pending --json`; if there "
+                          "are 0 candidates, resegment before deciding.")
+                return 1
+            for name, fid in approved:
+                print(f"approved -> {fid}  {name}")
+            for name in dropped:
+                print(f"dropped     {name}")
+            print(f"proposal {target} resolved")
+            return 0
+        if args.dismiss is not None:
+            if args.dismiss == "":
+                print("empty PROPOSAL_ID; pass an id, or omit the value to use "
+                      "the sole open proposal")
+                return 1
+            try:
+                target = _resolve_review_target(args.dismiss, store)
                 dismiss(store, target)
             except KeyError as e:
                 print(str(e))
@@ -803,8 +874,12 @@ def _dispatch(args, parser) -> int:
             print(f"dismissed {target}")
             return 0
         if args.approve is not None:
+            if args.approve == "":
+                print("empty PROPOSAL_ID; pass an id, or omit the value to use "
+                      "the sole open proposal")
+                return 1
             try:
-                target = args.approve or _sole_open_proposal(store)
+                target = _resolve_review_target(args.approve, store)
                 fid = approve(store, target, args.index, args.name)
             except (KeyError, ValueError) as e:
                 print(str(e))

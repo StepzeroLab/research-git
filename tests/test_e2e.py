@@ -1,11 +1,12 @@
 import subprocess
 import sys
+from conftest import make_candidate
 from rgit.runner import run_experiment
-from rgit.curation import approve
+from rgit.curation import approve, decide
 from rgit.recall import recall
 from rgit.compose import compose
 from rgit.gitutil import materialize
-from rgit.segmenter import MockSegmenter
+from rgit.segmenter import MockSegmenter, segment_diff
 from rgit.store.store import Store
 
 
@@ -99,3 +100,28 @@ def test_post_commit_hook_captures_the_commit(git_repo, tmp_path, monkeypatch):
     assert props[0].trigger == "commit"
     assert props[0].source_commit == current_commit(git_repo)
     assert "x * 2" in store.objects.get(props[0].diff_ref).decode()
+
+
+def test_decide_multi_capsule_end_to_end(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text(
+        "def forward(x):\n    return rerank(cache(x))\n")
+
+    def cand(name, intent):
+        return make_candidate(name, intent, anchor="L2", guide=f"re-add {name}")
+    # the CaptureResult return value IS the proposal id (str subclass)
+    pid = segment_diff(store, "manual", MockSegmenter([
+        cand("rerank-retrieval", "re-rank retrieved candidates"),
+        cand("query-cache", "cache query embeddings"),
+        cand("debug-logging", "temporary logging"),
+    ]), None)
+
+    approved, dropped = decide(store, pid, ["rerank-retrieval", "query-cache"])
+    assert len(approved) == 2
+    assert dropped == ["debug-logging"]
+
+    hits = recall(store, "rerank retrieved")
+    assert hits and hits[0]["capsule"].name == "rerank-retrieval"
+    hits = recall(store, "cache query embeddings")
+    assert hits and hits[0]["capsule"].name == "query-cache"
+    assert "debug-logging" not in {c.name for c in store.list_features()}

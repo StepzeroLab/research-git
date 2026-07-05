@@ -70,11 +70,19 @@ class HeuristicSegmenter:
             by_file.setdefault(s["file"], []).append(s["symbol"])
         file_diffs = _diff_by_file(diff)
         candidates: list[dict] = []
+        seen_names: dict[str, int] = {}
         for file, syms in by_file.items():
             stem = file.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+            # Basename stems collide (e.g. two packages' __init__.py). Candidate
+            # names must be unique, so disambiguate deterministically: the first
+            # occurrence keeps the plain name, later ones get -2, -3, ...
+            base_name = f"{stem}-changes"
+            count = seen_names.get(base_name, 0) + 1
+            seen_names[base_name] = count
+            name = base_name if count == 1 else f"{base_name}-{count}"
             code = file_diffs.get(file, "")
             candidates.append({
-                "name": f"{stem}-changes",
+                "name": name,
                 "intent": f"Changes to {', '.join(syms)} in {file}",
                 "code_slices": [{"file": file, "symbol": sym, "anchor": None,
                                  "code": code, "kind": "wrap"} for sym in syms],

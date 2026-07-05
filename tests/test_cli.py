@@ -4,9 +4,10 @@ from pathlib import Path
 
 import pytest
 import rgit.cli as cli
+from conftest import make_candidate
 from rgit.cli import main
 from rgit.gitutil import MAX_UNTRACKED_DIFF_BYTES
-from rgit.segmenter import MockSegmenter
+from rgit.segmenter import MockSegmenter, segment_diff
 from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice, Run
 
@@ -1245,3 +1246,113 @@ def test_review_dismiss_unknown_id_prints_hint(git_repo, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "prop_nope" in out
     assert "hint:" in out and "rgit review" in out
+
+
+def _seed_three_candidates(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    # segment_diff returns a CaptureResult, a str subclass that IS the proposal id
+    pid = segment_diff(store, "manual",
+                       MockSegmenter([make_candidate("rerank"),
+                                      make_candidate("cache"),
+                                      make_candidate("logging")]), None)
+    return store, pid
+
+
+def test_review_decide_keeps_and_drops(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store, pid = _seed_three_candidates(git_repo)
+    assert cli.main(["review", "--decide", pid, "--keep", "rerank,cache"]) == 0
+    out = capsys.readouterr().out
+    assert out.count("approved -> ") == 2
+    assert "rerank" in out and "cache" in out
+    assert "dropped" in out and "logging" in out
+    assert f"proposal {pid} resolved" in out
+    assert {c.name for c in store.list_features()} == {"rerank", "cache"}
+
+
+def test_review_decide_keep_accumulates_across_repeats(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store, pid = _seed_three_candidates(git_repo)
+    # repeated --keep must accumulate, not last-win
+    assert cli.main(["review", "--decide", pid,
+                     "--keep", "rerank", "--keep", "cache"]) == 0
+    assert {c.name for c in store.list_features()} == {"rerank", "cache"}
+
+
+def test_review_decide_defaults_to_sole_open_proposal(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store, pid = _seed_three_candidates(git_repo)
+    assert cli.main(["review", "--decide", "--keep", "rerank"]) == 0
+    out = capsys.readouterr().out
+    assert f"proposal {pid} resolved" in out
+    assert {c.name for c in store.list_features()} == {"rerank"}
+
+
+def test_review_decide_requires_keep(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    _seed_three_candidates(git_repo)
+    assert cli.main(["review", "--decide"]) == 1
+    out = capsys.readouterr().out
+    assert "--keep" in out and "--dismiss" in out
+
+
+def test_review_decide_explicit_empty_id_is_rejected(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store, pid = _seed_three_candidates(git_repo)
+    # an explicit empty id must not silently fall back to the sole proposal
+    assert cli.main(["review", "--decide", "", "--keep", "x"]) == 1
+    out = capsys.readouterr().out
+    assert "empty PROPOSAL_ID" in out
+    assert store.get_proposal(pid).status == "open"   # untouched
+
+
+def test_review_decide_unknown_id_prints_review_hint(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--decide", "prop_nope", "--keep", "x"]) == 1
+    out = capsys.readouterr().out
+    assert "prop_nope" in out
+    assert "rgit review" in out
+    assert "resegment" not in out                 # id error, not a name error
+
+
+def test_review_flag_abbreviation_is_rejected(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    # --d is ambiguous between --dismiss and --decide; abbreviations are disabled
+    with pytest.raises(SystemExit):
+        cli.main(["review", "--d", "x"])
+
+
+def test_review_full_flag_names_still_parse(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    # the full names remain valid (here they resolve no proposal → exit 1, not 2)
+    assert cli.main(["review", "--dismiss", "prop_nope"]) == 1
+    capsys.readouterr()
+    assert cli.main(["review", "--decide", "prop_nope", "--keep", "x"]) == 1
+
+
+def test_review_modes_are_mutually_exclusive(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    with pytest.raises(SystemExit):
+        cli.main(["review", "--approve", "X", "--decide", "Y"])
+
+
+def test_review_keep_without_decide_is_an_error(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    Store.init(git_repo)
+    assert cli.main(["review", "--keep", "a"]) == 1
+    assert "--decide" in capsys.readouterr().out
+
+
+def test_review_decide_unknown_name_fails_with_hint(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    store, pid = _seed_three_candidates(git_repo)
+    assert cli.main(["review", "--decide", pid, "--keep", "nope"]) == 1
+    out = capsys.readouterr().out
+    assert "nope" in out and "rgit pending --json" in out
+    assert store.list_features() == []
+    assert store.get_proposal(pid).status == "open"

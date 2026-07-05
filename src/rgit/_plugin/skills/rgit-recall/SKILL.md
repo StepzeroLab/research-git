@@ -38,16 +38,21 @@ Dispatch a subagent using the **`capsule-regenerator`** agent definition (`agent
 
 ### 5. Review + close the loop
 
-Show the user the resulting working-tree diff (`git diff`) and the subagent's provenance/adaptation notes. **Do not commit or freeze for them.** Tell the user to test + freeze it, linking the new run back to the source capsule:
+Show the user the resulting working-tree diff (`git diff`) and the subagent's provenance/adaptation notes. **Do not commit, run, or freeze for them** — the human runs the experiment, and that run is what freezes the reproducible artifact.
+
+Hand them a complete, paste-ready command with the real capsule id filled in — never a template with `<placeholders>`. If you don't already know their test command from the conversation, ask for it first. Example of the shape (with a real id):
 
 ```
-rgit run --from <source_capsule_id> -- <their command>
+rgit run --from feat_ab12 -- python eval.py --retrieval rerank
 ```
 
-That records a new `run` node, freezes a byte-exact artifact, links a `produced` edge from the source capsule, and (on approving the resulting proposal) establishes `variant_of` back to the original. If the subagent returned an `updated_resurrection_guide`, write it to a file and pass `--refresh-guide-file <path>` so the source capsule learns.
+That records a new `run` node, freezes a byte-exact artifact, links a `produced` edge from the source capsule, and (on approving the resulting proposal) establishes `variant_of` back to the original. If the subagent returned an `updated_resurrection_guide`, write it to a file and pass `--refresh-guide-file <path>` on that same run — placed **before** the `--`, since every `rgit` flag goes before the separator and everything after `--` is the experiment command:
+
+```
+rgit run --from feat_ab12 --refresh-guide-file guide.md -- python eval.py --retrieval rerank
+```
 
 ## Notes
 
-- **Reproducibility stays intact.** The subagent only *authors*; the human runs `rgit run`, which is the only thing that freezes the reproducible artifact. The agent is never in the replay path.
-- **No paid API.** The regenerator is a dispatched subagent on this session's subscription. MCP only served read-only graph snippets (`recall`, `compose`).
-- **Sibling flow:** capture/segmentation is `rgit-capture` + `capsule-segmenter`.
+- **Reproducibility stays intact.** The subagent only *authors*; the human's `rgit run` is the only thing that freezes the artifact — the agent is never in the replay path.
+- **Sibling flow:** capture/segmentation is the `rgit-capture` skill (`capsule-segmenter` agent).

@@ -1,5 +1,6 @@
 import pytest
 
+from conftest import make_candidate
 from rgit.curation import approve, dismiss
 from rgit.segmenter import MockSegmenter, segment_diff
 from rgit.store.store import Store
@@ -151,6 +152,31 @@ def test_validate_candidates_accepts_wellformed_and_rejects_malformed():
              "kind": "add", "bogus": 1}]}])                                 # slice extra field
 
 
+def test_validate_candidates_rejects_duplicate_names():
+    from rgit.curation import validate_candidates
+    with pytest.raises(ValueError, match="duplicate candidate name"):
+        validate_candidates([
+            {"name": "dup", "intent": "first", "code_slices": []},
+            {"name": "dup", "intent": "second", "code_slices": []},
+        ])
+
+
+def test_validate_candidates_rejects_comma_in_name():
+    from rgit.curation import validate_candidates
+    with pytest.raises(ValueError, match="--keep"):
+        validate_candidates([
+            {"name": "a,b", "intent": "i", "code_slices": []},
+        ])
+
+
+def test_validate_candidates_rejects_untrimmed_name():
+    from rgit.curation import validate_candidates
+    with pytest.raises(ValueError, match="--keep"):
+        validate_candidates([
+            {"name": " padded ", "intent": "i", "code_slices": []},
+        ])
+
+
 def test_approve_stamps_base_commit_from_commit_sourced_proposal(git_repo):
     # A committed-diff capture pins the capsule to the commit that contains the
     # change — approving later, after HEAD moved on, must not re-stamp it.
@@ -180,3 +206,82 @@ def test_approve_stamps_base_commit_from_commit_sourced_proposal(git_repo):
     fid = approve(store, pid, 0)
     assert store.get_feature(fid).base_commit == captured
     assert captured != current_commit(git_repo)
+
+
+from rgit.curation import decide
+
+
+def _seed_multi_proposal(store, run_id=None):
+    return segment_diff(store, "manual",
+                        MockSegmenter([make_candidate("rerank"),
+                                       make_candidate("cache"),
+                                       make_candidate("logging")]), run_id)
+
+
+def test_decide_keeps_multiple_drops_rest_and_resolves(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    rid = store.add_run(Run("", "python train.py", "aa", {"acc": 0.9},
+                            "abc", None, "2026-06-16T00:00:00"))
+    pid = _seed_multi_proposal(store, run_id=rid)
+    approved, dropped = decide(store, pid, ["rerank", "cache"])
+    assert [n for n, _ in approved] == ["rerank", "cache"]
+    assert dropped == ["logging"]
+    assert {c.name for c in store.list_features()} == {"rerank", "cache"}
+    for _, fid in approved:
+        assert store.neighbors(fid, "produced") == [rid]
+        assert store.neighbors(fid, "touches") == ["module:model.py"]
+    assert store.get_proposal(pid).status == "resolved"
+
+
+def test_decide_unknown_name_rejects_whole_call_no_partial_writes(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_multi_proposal(store)
+    with pytest.raises(ValueError, match="typo-name"):
+        decide(store, pid, ["rerank", "typo-name"])
+    assert store.list_features() == []
+    assert store.get_proposal(pid).status == "open"
+
+
+def test_decide_empty_keep_rejected(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_multi_proposal(store)
+    with pytest.raises(ValueError, match="nothing to keep"):
+        decide(store, pid, [])
+    assert store.get_proposal(pid).status == "open"
+
+
+def test_decide_refused_after_resolve(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_multi_proposal(store)
+    decide(store, pid, ["rerank"])
+    with pytest.raises(ValueError, match="not open"):
+        decide(store, pid, ["cache"])
+    assert {c.name for c in store.list_features()} == {"rerank"}
+
+
+def test_decide_single_name_matches_approve_semantics(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_proposal(store)
+    approved, dropped = decide(store, pid, ["double-forward"])
+    [(name, fid)] = approved
+    assert dropped == []
+    cap = store.get_feature(fid)
+    assert name == "double-forward"
+    assert cap.status == "approved"
+    assert cap.knobs == {"factor": 2}
+    assert store.get_proposal(pid).status == "resolved"
+
+
+def test_decide_dedupes_repeated_names(git_repo):
+    store = Store.init(git_repo)
+    (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
+    pid = _seed_multi_proposal(store)
+    approved, dropped = decide(store, pid, ["rerank", "rerank"])
+    assert len(approved) == 1
+    assert set(dropped) == {"cache", "logging"}
+    assert len(store.list_features()) == 1

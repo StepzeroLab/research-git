@@ -174,6 +174,26 @@ def test_heuristic_segmenter_no_symbols_yields_no_candidates():
     assert HeuristicSegmenter().segment("", []) == []
 
 
+def test_heuristic_segmenter_decollides_same_basename():
+    # Two files share the basename stem `__init__`; naive naming would give both
+    # `__init__-changes`, an unaddressable duplicate. Names must be distinct.
+    diff = (
+        "diff --git a/a/__init__.py b/a/__init__.py\n"
+        "--- a/a/__init__.py\n+++ b/a/__init__.py\n"
+        "@@ -1 +1 @@\n-x\n+y\n"
+        "diff --git a/b/__init__.py b/b/__init__.py\n"
+        "--- a/b/__init__.py\n+++ b/b/__init__.py\n"
+        "@@ -1 +1 @@\n-x\n+y\n"
+    )
+    symbols = [{"file": "a/__init__.py", "symbol": "f"},
+               {"file": "b/__init__.py", "symbol": "g"}]
+    cands = HeuristicSegmenter().segment(diff, symbols)
+    names = [c["name"] for c in cands]
+    assert len(names) == 2
+    assert len(set(names)) == 2                    # distinct, CLI-addressable
+    assert "__init__-changes" in names             # first keeps the plain name
+
+
 def test_segment_diff_records_toggle_event(git_repo):
     import subprocess
     from rgit.segmenter import segment_diff, HeuristicSegmenter
