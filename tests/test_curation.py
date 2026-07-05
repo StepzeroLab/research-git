@@ -1,5 +1,6 @@
 import pytest
 
+from conftest import make_candidate
 from rgit.curation import approve, dismiss
 from rgit.segmenter import MockSegmenter, segment_diff
 from rgit.store.store import Store
@@ -211,17 +212,10 @@ from rgit.curation import decide
 
 
 def _seed_multi_proposal(store, run_id=None):
-    def cand(name):
-        return {
-            "name": name, "intent": f"intent of {name}",
-            "code_slices": [{"file": "model.py", "symbol": "forward",
-                             "anchor": "L1", "code": f"# {name}", "kind": "wrap"}],
-            "knobs": {}, "data_assumptions": None,
-            "resurrection_guide": f"guide for {name}", "confidence": 0.9,
-        }
     return segment_diff(store, "manual",
-                        MockSegmenter([cand("rerank"), cand("cache"),
-                                       cand("logging")]), run_id)
+                        MockSegmenter([make_candidate("rerank"),
+                                       make_candidate("cache"),
+                                       make_candidate("logging")]), run_id)
 
 
 def test_decide_keeps_multiple_drops_rest_and_resolves(git_repo):

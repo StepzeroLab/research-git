@@ -3,6 +3,27 @@ from pathlib import Path
 import pytest
 
 
+def make_candidate(name, intent=None, *, anchor="L1", code=None, kind="wrap",
+                   file="model.py", symbol="forward", knobs=None, guide=None):
+    """The standard test candidate dict, one schema for every call site.
+
+    A plain helper (import it), not a fixture. Defaults derive the intent,
+    guide, and code from `name` so the common case is `make_candidate("rerank")`;
+    override any field for the variants.
+    """
+    return {
+        "name": name,
+        "intent": intent if intent is not None else f"intent of {name}",
+        "code_slices": [{"file": file, "symbol": symbol, "anchor": anchor,
+                         "code": code if code is not None else f"# {name}",
+                         "kind": kind}],
+        "knobs": knobs if knobs is not None else {},
+        "data_assumptions": None,
+        "resurrection_guide": guide if guide is not None else f"guide for {name}",
+        "confidence": 0.9,
+    }
+
+
 def _run(args, cwd):
     subprocess.run(args, cwd=cwd, check=True, capture_output=True)
 

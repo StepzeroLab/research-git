@@ -1,5 +1,6 @@
 import subprocess
 import sys
+from conftest import make_candidate
 from rgit.runner import run_experiment
 from rgit.curation import approve, decide
 from rgit.recall import recall
@@ -107,13 +108,7 @@ def test_decide_multi_capsule_end_to_end(git_repo):
         "def forward(x):\n    return rerank(cache(x))\n")
 
     def cand(name, intent):
-        return {
-            "name": name, "intent": intent,
-            "code_slices": [{"file": "model.py", "symbol": "forward",
-                             "anchor": "L2", "code": f"# {name}", "kind": "wrap"}],
-            "knobs": {}, "data_assumptions": None,
-            "resurrection_guide": f"re-add {name}", "confidence": 0.9,
-        }
+        return make_candidate(name, intent, anchor="L2", guide=f"re-add {name}")
     # the CaptureResult return value IS the proposal id (str subclass)
     pid = segment_diff(store, "manual", MockSegmenter([
         cand("rerank-retrieval", "re-rank retrieved candidates"),

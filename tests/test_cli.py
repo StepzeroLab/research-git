@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 import rgit.cli as cli
+from conftest import make_candidate
 from rgit.cli import main
 from rgit.gitutil import MAX_UNTRACKED_DIFF_BYTES
 from rgit.segmenter import MockSegmenter, segment_diff
@@ -1250,18 +1251,11 @@ def test_review_dismiss_unknown_id_prints_hint(git_repo, monkeypatch, capsys):
 def _seed_three_candidates(git_repo):
     store = Store.init(git_repo)
     (git_repo / "model.py").write_text("def forward(x):\n    return x*2\n")
-    def cand(name):
-        return {
-            "name": name, "intent": f"intent of {name}",
-            "code_slices": [{"file": "model.py", "symbol": "forward",
-                             "anchor": "L1", "code": f"# {name}", "kind": "wrap"}],
-            "knobs": {}, "data_assumptions": None,
-            "resurrection_guide": f"guide for {name}", "confidence": 0.9,
-        }
     # segment_diff returns a CaptureResult, a str subclass that IS the proposal id
     pid = segment_diff(store, "manual",
-                       MockSegmenter([cand("rerank"), cand("cache"),
-                                      cand("logging")]), None)
+                       MockSegmenter([make_candidate("rerank"),
+                                      make_candidate("cache"),
+                                      make_candidate("logging")]), None)
     return store, pid
 
 
