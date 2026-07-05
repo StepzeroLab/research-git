@@ -5,9 +5,9 @@ description: Use when the research-git proposal queue is non-empty (`rgit pendin
 
 # rgit-capture
 
-Orchestrates the **two-phase capture** that the research-git design calls for: a free deterministic Phase 1, then an agentic Phase 2 dispatched natively onto the host session's subscription. No pay-per-use API is ever called. The `rgit` CLI is the deterministic engine and the read/write surface; MCP is query-only and is not used here.
+Orchestrates the two-phase capture: a free, deterministic Phase 1 through the `rgit` CLI, then an agentic Phase 2 dispatched natively onto the host session's subscription — no paid API.
 
-**Prerequisites:** the target repo has been `rgit init`-ed. Everything below runs through the `rgit` CLI.
+**Prerequisites:** the target repo has been `rgit init`-ed.
 
 **Locating the agent definitions.** On Claude Code the plugin runtime resolves agent paths for you. On other CLIs (Codex, Gemini, opencode) this skill is symlinked into `~/.agents/skills/rgit-capture`, so resolve the plugin root once and reference the agents from there:
 
@@ -22,62 +22,59 @@ Every `agents/<name>.md` reference below (`agents/capsule-segmenter.md`, `agents
 
 ### 1. Ensure there are proposals to segment (Phase 1 — free, deterministic)
 
-If the user just made changes and there is no open proposal yet, create one:
+If the user just made changes and there is no open proposal yet:
 
 ```
 rgit capture                 # picks for you: uncommitted work, or the last commit when the tree is clean
 rgit capture main..HEAD      # a specific span of commits (any A..B range)
 ```
 
-The bare form auto-picks its source, so it works the same before or after a `git commit`; repeated captures of the same diff dedup into the existing proposal. If the repo has the post-commit hook installed (`rgit install-hooks`), each commit is captured automatically; don't capture the same commit twice.
-
-This runs the libcst symbol mapping + the free heuristic, producing one or more open proposals with a raw diff and a crude candidate. Proposals also appear automatically from `rgit run`, the post-commit hook, and the `rgit watch` daemon.
+Repeated captures of the same diff dedup into the existing proposal, and repos with the post-commit hook (`rgit install-hooks`) capture each commit automatically — don't capture the same commit twice. Proposals also appear from `rgit run` and the `rgit watch` daemon.
 
 ### 2. Read the pending captures
 
-Run `rgit pending --json`. You get a list of `{proposal_id, trigger, diff, candidates}`. The `diff` is the raw material; the `candidates` are the crude heuristic guesses you are about to replace. If the list is empty, tell the user there is nothing to segment and stop.
+Run `rgit pending --json` → a list of `{proposal_id, trigger, diff, candidates}`. The `diff` is the raw material; the `candidates` are crude heuristic guesses you are about to replace. If the list is empty, tell the user there is nothing to segment and stop.
 
 ### 3. Dispatch the capsule-segmenter subagent (Phase 2 — agentic, on subscription)
 
-For each pending proposal, dispatch a subagent using the **`capsule-segmenter`** agent definition (`agents/capsule-segmenter.md`). Run independent proposals concurrently. Pass in the dispatch prompt: `proposal_id`, `repo_root` (absolute path of the target repo), `diff` (verbatim from `rgit pending`), and `symbols` if available (otherwise the subagent infers from the diff). The subagent returns `{"capsules": [...], "dropped": [...]}` — high-quality capsules with real `intent` / `knobs` / `data_assumptions` / `resurrection_guide`, infrastructure noise dropped.
+For each pending proposal, dispatch a subagent using the **`capsule-segmenter`** agent definition (`agents/capsule-segmenter.md`); run independent proposals concurrently. Pass in the dispatch prompt: `proposal_id`, `repo_root` (absolute path of the target repo), `diff` (verbatim from `rgit pending`), and `symbols` if available. The subagent returns `{"capsules": [...], "dropped": [...]}` — high-quality capsules with real `intent` / `knobs` / `data_assumptions` / `resurrection_guide`, infrastructure noise dropped.
 
 ### 4. Write the capsules back
 
-For each proposal, write the subagent's `capsules` array back through the CLI. Pipe the JSON to stdin:
+For each proposal, pipe the subagent's `capsules` array back through the CLI:
 
 ```
 echo '<capsules-json-array>' | rgit resegment <proposal_id> --from-json -
 ```
 
-This replaces the crude heuristic candidates with the agent-quality ones. Do NOT auto-approve — capture stays human-gated.
+This replaces the crude heuristic candidates with the agent-quality ones. Do NOT approve anything yet.
 
-### 5. Hand back for review
+### 5. Review with the user (you run the commands; the user decides)
 
-Show the user a short summary (one line per capsule: name + intent), then tell them to approve the ones they want:
+Approval is human-gated, but the human only decides — never make them type `rgit` commands or copy ids.
+
+1. Show each proposal's capsules: name + one-line intent (+ key knobs if they matter).
+2. Ask which capsules to keep — use the client's structured multi-select question UI if it has one, otherwise ask in plain conversation. **Always ask, even when there is a single capsule. Never auto-approve.**
+3. Execute the decision yourself, one command per proposal:
 
 ```
-rgit review                          # list open proposals
-rgit review --approve <proposal_id> --name <name>
+rgit review --decide <proposal_id> --keep <name>[,<name>...]   # approves these, drops the rest
+rgit review --dismiss <proposal_id>                            # the user kept nothing
 ```
 
-On approval the capsule lands in the graph with its `produced` edge to the run.
+4. Echo the `approved -> <feature_id>` lines back to the user, then continue to step 6.
 
 ### 6. Infer graph edges (deterministic baseline + agent-judged relationships)
 
-After approval, wire the new capsule into the graph:
+After approval, wire the new capsules into the graph:
 
 ```
 rgit edges --apply
 ```
 
-This deterministically writes a neutral **`overlaps`** baseline edge between capsules touching the same file+symbol, and prints JSON with `overlap_pairs` (the `{a, b}` pairs it just connected) and `depends_candidates` (over-produced `{src, dst, evidence}` hypotheses from name overlap).
+This writes a neutral `overlaps` baseline edge between capsules touching the same file+symbol and prints `overlap_pairs` (just connected) plus `depends_candidates` (over-produced `{src, dst, evidence}` hypotheses from name overlap). `overlaps` only says "same region" — it does not mean conflict.
 
-`overlaps` only says "same region" — it does **not** mean conflict. Dispatch the **`edge-judge`** subagent (`agents/edge-judge.md`) once, passing both `depends_candidates` and `overlap_pairs` plus the referenced capsules' names/intents/slices. The judge returns two things:
-
-- confirmed `depends_on` edges, and
-- a precise relationship for each overlap pair: `alternative_to`, `composable_with`, `supersedes` (directed), `conflicts_with`, or "leave as overlaps".
-
-Write each result with `rgit edges --add`:
+Dispatch the **`edge-judge`** subagent (`agents/edge-judge.md`) once, passing both lists plus the referenced capsules' names/intents/slices. It returns confirmed `depends_on` edges and, per overlap pair, a precise relationship: `alternative_to`, `composable_with`, `supersedes` (directed), `conflicts_with`, or "leave as overlaps". Write each result:
 
 ```
 rgit edges --add depends_on <src> <dst>          # confirmed dependency
@@ -86,12 +83,8 @@ rgit edges --add alternative_to <b> <a>
 rgit edges --add supersedes <newer> <older>      # directed: one line
 ```
 
-For a symmetric type write both directions; for `supersedes` write the single directed edge. Pairs the judge leaves unclassified keep their neutral `overlaps` baseline — the graph renderer hides that baseline automatically once a richer edge exists for the pair, so don't delete anything.
-
-Reject coincidental overlaps — a missing edge is cheaper than a wrong one. The confirmed `depends_on` plus the agent-classified same-region relationships are what make `recall` and `rgit graph` show real structure instead of an undifferentiated conflict mesh.
+Pairs the judge leaves unclassified keep their neutral `overlaps` baseline — the graph renderer hides it once a richer edge exists, so delete nothing. Reject coincidental overlaps: a missing edge is cheaper than a wrong one.
 
 ## Notes
 
-- **No paid API.** All LLM work here is the dispatched `capsule-segmenter` and `edge-judge` subagents, which run on this session's subscription.
-- **Phase 1 vs Phase 2.** `rgit` (diff + libcst + heuristic) is the deterministic substrate; the subagents are the semantic layer. Same split as the Understand-Anything plugin (deterministic extraction → dispatched analyzer).
-- **Regeneration** (recalling a capsule and re-applying it onto today's code) is the sibling flow — see the `capsule-regenerator` agent driven off `recall` + `compose` (the `rgit-recall` skill).
+- **Sibling flow:** recalling a capsule and regenerating it onto today's code is the `rgit-recall` skill, driven by the `capsule-regenerator` agent.
