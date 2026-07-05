@@ -79,7 +79,12 @@ def init_schema(conn: sqlite3.Connection) -> None:
     rcols = {r[1] for r in conn.execute("PRAGMA table_info(runs)")}
     if "returncode" not in rcols:
         conn.execute("ALTER TABLE runs ADD COLUMN returncode INTEGER")
+    # Stamp AFTER the migrations above so the value always means "migrations
+    # up to this version have been applied". INSERT OR IGNORE would freeze the
+    # first-ever stamp and make doctor warn schema_version_mismatch forever
+    # once SCHEMA_VERSION moves.
     conn.execute(
-        "INSERT OR IGNORE INTO schema_metadata VALUES (?,?)",
+        "INSERT INTO schema_metadata VALUES (?,?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         ("schema_version", SCHEMA_VERSION))
     conn.commit()
