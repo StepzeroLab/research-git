@@ -222,7 +222,7 @@ def _read_prompt_key_windows() -> str:
             return "down"
     return "other"
 
-from .curation import approve, dismiss
+from .curation import approve, decide, dismiss
 from .runner import run_experiment
 from .segmenter import Segmenter, segment_diff
 from .store.store import Store
@@ -428,6 +428,13 @@ def build_parser() -> argparse.ArgumentParser:
                        metavar="PROPOSAL_ID",
                        help="dismiss PROPOSAL_ID — or, with no id, the only "
                             "open proposal")
+    p_rev.add_argument("--decide", nargs="?", const="", default=None,
+                       metavar="PROPOSAL_ID",
+                       help="decide PROPOSAL_ID in one shot — or, with no id, "
+                            "the only open proposal; requires --keep")
+    p_rev.add_argument("--keep", default=None, metavar="NAME[,NAME...]",
+                       help="with --decide: comma-separated candidate names "
+                            "to approve; every other candidate is dropped")
 
     sub.add_parser("features")
     sub.add_parser("mcp")          # run the MCP server (the query/share surface)
@@ -789,6 +796,28 @@ def _dispatch(args, parser) -> int:
         return 0
 
     if args.cmd == "review":
+        if args.decide is not None:
+            keep = [n.strip() for n in (args.keep or "").split(",") if n.strip()]
+            if not keep:
+                print("--decide requires --keep NAME[,NAME...]; "
+                      "to keep nothing, use --dismiss")
+                return 1
+            try:
+                target = args.decide or _sole_open_proposal(store)
+                approved = decide(store, target, keep)
+            except (KeyError, ValueError) as e:
+                print(str(e))
+                print("hint: inspect with `rgit pending --json`; if there are "
+                      "0 candidates, resegment before deciding.")
+                return 1
+            kept = {n for n, _ in approved}
+            for name, fid in approved:
+                print(f"approved -> {fid}  {name}")
+            for c in store.get_proposal(target).candidates:
+                if c.get("name") not in kept:
+                    print(f"dropped     {c.get('name')}")
+            print(f"proposal {target} resolved")
+            return 0
         if args.dismiss is not None:
             try:
                 target = args.dismiss or _sole_open_proposal(store)
