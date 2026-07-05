@@ -57,20 +57,22 @@ def approve(store: Store, proposal_id: str, candidate_index: int = 0,
         raise ValueError(
             f"candidate index {idx} out of range for proposal {proposal_id!r} "
             f"with {len(prop.candidates)} candidate(s)")
-    fid = _capsule_from_candidate(store, prop, idx)
+    # A committed-diff capture pins the capsule to the commit that contains the
+    # change; only worktree captures fall back to HEAD at approve time. Resolve
+    # it once per call, not per candidate.
+    base = prop.source_commit or current_commit(store.root)
+    fid = _capsule_from_candidate(store, prop, idx, base)
     store.set_proposal_status(proposal_id, "resolved")
     return fid
 
 
-def _capsule_from_candidate(store: Store, prop, idx: int) -> str:
+def _capsule_from_candidate(store: Store, prop, idx: int, base: str) -> str:
     """Materialize candidate `idx` as an approved Capsule with its edges.
 
-    Shared by approve() and decide(); does not touch proposal status.
+    Shared by approve() and decide(); does not touch proposal status. `base` is
+    the capsule's base_commit, resolved once by the caller.
     """
     cand = prop.candidates[idx]
-    # A committed-diff capture pins the capsule to the commit that contains the
-    # change; only worktree captures fall back to HEAD at approve time.
-    base = prop.source_commit or current_commit(store.root)
     cap = Capsule(
         id="", name=cand["name"], intent=cand["intent"],
         status="approved", base_commit=base,
@@ -109,7 +111,8 @@ def decide(store: Store, proposal_id: str, keep: list[str]) -> list[tuple[str, s
         raise ValueError(
             f"no candidate(s) named {unknown!r} in proposal {proposal_id!r}; "
             f"available: {available}")
-    approved = [(n, _capsule_from_candidate(store, prop, by_name[n]))
+    base = prop.source_commit or current_commit(store.root)
+    approved = [(n, _capsule_from_candidate(store, prop, by_name[n], base))
                 for n in ordered]
     store.set_proposal_status(proposal_id, "resolved")
     return approved
