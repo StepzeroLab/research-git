@@ -3,11 +3,12 @@ from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice
 
 
-def _cap(name, intent):
+def _cap(name, intent, origin="live"):
     return Capsule(id="", name=name, intent=intent, status="approved",
                    base_commit="abc", knobs={}, data_assumptions=None,
                    resurrection_guide="...", result_summary=None, payload_hash=None,
-                   code_slices=[CodeSlice("model.py", "forward", "L1", "x", "wrap")])
+                   code_slices=[CodeSlice("model.py", "forward", "L1", "x", "wrap")],
+                   origin=origin)
 
 
 def test_recall_returns_match_with_depends_on_subgraph(git_repo):
@@ -61,3 +62,14 @@ def test_recall_skips_non_approved(git_repo):
     cap.status = "proposed"
     store.add_feature(cap)
     assert recall(store, "entropy") == []
+
+
+def test_recall_exclude_backfill(git_repo):
+    store = Store.init(git_repo)
+    store.add_feature(_cap("live-rerank", "rerank results"))
+    store.add_feature(_cap("old-rerank", "rerank results", origin="backfill"))
+    names = {r["capsule"].name for r in recall(store, "rerank")}
+    assert names == {"live-rerank", "old-rerank"}
+    filtered = {r["capsule"].name
+                for r in recall(store, "rerank", exclude_backfill=True)}
+    assert filtered == {"live-rerank"}

@@ -937,7 +937,8 @@ def _dispatch(args, parser) -> int:
 
     if args.cmd == "features":
         for c in store.list_features():
-            print(f"{c.id}  {c.name}  — {c.intent}")
+            tag = "  [backfill]" if c.origin == "backfill" else ""
+            print(f"{c.id}  {c.name}  — {c.intent}{tag}")
         return 0
 
     if args.cmd == "edges":

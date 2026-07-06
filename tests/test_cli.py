@@ -1443,3 +1443,18 @@ def test_backfill_proposals_hidden_from_live_surfaces(git_repo, monkeypatch, cap
     # bare --approve must not resolve to a backfill proposal either
     assert cli.main(["review", "--approve"]) == 1
     assert "no pending proposals" in capsys.readouterr().out
+
+
+def test_features_tags_backfill(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    store = Store.open(git_repo)
+    store.add_feature(Capsule(
+        id="", name="bf", intent="i", status="approved", base_commit="c",
+        knobs={}, data_assumptions=None, resurrection_guide=None,
+        result_summary=None, payload_hash=None,
+        code_slices=[CodeSlice("m.py", "f", None, "x", "wrap")],
+        origin="backfill"))
+    capsys.readouterr()
+    assert cli.main(["features"]) == 0
+    assert "[backfill]" in capsys.readouterr().out
