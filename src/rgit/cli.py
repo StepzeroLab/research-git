@@ -223,6 +223,7 @@ def _read_prompt_key_windows() -> str:
     return "other"
 
 from .curation import approve, decide, dismiss
+from .digestscan import MODES as DIGEST_MODES
 from .runner import run_experiment
 from .segmenter import Segmenter, segment_diff
 from .store.store import Store
@@ -309,9 +310,10 @@ def _sole_open_proposal(store: Store) -> str:
 
     Lets `review --approve` / `--dismiss` work without copying an id in the
     overwhelmingly common one-proposal case; ambiguity fails with the listing
-    so the retry is a copy-paste.
+    so the retry is a copy-paste. Backfill proposals belong to the digest
+    queue surface and never count here.
     """
-    opens = store.list_proposals("open")
+    opens = [p for p in store.list_proposals("open") if p.trigger != "backfill"]
     if not opens:
         raise ValueError("no pending proposals")
     if len(opens) > 1:
@@ -479,6 +481,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_pend = sub.add_parser("pending")
     p_pend.add_argument("--json", action="store_true")
+
+    p_dig = sub.add_parser("digest")   # history backfill queue (engine plane)
+    dig_sub = p_dig.add_subparsers(dest="dig_cmd", required=True)
+    d_scan = dig_sub.add_parser("scan")
+    d_scan.add_argument("range", nargs="?", metavar="A..B",
+                        help="explicit history range; omit for the "
+                             "recent-window default")
+    d_scan.add_argument("--mode", choices=list(DIGEST_MODES), default=None)
+    d_scan.add_argument("--window", type=int, default=None)
+    d_scan.add_argument("--all", dest="all_history", action="store_true",
+                        help="scan the whole mainline, ignoring the window")
+    d_scan.add_argument("--json", action="store_true")
+    d_status = dig_sub.add_parser("status")
+    d_status.add_argument("--json", action="store_true")
+    d_next = dig_sub.add_parser("next")
+    d_next.add_argument("--batch", type=int, default=10)
+    d_next.add_argument("--json", action="store_true")
+    d_acc = dig_sub.add_parser("accept")
+    d_acc.add_argument("proposal_id")
+    d_skip = dig_sub.add_parser("skip")
+    d_skip.add_argument("unit_id")
+    dig_sub.add_parser("clear")
 
     p_reseg = sub.add_parser("resegment")
     p_reseg.add_argument("proposal_id")
@@ -896,7 +920,8 @@ def _dispatch(args, parser) -> int:
                 return 1
             print(f"approved -> feature {fid}")
             return 0
-        proposals = store.list_proposals("open")
+        proposals = [p for p in store.list_proposals("open")
+                     if p.trigger != "backfill"]
         if not proposals:
             print("no pending proposals")
             return 0
@@ -951,6 +976,8 @@ def _dispatch(args, parser) -> int:
     if args.cmd == "pending":
         items = []
         for p in store.list_proposals("open"):
+            if p.trigger == "backfill":     # the digest queue's business
+                continue
             diff = _diff_text(store, p.diff_ref)
             items.append({"proposal_id": p.id, "trigger": p.trigger,
                           "source_commit": p.source_commit,
@@ -966,6 +993,85 @@ def _dispatch(args, parser) -> int:
                       f"{len(it['candidates'])} candidate(s)")
                 _print_skip_summary(it["diff"], indent="  ")
         return 0
+
+    if args.cmd == "digest":
+        import subprocess as _sp
+        from . import digestqueue
+        if args.dig_cmd == "scan":
+            try:
+                res = digestqueue.scan_into_store(
+                    store, range_spec=args.range, mode=args.mode,
+                    window=args.window, all_history=args.all_history, now=_now())
+            except ValueError as e:
+                print(str(e))
+                return 1
+            except _sp.CalledProcessError as e:
+                err = (e.stderr or "").strip() if isinstance(e.stderr, str) else ""
+                print(f"scan failed: {err or e}")
+                return 1
+            if args.json:
+                print(json.dumps(res, indent=2, ensure_ascii=False))
+                return 0
+            print(f"digest plan: {res['pending']} unit(s) queued "
+                  f"(~{res['batches_remaining']} batch(es)); mode {res['mode']}")
+            if res["window_applied"]:
+                print(f"window applied: scanned the most recent slice of "
+                      f"{res['total_mainline']} mainline commits "
+                      "(pass a range or --all to go deeper)")
+            if res["shallow"]:
+                print("note: shallow clone — only the visible history is digestible")
+            print("next: ask your agent to run the rgit-digest skill "
+                  "(or `rgit digest next --json`)")
+            return 0
+        if args.dig_cmd == "status":
+            st = digestqueue.status(store)
+            if args.json:
+                print(json.dumps(st, indent=2, ensure_ascii=False))
+            else:
+                print(f"mode {st['mode']}; {st['units_total']} unit(s): "
+                      + ", ".join(f"{k}={v}" for k, v in sorted(st["by_status"].items())))
+                print(f"pending in mode: {st['pending_in_mode']} "
+                      f"({st['dead_pending']} dead) — "
+                      f"~{st['batches_remaining']} batch(es) remaining")
+            return 0
+        if args.dig_cmd == "next":
+            items = digestqueue.next_batch(store, batch=args.batch,
+                                           segmenter=_segmenter(), now=_now())
+            if args.json:
+                print(json.dumps(items, indent=2, ensure_ascii=False))
+            else:
+                if not items:
+                    print("digest queue is empty")
+                for it in items:
+                    subj = (it["meta"].get("subjects") or ["?"])[0]
+                    print(f"{it['unit_id']}  [{it['kind']}]  -> {it['proposal_id']}"
+                          f"  \"{subj}\"")
+            return 0
+        if args.dig_cmd == "accept":
+            try:
+                res = digestqueue.accept(store, args.proposal_id, now=_now())
+            except (KeyError, ValueError) as e:
+                print(str(e).strip('"'))
+                return 1
+            for name, fid in res["capsules"]:
+                print(f"approved -> {fid}  {name}  [backfill]")
+            if res.get("skipped"):
+                print(f"unit {res['unit_id']} skipped ({res['skipped']}): "
+                      "no genuine feature in this slice")
+            return 0
+        if args.dig_cmd == "skip":
+            try:
+                digestqueue.skip_unit(store, args.unit_id)
+            except KeyError as e:
+                print(str(e).strip('"'))
+                return 1
+            print(f"skipped {args.unit_id}")
+            return 0
+        if args.dig_cmd == "clear":
+            res = digestqueue.clear(store)
+            print(f"removed {res['capsules_removed']} backfill capsule(s); "
+                  f"reset {res['units_reset']} unit(s) to pending")
+            return 0
 
     if args.cmd == "resegment":
         from pathlib import Path
