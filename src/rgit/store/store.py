@@ -276,7 +276,8 @@ class Store:
     def update_digest_unit(self, uid: str, *, status: Optional[str] = None,
                            skip_reason: Optional[str] = None,
                            proposal_id: Optional[str] = None,
-                           capsule_ids: Optional[list[str]] = None) -> None:
+                           capsule_ids: Optional[list[str]] = None,
+                           meta: Optional[dict] = None) -> None:
         """Update only the provided fields (None = leave untouched; use
         reset_digest_unit to null columns)."""
         sets, vals = [], []
@@ -288,6 +289,8 @@ class Store:
             sets.append("proposal_id=?"); vals.append(proposal_id)
         if capsule_ids is not None:
             sets.append("capsule_ids=?"); vals.append(json.dumps(capsule_ids))
+        if meta is not None:
+            sets.append("meta=?"); vals.append(json.dumps(meta))
         if not sets:
             return
         vals.append(uid)

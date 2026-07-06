@@ -123,7 +123,7 @@ class DigestUnit:
     shas: list[str]                      # oldest -> newest
     score: float
     status: str = "pending"              # "pending" | "staged" | "done" | "skipped"
-    skip_reason: Optional[str] = None    # "infra" | "empty" | "user" | "error"
+    skip_reason: Optional[str] = None    # "infra" | "empty" | "user" | "error" | "duplicate"
     proposal_id: Optional[str] = None
     capsule_ids: list[str] = field(default_factory=list)
     meta: dict = field(default_factory=dict)

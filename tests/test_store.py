@@ -262,6 +262,9 @@ def test_digest_unit_crud_and_queue_order(tmp_path):
                              capsule_ids=["feat_1", "feat_2"])
     assert store.get_digest_unit("dig_high").capsule_ids == ["feat_1", "feat_2"]
 
+    store.update_digest_unit("dig_high", meta={"subjects": ["high"], "duplicate_of": "dig_x"})
+    assert store.get_digest_unit("dig_high").meta["duplicate_of"] == "dig_x"
+
     store.reset_digest_unit("dig_high")
     fresh = store.get_digest_unit("dig_high")
     assert fresh.status == "pending"

@@ -141,6 +141,23 @@ def test_clear_removes_backfill_capsules_and_resets_units(history_repo):
     assert store.get_digest_unit(item["unit_id"]).status == "pending"
 
 
+def test_duplicate_diff_unit_marked_skipped_duplicate(history_repo):
+    commit_file(history_repo, "base.py", "b = 1\n", "base", when=T0)
+    x = commit_file(history_repo, "dup.py", "d = 1\n", "experiment",
+                    when=T0 + 5 * DAY, author="u2")
+    revert_head(history_repo, when=T0 + 6 * DAY, author="u2")
+    z = commit_file(history_repo, "dup.py", "d = 1\n", "bring it back",
+                    when=T0 + 20 * DAY)
+    store = Store.init(history_repo)
+    digestqueue.scan_into_store(store, now=NOW)
+    digestqueue.next_batch(store, segmenter=HeuristicSegmenter(), now=NOW)
+    units = {tuple(u.shas): u for u in store.list_digest_units()}
+    dead, dup = units[(x,)], units[(z,)]
+    assert dead.status == "staged"                      # higher score, staged first
+    assert dup.status == "skipped" and dup.skip_reason == "duplicate"
+    assert dup.meta["duplicate_of"] == dead.id
+
+
 def test_status_reports_progress(history_repo):
     store = _scripted_store(history_repo)
     digestqueue.scan_into_store(store, now=NOW)

@@ -117,6 +117,15 @@ def next_batch(store: Store, *, batch: int = BATCH_DEFAULT,
             store.update_digest_unit(unit.id, status="skipped",
                                      skip_reason="empty")
             continue
+        claimed = store.digest_unit_by_proposal(str(pid))
+        if claimed is not None and claimed.id != unit.id:
+            # Byte-identical diff to an already-staged unit: the capsule will
+            # exist exactly once, so record the collision instead of letting
+            # reconciliation silently swallow this unit later.
+            store.update_digest_unit(
+                unit.id, status="skipped", skip_reason="duplicate",
+                meta={**unit.meta, "duplicate_of": claimed.id})
+            continue
         store.update_digest_unit(unit.id, status="staged", proposal_id=str(pid))
         out.append(_staged_item(store, unit, store.get_proposal(str(pid))))
     return out
