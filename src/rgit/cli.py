@@ -79,6 +79,111 @@ def _prompt_guidance_mode_numbered(platform: str) -> str:
         sys.stderr.write("Please enter 1, 2, or 3: ")
 
 
+_DIGEST_MODE_OPTIONS = [
+    ("layered", "everything ranked; dead experiments boosted (recommended)"),
+    ("trunk", "only features alive in today's code"),
+    ("dead", "only reverted/deleted experiments"),
+    ("archaeology", "layered + evolution-chain edge candidates"),
+]
+
+
+def _prompt_digest_mode(total: int) -> Optional[str]:
+    """Numbered digest-mode picker; returns None when the user picks skip.
+    Prompts go to stderr so stdout stays clean."""
+    sys.stderr.write(f"\n{total} mainline commit(s) of history detected — "
+                     "digest them into capsules?\n\n")
+    for i, (mode, desc) in enumerate(_DIGEST_MODE_OPTIONS, 1):
+        sys.stderr.write(f"  {i}) {mode:<12} {desc}\n")
+    sys.stderr.write("  5) skip         don't digest history now\n\nSelect [1-5]: ")
+    choices: dict = {str(i): m for i, (m, _) in enumerate(_DIGEST_MODE_OPTIONS, 1)}
+    choices.update({m: m for m, _ in _DIGEST_MODE_OPTIONS})
+    choices.update({"5": None, "skip": None})
+    while True:
+        sys.stderr.flush()
+        try:
+            answer = input().strip().lower()
+        except EOFError as e:
+            raise _GuidancePromptCancelled from e
+        if answer in choices:
+            return choices[answer]
+        sys.stderr.write("Please enter 1-5: ")
+
+
+def _prompt_digest_range(total: int, window: int) -> tuple:
+    """(range_spec, all_history). Only shown when history exceeds the window."""
+    if total <= window:
+        return None, False
+    sys.stderr.write(
+        f"\nhistory is {total} commits; the default digests the most "
+        f"recent {window}.\n\n"
+        f"  1) recent {window} (default)\n"
+        "  2) all history\n"
+        "  3) custom range (A..B)\n\nSelect [1-3]: ")
+    while True:
+        sys.stderr.flush()
+        try:
+            answer = input().strip().lower()
+        except EOFError as e:
+            raise _GuidancePromptCancelled from e
+        if answer in ("", "1"):
+            return None, False
+        if answer == "2":
+            return None, True
+        if answer == "3":
+            sys.stderr.write("range (A..B): ")
+            sys.stderr.flush()
+            try:
+                spec = input().strip()
+            except EOFError as e:
+                raise _GuidancePromptCancelled from e
+            if spec:
+                return spec, False
+        sys.stderr.write("Please enter 1-3: ")
+
+
+def _init_digest_offer(args, root) -> int:
+    """After store creation: plan history digestion (free scan only — the
+    engine never dispatches agents; the rgit-digest skill drains the queue)."""
+    import subprocess as _sp
+    from . import digestqueue
+    from .digestscan import DEFAULT_WINDOW
+    from .gitutil import mainline_count
+    if args.no_digest:
+        return 0
+    try:
+        total = mainline_count(root)
+    except _sp.CalledProcessError:                # unborn HEAD: no history
+        return 0
+    if total < 2 and args.digest is None:
+        return 0
+    mode, range_spec, all_history = args.digest, args.range_spec, args.all_history
+    if mode is None:
+        if not sys.stdin.isatty():
+            print(f"note: {total} mainline commit(s) of history detected; run "
+                  "`rgit digest scan` and the rgit-digest skill to backfill "
+                  "them into capsules")
+            return 0
+        try:
+            mode = _prompt_digest_mode(total)
+            if mode is None:
+                return 0
+            range_spec, all_history = _prompt_digest_range(total, DEFAULT_WINDOW)
+        except (KeyboardInterrupt, _GuidancePromptCancelled):
+            print("\ndigest skipped", file=sys.stderr)
+            return 0
+    store = Store.open(root)
+    try:
+        res = digestqueue.scan_into_store(store, range_spec=range_spec, mode=mode,
+                                          all_history=all_history, now=_now())
+    except (_sp.CalledProcessError, ValueError) as e:
+        print(f"digest scan failed: {e}")
+        return 1
+    print(f"digest plan: {res['pending']} unit(s) queued "
+          f"(~{res['batches_remaining']} batch(es)); mode {res['mode']}")
+    print("next: ask your agent to run the rgit-digest skill to digest them")
+    return 0
+
+
 def _prompt_guidance_mode_interactive(platform: str, stderr=None) -> str:
     stderr = stderr or sys.stderr
     if not getattr(stderr, "isatty", lambda: False)():
@@ -405,7 +510,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="rgit")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("init")
+    p_init = sub.add_parser("init")
+    p_init.add_argument("--digest", nargs="?", const="layered", default=None,
+                        choices=list(DIGEST_MODES), metavar="MODE",
+                        help="scan history into a digestion plan now "
+                             "(default mode: layered)")
+    p_init.add_argument("--range", dest="range_spec", default=None,
+                        metavar="A..B", help="with --digest: explicit range")
+    p_init.add_argument("--all", dest="all_history", action="store_true",
+                        help="with --digest: scan the whole mainline")
+    p_init.add_argument("--no-digest", action="store_true",
+                        help="skip the history-digestion offer")
 
     p_run = sub.add_parser("run")
     p_run.add_argument("--from", dest="from_features", action="append",
@@ -630,10 +745,17 @@ def _dispatch(args, parser) -> int:
         return selfupdate.run_update()
 
     if args.cmd == "init":
-        Store.init(_find_root())
-        print(f"initialized .rgit/ in {_find_root()}")
+        if (args.range_spec or args.all_history) and args.digest is None:
+            print("--range/--all require --digest")
+            return 1
+        if args.no_digest and args.digest is not None:
+            print("--no-digest conflicts with --digest")
+            return 1
+        root = _find_root()
+        Store.init(root)
+        print(f"initialized .rgit/ in {root}")
         print("note: run `rgit install-hooks` to capture on every commit")
-        return 0
+        return _init_digest_offer(args, root)
 
     if args.cmd == "mcp":
         # Serve the graph over MCP. Tools resolve the store lazily (per call,

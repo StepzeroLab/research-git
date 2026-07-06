@@ -1,3 +1,4 @@
+import io
 import json
 import sys
 from pathlib import Path
@@ -12,6 +13,11 @@ from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice, Run
 
 T0 = 1_700_000_000
+
+
+class _FakeTTY(io.StringIO):
+    def isatty(self):
+        return True
 
 
 def test_init_creates_store_but_no_hook(git_repo, monkeypatch):
@@ -1458,3 +1464,61 @@ def test_features_tags_backfill(git_repo, monkeypatch, capsys):
     capsys.readouterr()
     assert cli.main(["features"]) == 0
     assert "[backfill]" in capsys.readouterr().out
+
+
+# ---- init history-digestion offer (Task 8) ----------------------------------
+
+def test_init_non_tty_prints_digest_hint_with_history(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    assert cli.main(["init"]) == 0
+    out = capsys.readouterr().out
+    assert "rgit digest scan" in out
+    store = Store.open(git_repo)
+    assert store.list_digest_units() == []                 # hint only, no scan
+
+
+def test_init_single_commit_repo_stays_quiet(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    assert cli.main(["init"]) == 0
+    assert "digest" not in capsys.readouterr().out
+
+
+def test_init_no_digest_flag_suppresses_offer(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    assert cli.main(["init", "--no-digest"]) == 0
+    out = capsys.readouterr().out
+    # offer fully suppressed — check the offer's own strings, not a bare
+    # "digest" (the pytest tmp dir is named after this test, so the printed
+    # `initialized .rgit/ in <path>` line legitimately contains "digest").
+    assert "rgit digest scan" not in out    # non-TTY hint suppressed
+    assert "digest plan" not in out         # no scan happened
+
+
+def test_init_digest_flag_scans_non_interactively(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    assert cli.main(["init", "--digest", "dead"]) == 0
+    out = capsys.readouterr().out
+    assert "digest plan" in out
+    store = Store.open(git_repo)
+    assert store.get_digest_meta("mode") == "dead"
+    assert store.list_digest_units()
+
+
+def test_init_tty_prompt_scans_selected_mode(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    monkeypatch.setattr(sys, "stdin", _FakeTTY("1\n"))     # pick "layered"
+    assert cli.main(["init"]) == 0
+    assert "digest plan" in capsys.readouterr().out
+    assert Store.open(git_repo).get_digest_meta("mode") == "layered"
+
+
+def test_init_tty_prompt_skip_leaves_no_plan(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    monkeypatch.setattr(sys, "stdin", _FakeTTY("5\n"))     # "skip"
+    assert cli.main(["init"]) == 0
+    assert Store.open(git_repo).list_digest_units() == []
