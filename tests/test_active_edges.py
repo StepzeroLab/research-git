@@ -1,4 +1,5 @@
 # tests/test_active_edges.py
+from conftest import python_noop_cmd
 from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice
 from rgit.runner import run_experiment
@@ -25,12 +26,15 @@ def test_active_edges_round_trip(git_repo):
 def test_run_experiment_writes_active_edges(git_repo):
     store = Store.init(git_repo)
     a = _cap(store, "a")
-    run_id, _ = run_experiment(store, ["true"], MockSegmenter([]), now="2026-01-01T00:00:00",
-                               active=[a])
+    run_id, _ = run_experiment(
+        store, python_noop_cmd(), MockSegmenter([]),
+        now="2026-01-01T00:00:00", active=[a])
     assert store.active_features(run_id) == [a]
 
 
 def test_run_experiment_without_active_writes_none(git_repo):
     store = Store.init(git_repo)
-    run_id, _ = run_experiment(store, ["true"], MockSegmenter([]), now="2026-01-01T00:00:00")
+    run_id, _ = run_experiment(
+        store, python_noop_cmd(), MockSegmenter([]),
+        now="2026-01-01T00:00:00")
     assert store.active_features(run_id) == []

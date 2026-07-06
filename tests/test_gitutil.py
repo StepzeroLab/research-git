@@ -7,6 +7,7 @@ import pytest
 
 from rgit.gitutil import (
     MAX_UNTRACKED_DIFF_BYTES,
+    _tracked_change_disposition,
     current_commit,
     diff_since,
     freeze_worktree,
@@ -185,6 +186,29 @@ def test_diff_since_captures_replaced_external_symlink_without_leaking(git_repo)
     assert "def replacement" in diff and "model.py" in diff
     assert "replaced-secret-target" not in diff
     assert "REPLACED_SECRET_SYMBOL_TOKEN" not in diff
+
+
+def test_disposition_captures_windows_symlink_replaced_by_regular_file(git_repo):
+    old_target = str(git_repo.parent / "windows-raw-secret-target.py")
+    old_sha = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"],
+        cwd=git_repo,
+        input=old_target,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
+    entry = {
+        "old_mode": "120000",
+        "new_mode": "120000",
+        "old_sha": old_sha,
+        "new_sha": "0" * 40,
+        "status": "M",
+        "path": "model.py",
+    }
+
+    assert _tracked_change_disposition(git_repo, entry) == ("add_only", None)
 
 
 def test_binary_skip_reason_reports_unreadable_path():

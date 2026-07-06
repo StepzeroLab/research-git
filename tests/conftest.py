@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 import pytest
 
@@ -22,6 +23,10 @@ def make_candidate(name, intent=None, *, anchor="L1", code=None, kind="wrap",
         "resurrection_guide": guide if guide is not None else f"guide for {name}",
         "confidence": 0.9,
     }
+
+
+def python_noop_cmd() -> list[str]:
+    return [sys.executable, "-c", "pass"]
 
 
 def _run(args, cwd):

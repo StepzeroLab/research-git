@@ -227,7 +227,8 @@ def _tracked_change_disposition(
         # Including the raw diff would emit the removed symlink target as a `-`
         # line. If the new side is a real file, capture it add-only instead of
         # losing the change; otherwise (deletion, or a new in-repo symlink) skip.
-        if entry["new_mode"] != "120000" and (repo / file).is_file():
+        path = repo / file
+        if not path.is_symlink() and path.is_file():
             return "add_only", None
         return "skip", "symlink points outside the repo"
     return "include", None
