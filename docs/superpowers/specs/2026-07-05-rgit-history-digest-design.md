@@ -58,7 +58,7 @@ CLI conventions unchanged: stdout is clean JSON, prompts and notices on stderr.
 
 ### 4. Edges at scale
 
-Backfill makes `depends_candidates` O(n²)-explosive. Rules: after each accepted batch, generate candidates only for **new-batch capsules × the graph** (never re-scan old pairs); cap what goes to the edge-judge at **30 pairs per batch**, ranked by evidence strength (the number of shared identifiers in `depends_candidates` evidence); everything past the quota keeps the free `overlaps` baseline unjudged. A missing edge stays cheaper than a wrong one. `archaeology` mode adds chronology candidates — units touching the same top-level symbol across time → `supersedes`/`variant_of` hypotheses — into the same per-batch quota.
+Backfill makes `depends_candidates` O(n²)-explosive. Rules: after each accepted batch, generate candidates only for **new-batch capsules × the graph** (never re-scan old pairs); cap what goes to the edge-judge at **30 pairs per batch**, ranked by evidence strength (the number of shared identifiers in `depends_candidates` evidence); everything past the quota keeps the free `overlaps` baseline unjudged. A missing edge stays cheaper than a wrong one. `archaeology` mode adds chronology candidates — units touching the same top-level symbol across time → `supersedes` hypotheses — into the same per-batch quota.
 
 ### 5. `rgit init` changes
 

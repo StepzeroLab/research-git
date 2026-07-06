@@ -28,7 +28,7 @@ Run `rgit digest status --json`. Tell the user: pending units, how many are dead
 rgit digest next --batch 10 --json
 ```
 
-Each item is `{unit_id, kind, score, proposal_id, meta, diff, candidates, oversized}`. `meta` carries commit subjects, dates, author — and for dead units `reverted_by` / `revert_subject` / `revert_date`. Empty-diff units never appear (the engine skips them itself).
+Each item is `{unit_id, kind, score, proposal_id, meta, diff, candidates, oversized}`. `meta` carries commit subjects, dates, author — and for dead units the revert info (`reverted_by` / `revert_subject` / `revert_date`) when the death was a revert. Empty-diff units never appear (the engine skips them itself).
 
 ### 3. Dispatch capsule-segmenter per item (concurrently)
 
@@ -51,7 +51,7 @@ Collect the feature ids `accept` printed, then:
 rgit edges --apply --scope <fid1,fid2,...> --limit 30
 ```
 
-`edges --apply` emits JSON to stdout. Dispatch `agents/edge-judge.md` once with the `overlap_pairs` and `depends_candidates` from that output plus the referenced capsules' names/intents/slices. Include each backfill capsule's base-commit date; in archaeology mode explicitly ask the judge to consider `supersedes`/`variant_of` for same-region pairs across time. Write confirmed edges with `rgit edges --add ...` exactly as rgit-capture does (symmetric types in BOTH directions).
+`edges --apply` emits JSON to stdout. Dispatch `agents/edge-judge.md` once with the `overlap_pairs` and `depends_candidates` from that output plus the referenced capsules' names/intents/slices. Include each backfill capsule's base-commit date; in archaeology mode explicitly ask the judge to consider `supersedes` for same-region pairs across time. Write confirmed edges with `rgit edges --add ...` exactly as rgit-capture does (symmetric types in BOTH directions).
 
 ### 6. Loop and report
 
