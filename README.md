@@ -105,7 +105,7 @@ rgit review                                           # see what's been captured
 rgit compare rerank                                   # which variant won?
 ```
 
-`rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session — that's where the intelligence lives; from the terminal you can always browse the memory with `rgit features` and `rgit graph`.
+`rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. If you're adopting research-git in a repository with useful history already behind you, choose the commit range you want to import, preview it with `rgit capture-history main..HEAD --dry-run`, then replace `--dry-run` with `--write` when the plan looks right. Bringing an idea *back* needs an agent session — that's where the intelligence lives; from the terminal you can always browse the memory with `rgit features` and `rgit graph`.
 
 More commands as your store grows: [More commands](#more-commands).
 
@@ -174,6 +174,7 @@ The five-step loop above is the core. These show up as your store grows — run 
 |---------|--------------|
 | `rgit watch` | free, deterministic background capture — stages raw material as you edit, so fleeting in-between states aren't lost |
 | `rgit capture [REV \| A..B]` | bare: auto-picks the working tree or, when clean, the last commit; pass a commit or an A..B range for precise control |
+| `rgit capture-history A..B [--write]` | bootstrap an existing repo one commit at a time; default dry-run lists what would be captured, skipped, or reused |
 | `rgit install-hooks` | opt-in: stage every commit's diff via a post-commit hook (not installed by `rgit install`; won't touch an existing hook) — see install details above |
 | `rgit run --from <capsule>` | run a recalled variant and link the new run as a `variant_of` the original |
 | `rgit compare <query>` | which variant won: ranked table, Δ vs baseline, ★ winner |

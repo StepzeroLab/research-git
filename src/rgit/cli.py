@@ -222,6 +222,7 @@ def _read_prompt_key_windows() -> str:
             return "down"
     return "other"
 
+from .capture_history import MAX_HISTORY_DIFF_BYTES
 from .curation import approve, decide, dismiss
 from .runner import run_experiment
 from .segmenter import Segmenter, segment_diff
@@ -350,6 +351,33 @@ def _print_skip_summary(diff: str, indent: str = "") -> None:
           "run `rgit pending --json` for details")
 
 
+def _print_capture_history(plan, *, write: bool) -> None:
+    mode = "write" if write else "dry-run"
+    print(f"capture-history {plan.range} ({mode})")
+    for item in plan.items:
+        prefix = item.commit[:12]
+        if item.status == "would_capture":
+            print(f"would capture {prefix}  {item.subject}")
+        elif item.status == "captured":
+            print(f"captured      {prefix}  -> {item.proposal_id}  {item.subject}")
+        elif item.status == "existing":
+            print(f"existing      {prefix}  -> {item.proposal_id}  {item.subject}")
+        elif item.status == "duplicate":
+            print(f"duplicate     {prefix}  {item.reason}  {item.subject}")
+        elif item.status == "skipped":
+            print(f"skipped       {prefix}  {item.reason}  {item.subject}")
+        else:
+            print(f"{item.status:<12} {prefix}  {item.subject}")
+    summary = ", ".join(
+        f"{v} {k.replace('_', ' ')}"
+        for k, v in plan.summary.items()
+        if v
+    )
+    print(f"summary: {summary or '0 commits'}")
+    if plan.truncated:
+        print("note: output was truncated by --max-commits")
+
+
 def _print_run_result(result, store: Store) -> None:
     prop_id = result.proposal_id
     if prop_id is None:
@@ -436,6 +464,27 @@ def build_parser() -> argparse.ArgumentParser:
                          help=argparse.SUPPRESS)
     p_cap.add_argument("--init", action="store_true",
                        help="create .rgit/ at the git root if missing (no hooks)")
+
+    p_hist = sub.add_parser("capture-history")
+    p_hist.add_argument("range", metavar="A..B",
+                        help="commit range to import as one proposal per commit")
+    hist_mode = p_hist.add_mutually_exclusive_group()
+    hist_mode.add_argument("--dry-run", action="store_true",
+                           help="show what would be captured without writing "
+                                "(default)")
+    hist_mode.add_argument("--write", action="store_true",
+                           help="create open proposals for capturable commits")
+    p_hist.add_argument("--max-commits", type=int, metavar="N",
+                        help="only inspect the latest N commits; output is "
+                             "shown oldest-first")
+    p_hist.add_argument("--max-diff-bytes", type=int, default=MAX_HISTORY_DIFF_BYTES,
+                        metavar="BYTES",
+                        help="skip commits whose patch exceeds this size "
+                             f"(default: {MAX_HISTORY_DIFF_BYTES})")
+    p_hist.add_argument("--json", action="store_true",
+                        help="emit a machine-readable plan/result")
+    p_hist.add_argument("--init", action="store_true",
+                        help="create .rgit/ at the git root if missing (no hooks)")
 
     p_rev = sub.add_parser("review")
     # approve / dismiss / decide are three ways to resolve one proposal — at most
@@ -721,15 +770,16 @@ def _dispatch(args, parser) -> int:
             print(format_report(report))
         return 1 if report["summary"]["errors"] else 0
 
+    readonly = args.cmd == "capture-history" and not args.write
     try:
-        store = Store.open()
+        store = Store.open(readonly=readonly)
     except FileNotFoundError:
         if getattr(args, "init", False):
             Store.init(_find_root())
-            store = Store.open()
+            store = Store.open(readonly=readonly)
         else:
             msg = "no .rgit/ found; run `rgit init` at the git root"
-            if args.cmd in ("run", "capture"):
+            if args.cmd in ("run", "capture", "capture-history"):
                 msg += " (or pass --init to create it now)"
             print(msg)
             return 1
@@ -818,6 +868,38 @@ def _dispatch(args, parser) -> int:
         if created and not prop.candidates:
             print("note: proposal has 0 candidates; run `rgit pending --json`, "
                   "then `rgit resegment <proposal_id> --from-json <path>`")
+        return 0
+
+    if args.cmd == "capture-history":
+        from .capture_history import capture_history, plan_capture_history
+        try:
+            if args.write:
+                plan = capture_history(
+                    store,
+                    args.range,
+                    _segmenter(),
+                    max_commits=args.max_commits,
+                    max_diff_bytes=args.max_diff_bytes,
+                    now=_now(),
+                )
+            else:
+                plan = plan_capture_history(
+                    store,
+                    args.range,
+                    max_commits=args.max_commits,
+                    max_diff_bytes=args.max_diff_bytes,
+                )
+        except ValueError as e:
+            print(str(e))
+            if not str(e).startswith("--max-"):
+                print("hint: pass a commit range such as main..HEAD; "
+                      "`git log --oneline --graph -10` shows recent history")
+            return 1
+        if args.json:
+            print(json.dumps(plan.to_dict(write=args.write), indent=2,
+                             ensure_ascii=False))
+        else:
+            _print_capture_history(plan, write=args.write)
         return 0
 
     if args.cmd == "review":

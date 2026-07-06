@@ -105,7 +105,7 @@ class Edge:
 @dataclass
 class Proposal:
     id: str
-    trigger: str                        # "run" | "commit" | "manual"
+    trigger: str                        # "run" | "commit" | "manual" | "history"
     diff_ref: str                       # object hash of the captured diff
     candidates: list[dict]
     status: str = "open"                # "open" | "resolved" | "dismissed"
