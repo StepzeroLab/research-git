@@ -1356,3 +1356,24 @@ def test_review_decide_unknown_name_fails_with_hint(git_repo, monkeypatch, capsy
     assert "nope" in out and "rgit pending --json" in out
     assert store.list_features() == []
     assert store.get_proposal(pid).status == "open"
+
+
+def test_edges_apply_scope_and_limit(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    capsys.readouterr()  # drain init's informational stdout so it stays out of the JSON parse
+    store = Store.open(git_repo)
+    a = store.add_feature(Capsule(
+        id="", name="edge-a", intent="i", status="approved", base_commit="c",
+        knobs={}, data_assumptions=None, resurrection_guide=None,
+        result_summary=None, payload_hash=None,
+        code_slices=[CodeSlice("m.py", "s", None, "x", "wrap")]))
+    store.add_feature(Capsule(
+        id="", name="edge-b", intent="i", status="approved", base_commit="c",
+        knobs={}, data_assumptions=None, resurrection_guide=None,
+        result_summary=None, payload_hash=None,
+        code_slices=[CodeSlice("m.py", "s", None, "y", "wrap")]))
+    assert cli.main(["edges", "--apply", "--scope", "edge-a", "--limit", "5"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["overlaps_written"] == 1
+    assert cli.main(["edges", "--apply", "--scope", "no-such-capsule"]) == 1

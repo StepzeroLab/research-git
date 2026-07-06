@@ -468,6 +468,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_edges.add_argument("--apply", action="store_true")
     p_edges.add_argument("--candidates", action="store_true")
     p_edges.add_argument("--add", nargs=3, metavar=("TYPE", "SRC", "DST"))
+    p_edges.add_argument("--scope", action="append", default=None,
+                         metavar="ID[,ID...]",
+                         help="restrict --apply/--candidates to pairs touching "
+                              "these capsules (ids or names); the incremental "
+                              "path after a digest batch")
+    p_edges.add_argument("--limit", type=int, default=None,
+                         help="cap depends candidates at the N strongest "
+                              "(the edge-judge quota)")
 
     p_pend = sub.add_parser("pending")
     p_pend.add_argument("--json", action="store_true")
@@ -914,10 +922,18 @@ def _dispatch(args, parser) -> int:
             store.add_edge(src, dst, etype)
             print(f"edge {src} -{etype}-> {dst}")
             return 0
+        scope = None
+        if args.scope:
+            tokens = [t for chunk in args.scope for t in chunk.split(",") if t]
+            try:
+                scope = {store.resolve_feature(t) for t in tokens}
+            except KeyError as e:
+                print(str(e).strip('"'))
+                return 1
         if args.apply:
-            pairs = edgesmod.overlap_pairs(store)
-            n = edgesmod.apply_overlaps(store)
-            cands = edgesmod.depends_candidates(store)
+            pairs = edgesmod.overlap_pairs(store, scope)
+            n = edgesmod.apply_overlaps(store, scope)
+            cands = edgesmod.depends_candidates(store, scope, args.limit)
             # overlap_pairs is the agent's worklist: each baseline `overlaps` pair
             # the edge-judge can upgrade to a richer relationship.
             print(json.dumps({"overlaps_written": n,
@@ -926,8 +942,8 @@ def _dispatch(args, parser) -> int:
                              indent=2, ensure_ascii=False))
             return 0
         if args.candidates:
-            print(json.dumps(edgesmod.depends_candidates(store), indent=2,
-                             ensure_ascii=False))
+            print(json.dumps(edgesmod.depends_candidates(store, scope, args.limit),
+                             indent=2, ensure_ascii=False))
             return 0
         print("nothing to do (use --apply, --candidates, or --add)")
         return 1
