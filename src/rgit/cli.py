@@ -141,6 +141,22 @@ def _prompt_digest_range(total: int, window: int) -> tuple:
         sys.stderr.write("Please enter 1-3: ")
 
 
+def _print_digest_later_hint() -> None:
+    """Breadcrumb for a human who skipped the init offer: the plan stays one
+    command away, and the agent does the actual digesting."""
+    print("note: digest history anytime — run `rgit digest scan`, then ask "
+          "your agent to run the rgit-digest skill")
+
+
+def _print_star_note() -> None:
+    """TTY-only sign-off after a human-run init; piped/agent runs never see it."""
+    print("\nthanks for trying research-git! if it proves useful, a GitHub "
+          "star is the biggest support you can give (never required):")
+    print("  https://github.com/StepzeroLab/research-git")
+    print("  or from the CLI: gh api -X PUT user/starred/StepzeroLab/research-git")
+    print("feedback / ideas: lin.yuxiang.contact@gmail.com")
+
+
 def _init_digest_offer(args, root) -> int:
     """After store creation: plan history digestion (free scan only — the
     engine never dispatches agents; the rgit-digest skill drains the queue)."""
@@ -158,7 +174,9 @@ def _init_digest_offer(args, root) -> int:
         return 0
     mode, range_spec, all_history = args.digest, args.range_spec, args.all_history
     if mode is None:
-        if not sys.stdin.isatty():
+        # sys.stdin can be None outright (pythonw/detached console) — treat it
+        # like any other non-interactive run instead of crashing init.
+        if sys.stdin is None or not sys.stdin.isatty():
             print(f"note: {total} mainline commit(s) of history detected; run "
                   "`rgit digest scan` and the rgit-digest skill to backfill "
                   "them into capsules")
@@ -166,10 +184,12 @@ def _init_digest_offer(args, root) -> int:
         try:
             mode = _prompt_digest_mode(total)
             if mode is None:
+                _print_digest_later_hint()
                 return 0
             range_spec, all_history = _prompt_digest_range(total, DEFAULT_WINDOW)
         except (KeyboardInterrupt, _GuidancePromptCancelled):
             print("\ndigest skipped", file=sys.stderr)
+            _print_digest_later_hint()
             return 0
     store = Store.open(root)
     try:
@@ -755,7 +775,10 @@ def _dispatch(args, parser) -> int:
         Store.init(root)
         print(f"initialized .rgit/ in {root}")
         print("note: run `rgit install-hooks` to capture on every commit")
-        return _init_digest_offer(args, root)
+        rc = _init_digest_offer(args, root)
+        if rc == 0 and sys.stdout.isatty():
+            _print_star_note()
+        return rc
 
     if args.cmd == "mcp":
         # Serve the graph over MCP. Tools resolve the store lazily (per call,

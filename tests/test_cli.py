@@ -1516,9 +1516,40 @@ def test_init_tty_prompt_scans_selected_mode(git_repo, monkeypatch, capsys):
     assert Store.open(git_repo).get_digest_meta("mode") == "layered"
 
 
-def test_init_tty_prompt_skip_leaves_no_plan(git_repo, monkeypatch, capsys):
+def test_init_tty_prompt_skip_leaves_no_plan_but_a_breadcrumb(git_repo, monkeypatch,
+                                                              capsys):
     monkeypatch.chdir(git_repo)
     commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
     monkeypatch.setattr(sys, "stdin", _FakeTTY("5\n"))     # "skip"
     assert cli.main(["init"]) == 0
     assert Store.open(git_repo).list_digest_units() == []
+    assert "digest history anytime" in capsys.readouterr().out
+
+
+def test_init_survives_none_stdin(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    monkeypatch.setattr(sys, "stdin", None)                # pythonw/detached console
+    assert cli.main(["init"]) == 0
+    assert "rgit digest scan" in capsys.readouterr().out
+
+
+def test_init_star_note_shown_on_tty(git_repo, monkeypatch):
+    from rgit import updatecheck
+    monkeypatch.setattr(updatecheck, "maybe_start_background_check", lambda now: None)
+    monkeypatch.setattr(updatecheck, "render_notice", lambda version: None)
+    monkeypatch.chdir(git_repo)
+    out = _FakeTTY()                                       # stdout that claims a TTY
+    monkeypatch.setattr(sys, "stdout", out)
+    assert cli.main(["init"]) == 0
+    text = out.getvalue()
+    assert "https://github.com/StepzeroLab/research-git" in text
+    assert "lin.yuxiang.contact@gmail.com" in text
+
+
+def test_init_star_note_hidden_when_piped(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    assert cli.main(["init"]) == 0
+    out = capsys.readouterr().out
+    assert "lin.yuxiang.contact@gmail.com" not in out
+    assert "user/starred" not in out

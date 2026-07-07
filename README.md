@@ -77,6 +77,8 @@ rgit init           # creates the .rgit/ store in your repo
 
 That's the whole setup. Start a new agent session afterwards so it picks everything up.
 
+Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules** — pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
+
 <details>
 <summary>Install details: choosing platforms, guidance modes, capture-on-commit</summary>
 
