@@ -1,7 +1,7 @@
 <h1 align="center">research-git</h1>
 
 <p align="center">
-  <strong>A Git tool for ambitious researchers and developers in the agentic era.</strong>
+  <strong>A new Git tool for ambitious researchers and developers in the agentic era.</strong>
   <br />
   <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
