@@ -3,7 +3,7 @@
 <p align="center">
   <strong>Capture a code idea as a clean semantic unit — regenerate it onto today's codebase.</strong>
   <br />
-  <em>Works with Claude Code, and any MCP-capable client (Codex, GPT, …).</em>
+  <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
 
 <p align="center">
