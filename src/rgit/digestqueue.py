@@ -117,6 +117,19 @@ def next_batch(store: Store, *, batch: int = BATCH_DEFAULT,
             store.update_digest_unit(unit.id, status="skipped",
                                      skip_reason="empty")
             continue
+        if not getattr(pid, "created", True):
+            # segment_diff's content-addressed dedup returned an EXISTING open
+            # proposal for this byte-identical diff. If it belongs to another
+            # plane (live capture: hook/manual/run/watch), never adopt it —
+            # live capture stays human-gated, and digest must not touch another
+            # plane's proposal (accept would auto-approve it, skip/clear would
+            # dismiss it). Record the collision and leave the proposal alone.
+            existing = store.get_proposal(str(pid))
+            if existing.trigger != "backfill":
+                store.update_digest_unit(
+                    unit.id, status="skipped", skip_reason="duplicate",
+                    meta={**unit.meta, "duplicate_of_proposal": str(pid)})
+                continue
         claimed = store.digest_unit_by_proposal(str(pid))
         if claimed is not None and claimed.id != unit.id:
             # Byte-identical diff to an already-staged unit: the capsule will
@@ -142,7 +155,7 @@ def _dead_outcome(unit: DigestUnit) -> ResultSummary:
         return ResultSummary(verdict=None, key_delta=None,
                              failure_reason=m.get("revert_subject"), notes=notes)
     return ResultSummary(verdict=None, key_delta=None, failure_reason=None,
-                         notes="files deleted from HEAD")
+                         notes="files no longer present at their captured paths in HEAD")
 
 
 def accept(store: Store, proposal_id: str, now: str = "") -> dict:

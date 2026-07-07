@@ -1,7 +1,7 @@
 import pytest
 from conftest import commit_file, make_candidate, revert_head
 from rgit import digestqueue
-from rgit.segmenter import HeuristicSegmenter
+from rgit.segmenter import HeuristicSegmenter, segment_diff
 from rgit.store.store import Store
 
 T0 = 1_700_000_000
@@ -156,6 +156,23 @@ def test_duplicate_diff_unit_marked_skipped_duplicate(history_repo):
     assert dead.status == "staged"                      # higher score, staged first
     assert dup.status == "skipped" and dup.skip_reason == "duplicate"
     assert dup.meta["duplicate_of"] == dead.id
+
+
+def test_live_capture_proposal_never_adopted(history_repo):
+    from rgit.gitutil import CommitDiffSource
+    commit_file(history_repo, "base.py", "b = 1\n", "base", when=T0)
+    sha = commit_file(history_repo, "feat.py", "f = 1\n", "hooked feature",
+                      when=T0 + 5 * DAY)
+    store = Store.init(history_repo)
+    live_pid = segment_diff(store, "commit", HeuristicSegmenter(), run_id=None,
+                            now=NOW, source=CommitDiffSource(sha))
+    digestqueue.scan_into_store(store, now=NOW)
+    digestqueue.next_batch(store, segmenter=HeuristicSegmenter(), now=NOW)
+    unit = next(u for u in store.list_digest_units() if u.shas == [sha])
+    assert unit.status == "skipped" and unit.skip_reason == "duplicate"
+    assert unit.meta["duplicate_of_proposal"] == str(live_pid)
+    live = store.get_proposal(str(live_pid))
+    assert live.status == "open" and live.trigger == "commit"   # untouched
 
 
 def test_status_reports_progress(history_repo):
