@@ -510,6 +510,111 @@ class RangeDiffSource:
         return f"range {self.spec} has no diff"
 
 
+# git's canonical empty-tree object: the diff base for a history slice that
+# includes the root commit (there is no `root^` to anchor a range).
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+# Record/field separators for the history walk. Control chars cannot appear in
+# shas, timestamps, or author names, and a commit body containing them is
+# pathological enough that a truncated body is an acceptable parse.
+_LOG_RECORD = "\x01"
+_LOG_FIELD = "\x1f"
+_LOG_BODY_END = "\x02"
+
+
+def is_shallow(repo: Path) -> bool:
+    return _git(repo, "rev-parse", "--is-shallow-repository").strip() == "true"
+
+
+def mainline_count(repo: Path) -> int:
+    """First-parent commit count of HEAD. Raises CalledProcessError when HEAD
+    is unborn (fresh `git init`) — callers treat that as 'no history'."""
+    return int(_git(repo, "rev-list", "--first-parent", "--count", "HEAD").strip())
+
+
+def mainline_commits(repo: Path, range_spec: Optional[str] = None,
+                     limit: Optional[int] = None) -> list[dict]:
+    """First-parent commit records, oldest -> newest.
+
+    One `git log` invocation carries everything the scanner needs: metadata,
+    the full body (revert trailers live there), and per-file numstat. Merge
+    commits report their diff vs the first parent (`--diff-merges=first-parent`,
+    git >= 2.31) — exactly the "what the PR brought in" view the digest wants.
+    `limit` takes the most recent N; `range_spec` (A..B) overrides the default
+    HEAD walk. Binary numstat entries ("-") count files but no churn.
+    """
+    fmt = (f"{_LOG_RECORD}%H{_LOG_FIELD}%P{_LOG_FIELD}%at{_LOG_FIELD}%an"
+           f"{_LOG_FIELD}%s{_LOG_FIELD}%B{_LOG_BODY_END}")
+    args = ["log", "--first-parent", "--no-renames",
+            "--diff-merges=first-parent", "--numstat", f"--format={fmt}"]
+    if limit is not None:
+        args += ["-n", str(limit)]
+    args.append(range_spec if range_spec else "HEAD")
+    args.append("--")
+    out = _git(repo, "-c", "core.quotePath=false", *args)
+    commits: list[dict] = []
+    for record in out.split(_LOG_RECORD):
+        if not record.strip():
+            continue
+        header, _, tail = record.partition(_LOG_BODY_END)
+        sha, parents, at, author, subject, body = header.split(_LOG_FIELD, 5)
+        files: list[str] = []
+        churn = 0
+        for line in tail.splitlines():
+            parts = line.split("\t")
+            if len(parts) != 3 or not parts[2]:
+                continue
+            added, deleted, path = parts
+            files.append(path)
+            if added.isdigit():
+                churn += int(added)
+            if deleted.isdigit():
+                churn += int(deleted)
+        commits.append({"sha": sha, "parents": parents.split(), "at": int(at),
+                        "author": author, "subject": subject, "body": body,
+                        "files": files, "churn": churn})
+    commits.reverse()                      # git log emits newest first
+    return commits
+
+
+def head_files(repo: Path) -> set[str]:
+    """Paths present in HEAD's tree (committed state, not the index)."""
+    out = subprocess.run(["git", "ls-tree", "-r", "--name-only", "-z", "HEAD"],
+                         cwd=repo, check=True, capture_output=True)
+    return {os.fsdecode(p) for p in out.stdout.split(b"\0") if p}
+
+
+class EmptyTreeRangeDiffSource:
+    """Capture source: everything up to `head`, diffed against the empty tree.
+
+    A digest streak containing the root commit has no `first^` to anchor a
+    RangeDiffSource, so the whole slice is one add-only patch from nothing.
+    """
+
+    def __init__(self, head: str):
+        self.head = head
+        self._sha: Optional[str] = None
+
+    def _resolved(self, repo: Path) -> str:
+        if self._sha is None:
+            self._sha = resolve_commit(repo, self.head)
+        return self._sha
+
+    def diff(self, repo: Path) -> str:
+        return _git(repo, "-c", "core.quotePath=false", "diff-tree", "-p",
+                    "--no-renames", EMPTY_TREE, self._resolved(repo), "--",
+                    ":(exclude).rgit")
+
+    def read_new_side(self, repo: Path, file: str) -> Optional[str]:
+        return read_committed_python(repo, self._resolved(repo), file)
+
+    def source_commit(self, repo: Path) -> Optional[str]:
+        return self._resolved(repo)
+
+    def no_diff_reason(self, repo: Path) -> str:
+        return f"history up to {self.head} has no diff"
+
+
 def _snapshot_paths(repo: Path, exclude_root: Path | None = None) -> list[str]:
     """Tracked + untracked files, excluding ignored, .git and .rgit.
 

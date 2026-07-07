@@ -597,3 +597,82 @@ def test_committed_sources_exclude_rgit_store(git_repo):
     assert "model.py" in diff and ".rgit" not in diff
     rdiff = RangeDiffSource(f"{base}..HEAD").diff(git_repo)
     assert "model.py" in rdiff and ".rgit" not in rdiff
+
+
+# ---- history plumbing (feat/history-digest, Task 1) -----------------------
+
+from conftest import commit_file, merge_branch, revert_head  # noqa: E402
+
+
+T0 = 1_700_000_000  # pinned base timestamp for scripted histories
+
+
+def test_mainline_commits_walks_oldest_to_newest(history_repo):
+    from rgit.gitutil import mainline_commits, mainline_count
+    a = commit_file(history_repo, "a.py", "x = 1\n", "first", when=T0)
+    b = commit_file(history_repo, "a.py", "x = 2\n", "second", when=T0 + 60)
+    commits = mainline_commits(history_repo)
+    assert [c["sha"] for c in commits] == [a, b]
+    assert commits[0]["parents"] == []            # root commit
+    assert commits[1]["parents"] == [a]
+    assert commits[0]["at"] == T0
+    assert commits[0]["subject"] == "first"
+    assert commits[0]["files"] == ["a.py"]
+    assert commits[0]["churn"] == 1
+    assert mainline_count(history_repo) == 2
+
+
+def test_mainline_commits_merge_shows_first_parent_numstat(history_repo):
+    from rgit.gitutil import mainline_commits
+    commit_file(history_repo, "a.py", "x = 1\n", "base", when=T0)
+    m = merge_branch(history_repo, [("b.py", "y = 1\ny = 2\n", "side work")],
+                     "merge side", when=T0 + 100)
+    commits = mainline_commits(history_repo)
+    merge = commits[-1]
+    assert merge["sha"] == m
+    assert len(merge["parents"]) == 2
+    assert merge["files"] == ["b.py"]             # diff vs first parent
+    assert merge["churn"] == 2
+
+
+def test_mainline_commits_limit_takes_most_recent(history_repo):
+    from rgit.gitutil import mainline_commits
+    commit_file(history_repo, "a.py", "1\n", "one", when=T0)
+    commit_file(history_repo, "a.py", "2\n", "two", when=T0 + 1)
+    c3 = commit_file(history_repo, "a.py", "3\n", "three", when=T0 + 2)
+    commits = mainline_commits(history_repo, limit=1)
+    assert [c["sha"] for c in commits] == [c3]
+
+
+def test_revert_body_carries_trailer(history_repo):
+    from rgit.gitutil import mainline_commits
+    commit_file(history_repo, "a.py", "x = 1\n", "base", when=T0)
+    exp = commit_file(history_repo, "a.py", "x = 99\n", "experiment", when=T0 + 60)
+    revert_head(history_repo, when=T0 + 120)
+    commits = mainline_commits(history_repo)
+    assert f"This reverts commit {exp}" in commits[-1]["body"]
+
+
+def test_head_files_lists_tracked_tree(history_repo):
+    from rgit.gitutil import head_files
+    commit_file(history_repo, "a.py", "x = 1\n", "one", when=T0)
+    commit_file(history_repo, "pkg/b.py", "y = 1\n", "two", when=T0 + 1)
+    assert head_files(history_repo) == {"a.py", "pkg/b.py"}
+
+
+def test_empty_tree_range_diff_source(history_repo):
+    from rgit.gitutil import EmptyTreeRangeDiffSource
+    commit_file(history_repo, "a.py", "def f():\n    return 1\n", "one", when=T0)
+    sha = commit_file(history_repo, "b.py", "def g():\n    return 2\n", "two",
+                      when=T0 + 1)
+    src = EmptyTreeRangeDiffSource(sha)
+    diff = src.diff(history_repo)
+    assert "+++ b/a.py" in diff and "+++ b/b.py" in diff
+    assert src.source_commit(history_repo) == sha
+    assert src.read_new_side(history_repo, "a.py") == "def f():\n    return 1\n"
+
+
+def test_is_shallow_false_on_full_clone(history_repo):
+    from rgit.gitutil import is_shallow
+    commit_file(history_repo, "a.py", "x\n", "one", when=T0)
+    assert is_shallow(history_repo) is False

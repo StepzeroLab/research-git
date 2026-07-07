@@ -177,6 +177,7 @@ The five-step loop above is the core. These show up as your store grows — run 
 | `rgit compare <query>` | which variant won: ranked table, Δ vs baseline, ★ winner |
 | `rgit provenance <run_id>` | per-feature clean (capsule) vs agent-adapted (frozen) diff for a run |
 | `rgit mcp` | serve the graph read-only so a teammate's client can recall against it |
+| `rgit digest scan [A..B]` | cluster a mature repo's git history into a scored digestion plan (`rgit init` offers this interactively); `rgit digest status` shows progress, the **rgit-digest** skill drains the queue into `origin=backfill` capsules, and `rgit digest clear` removes them all if you change your mind |
 
 ---
 

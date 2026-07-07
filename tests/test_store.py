@@ -196,3 +196,90 @@ def test_objectstore_path_for_matches_layout_and_no_create(tmp_path):
     digest = "ab" + "c" * 62
     assert ro.path_for(digest) == target / "ab" / ("c" * 62)
     assert ro.path_for(digest) == ro._path(digest)   # legacy alias intact
+
+
+def _capsule(name="cap", origin="live"):
+    from rgit.store.models import Capsule, CodeSlice
+    return Capsule(id="", name=name, intent="i", status="approved",
+                   base_commit="c", knobs={}, data_assumptions=None,
+                   resurrection_guide=None, result_summary=None, payload_hash=None,
+                   code_slices=[CodeSlice("m.py", "f", None, "x", "wrap")],
+                   origin=origin)
+
+
+def test_capsule_origin_roundtrip(tmp_path):
+    from rgit.store.store import Store
+    store = Store(tmp_path)
+    fid = store.add_feature(_capsule(origin="backfill"))
+    assert store.get_feature(fid).origin == "backfill"
+    live = store.add_feature(_capsule(name="live-one"))
+    assert store.get_feature(live).origin == "live"
+
+
+def test_delete_feature_cascades_edges(tmp_path):
+    import pytest
+    from rgit.store.store import Store
+    store = Store(tmp_path)
+    a = store.add_feature(_capsule(name="a"))
+    b = store.add_feature(_capsule(name="b"))
+    store.add_edge(a, b, "depends_on")
+    store.add_edge(b, a, "overlaps")
+    store.delete_feature(a)
+    with pytest.raises(KeyError):
+        store.get_feature(a)
+    assert store.neighbors(b, "overlaps") == []
+    rows = store.conn.execute("SELECT * FROM edges WHERE src=? OR dst=?",
+                              (a, a)).fetchall()
+    assert rows == []
+    with pytest.raises(KeyError):
+        store.delete_feature("feat_missing")
+
+
+def test_digest_unit_crud_and_queue_order(tmp_path):
+    import pytest
+    from rgit.store.models import DigestUnit
+    from rgit.store.store import Store
+    store = Store(tmp_path)
+    low = DigestUnit(id="dig_low", kind="landed", shas=["s1"], score=1.0,
+                     meta={"subjects": ["low"]}, created_at="t")
+    high = DigestUnit(id="dig_high", kind="dead", shas=["s2", "s3"], score=9.0,
+                      meta={"subjects": ["high"]}, created_at="t")
+    assert store.add_digest_unit(low) is True
+    assert store.add_digest_unit(high) is True
+    assert store.add_digest_unit(high) is False              # idempotent rescan
+    units = store.list_digest_units()
+    assert [u.id for u in units] == ["dig_high", "dig_low"]  # score DESC
+    assert units[0].shas == ["s2", "s3"]
+    assert units[0].meta == {"subjects": ["high"]}
+
+    store.update_digest_unit("dig_high", status="staged", proposal_id="prop_1")
+    assert store.get_digest_unit("dig_high").proposal_id == "prop_1"
+    assert store.digest_unit_by_proposal("prop_1").id == "dig_high"
+    assert store.digest_unit_by_proposal("prop_none") is None
+    assert [u.id for u in store.list_digest_units("pending")] == ["dig_low"]
+
+    store.update_digest_unit("dig_high", status="done",
+                             capsule_ids=["feat_1", "feat_2"])
+    assert store.get_digest_unit("dig_high").capsule_ids == ["feat_1", "feat_2"]
+
+    store.update_digest_unit("dig_high", meta={"subjects": ["high"], "duplicate_of": "dig_x"})
+    assert store.get_digest_unit("dig_high").meta["duplicate_of"] == "dig_x"
+
+    store.reset_digest_unit("dig_high")
+    fresh = store.get_digest_unit("dig_high")
+    assert fresh.status == "pending"
+    assert fresh.proposal_id is None and fresh.capsule_ids == []
+
+    with pytest.raises(KeyError):
+        store.get_digest_unit("dig_missing")
+    with pytest.raises(KeyError):
+        store.update_digest_unit("dig_missing", status="done")
+
+
+def test_digest_meta_upsert(tmp_path):
+    from rgit.store.store import Store
+    store = Store(tmp_path)
+    assert store.get_digest_meta("mode") is None
+    store.set_digest_meta("mode", "layered")
+    store.set_digest_meta("mode", "dead")
+    assert store.get_digest_meta("mode") == "dead"

@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS features (
     data_assumptions TEXT,
     resurrection_guide TEXT,
     result_summary TEXT,
-    payload_hash TEXT
+    payload_hash TEXT,
+    origin TEXT NOT NULL DEFAULT 'live'
 );
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
@@ -53,6 +54,22 @@ CREATE TABLE IF NOT EXISTS metric_directions (
     metric TEXT PRIMARY KEY,
     direction TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS digest_units (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    shas TEXT NOT NULL,
+    score REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    skip_reason TEXT,
+    proposal_id TEXT,
+    capsule_ids TEXT,
+    meta TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS digest_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS schema_metadata (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -84,6 +101,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
     rcols = {r[1] for r in conn.execute("PRAGMA table_info(runs)")}
     if "returncode" not in rcols:
         conn.execute("ALTER TABLE runs ADD COLUMN returncode INTEGER")
+    fcols = {r[1] for r in conn.execute("PRAGMA table_info(features)")}
+    if "origin" not in fcols:
+        conn.execute(
+            "ALTER TABLE features ADD COLUMN origin TEXT NOT NULL DEFAULT 'live'")
     # Stamp AFTER the migrations above so the value always means "migrations
     # up to this version have been applied". INSERT OR IGNORE would freeze the
     # first-ever stamp and make doctor warn schema_version_mismatch forever

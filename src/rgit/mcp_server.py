@@ -17,14 +17,15 @@ def _capsule_dict(cap) -> dict[str, Any]:
     return cap.to_dict()
 
 
-def recall_tool(query: str) -> list[dict]:
-    """Find feature capsules by keyword/structure; ranked, with subgraphs."""
+def recall_tool(query: str, exclude_backfill: bool = False) -> list[dict]:
+    """Find feature capsules by keyword/structure; ranked, with subgraphs.
+    exclude_backfill=True hides history-digested capsules."""
     store = Store.open()
     return [{"capsule": _capsule_dict(r["capsule"]),
              "score": r["score"],
              "depends_on": [_capsule_dict(d) for d in r["depends_on"]],
              "overlaps": [_capsule_dict(d) for d in r["overlaps"]]}
-            for r in recall(store, query)]
+            for r in recall(store, query, exclude_backfill=exclude_backfill)]
 
 
 def compose_tool(feature_ids: list[str]) -> dict:

@@ -1,15 +1,23 @@
+import io
 import json
 import sys
 from pathlib import Path
 
 import pytest
 import rgit.cli as cli
-from conftest import make_candidate
+from conftest import commit_file, make_candidate
 from rgit.cli import main
 from rgit.gitutil import MAX_UNTRACKED_DIFF_BYTES
 from rgit.segmenter import MockSegmenter, segment_diff
 from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice, Run
+
+T0 = 1_700_000_000
+
+
+class _FakeTTY(io.StringIO):
+    def isatty(self):
+        return True
 
 
 def test_init_creates_store_but_no_hook(git_repo, monkeypatch):
@@ -1356,3 +1364,161 @@ def test_review_decide_unknown_name_fails_with_hint(git_repo, monkeypatch, capsy
     assert "nope" in out and "rgit pending --json" in out
     assert store.list_features() == []
     assert store.get_proposal(pid).status == "open"
+
+
+def test_edges_apply_scope_and_limit(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    capsys.readouterr()  # drain init's informational stdout so it stays out of the JSON parse
+    store = Store.open(git_repo)
+    a = store.add_feature(Capsule(
+        id="", name="edge-a", intent="i", status="approved", base_commit="c",
+        knobs={}, data_assumptions=None, resurrection_guide=None,
+        result_summary=None, payload_hash=None,
+        code_slices=[CodeSlice("m.py", "s", None, "x", "wrap")]))
+    store.add_feature(Capsule(
+        id="", name="edge-b", intent="i", status="approved", base_commit="c",
+        knobs={}, data_assumptions=None, resurrection_guide=None,
+        result_summary=None, payload_hash=None,
+        code_slices=[CodeSlice("m.py", "s", None, "y", "wrap")]))
+    assert cli.main(["edges", "--apply", "--scope", "edge-a", "--limit", "5"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["overlaps_written"] == 1
+    assert cli.main(["edges", "--apply", "--scope", "no-such-capsule"]) == 1
+
+
+def test_digest_scan_status_next_accept_roundtrip(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "feat.py", "def f():\n    return 1\n", "a feature",
+                when=T0)
+    assert cli.main(["init"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["digest", "scan", "--json"]) == 0
+    scanned = json.loads(capsys.readouterr().out)
+    assert scanned["units_total"] >= 1 and scanned["mode"] == "layered"
+
+    assert cli.main(["digest", "status", "--json"]) == 0
+    st = json.loads(capsys.readouterr().out)
+    assert st["pending_in_mode"] >= 1
+
+    assert cli.main(["digest", "next", "--batch", "1", "--json"]) == 0
+    items = json.loads(capsys.readouterr().out)
+    assert items and items[0]["proposal_id"].startswith("prop_")
+
+    pid = items[0]["proposal_id"]
+    payload = json.dumps([make_candidate("backfilled-feature")])
+    monkeypatch.setattr(sys, "stdin", __import__("io").StringIO(payload))
+    assert cli.main(["resegment", pid, "--from-json", "-"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["digest", "accept", pid]) == 0
+    out = capsys.readouterr().out
+    assert "approved ->" in out and "[backfill]" in out
+    store = Store.open(git_repo)
+    caps = [c for c in store.list_features() if c.origin == "backfill"]
+    assert len(caps) == 1 and caps[0].name == "backfilled-feature"
+
+    assert cli.main(["digest", "accept", pid]) == 1        # already resolved
+    capsys.readouterr()
+    assert cli.main(["digest", "clear"]) == 0
+    assert "removed" in capsys.readouterr().out
+
+
+def test_digest_scan_unknown_mode_fails(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    capsys.readouterr()
+    import pytest as _pytest
+    with _pytest.raises(SystemExit):                       # argparse choices
+        cli.main(["digest", "scan", "--mode", "bogus"])
+
+
+def test_backfill_proposals_hidden_from_live_surfaces(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "feat.py", "def f():\n    return 1\n", "a feature",
+                when=T0)
+    cli.main(["init"])
+    cli.main(["digest", "scan"])
+    cli.main(["digest", "next", "--batch", "1"])
+    capsys.readouterr()
+    assert cli.main(["pending"]) == 0
+    assert "no pending proposals" in capsys.readouterr().out
+    assert cli.main(["review"]) == 0
+    assert "no pending proposals" in capsys.readouterr().out
+    # bare --approve must not resolve to a backfill proposal either
+    assert cli.main(["review", "--approve"]) == 1
+    assert "no pending proposals" in capsys.readouterr().out
+
+
+def test_features_tags_backfill(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    cli.main(["init"])
+    store = Store.open(git_repo)
+    store.add_feature(Capsule(
+        id="", name="bf", intent="i", status="approved", base_commit="c",
+        knobs={}, data_assumptions=None, resurrection_guide=None,
+        result_summary=None, payload_hash=None,
+        code_slices=[CodeSlice("m.py", "f", None, "x", "wrap")],
+        origin="backfill"))
+    capsys.readouterr()
+    assert cli.main(["features"]) == 0
+    assert "[backfill]" in capsys.readouterr().out
+
+
+# ---- init history-digestion offer (Task 8) ----------------------------------
+
+def test_init_non_tty_prints_digest_hint_with_history(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    assert cli.main(["init"]) == 0
+    out = capsys.readouterr().out
+    assert "rgit digest scan" in out
+    store = Store.open(git_repo)
+    assert store.list_digest_units() == []                 # hint only, no scan
+
+
+def test_init_single_commit_repo_stays_quiet(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    assert cli.main(["init"]) == 0
+    assert "digest" not in capsys.readouterr().out
+
+
+def test_init_no_digest_flag_suppresses_offer(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    assert cli.main(["init", "--no-digest"]) == 0
+    out = capsys.readouterr().out
+    # offer fully suppressed — check the offer's own strings, not a bare
+    # "digest" (the pytest tmp dir is named after this test, so the printed
+    # `initialized .rgit/ in <path>` line legitimately contains "digest").
+    assert "rgit digest scan" not in out    # non-TTY hint suppressed
+    assert "digest plan" not in out         # no scan happened
+
+
+def test_init_digest_flag_scans_non_interactively(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    assert cli.main(["init", "--digest", "dead"]) == 0
+    out = capsys.readouterr().out
+    assert "digest plan" in out
+    store = Store.open(git_repo)
+    assert store.get_digest_meta("mode") == "dead"
+    assert store.list_digest_units()
+
+
+def test_init_tty_prompt_scans_selected_mode(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    monkeypatch.setattr(sys, "stdin", _FakeTTY("1\n"))     # pick "layered"
+    assert cli.main(["init"]) == 0
+    assert "digest plan" in capsys.readouterr().out
+    assert Store.open(git_repo).get_digest_meta("mode") == "layered"
+
+
+def test_init_tty_prompt_skip_leaves_no_plan(git_repo, monkeypatch, capsys):
+    monkeypatch.chdir(git_repo)
+    commit_file(git_repo, "a.py", "x = 1\n", "second commit", when=T0)
+    monkeypatch.setattr(sys, "stdin", _FakeTTY("5\n"))     # "skip"
+    assert cli.main(["init"]) == 0
+    assert Store.open(git_repo).list_digest_units() == []

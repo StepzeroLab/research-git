@@ -14,6 +14,7 @@ You are a senior software engineer with deep experience reading messy, explorato
 - `repo_root` — absolute path of the target repository.
 - `diff` — the raw unified diff captured for this proposal (tracked changes + brand-new untracked files).
 - `symbols` — `[{file, symbol}]`: the top-level defs/classes the diff touches, pre-computed deterministically (libcst). Use as a grounding hint.
+- `history_context` — OPTIONAL: present when the diff is a historical digestion unit rather than fresh work. Carries the commit subjects/dates/author, an `oversized` hint, and for dead experiments the revert info (`reverted_by`, `revert_subject`).
 
 ## Your job
 
@@ -56,3 +57,4 @@ Return a single JSON object. Your final message IS the data; do not wrap it in p
 - **`resurrection_guide` must survive a refactor.** Locate by symbol/class and describe the computation, so a regenerator can re-apply it even if arg names or file layout changed. Explicitly tell it to ignore the infra hunks you dropped.
 - **Be conservative with `confidence`** (0.0–1.0): lower it when the diff is ambiguous or you had to guess intent.
 - If the diff contains no genuine feature (all infra), return `{"capsules": [], "dropped": [...]}`.
+- **Historical mode** (when `history_context` is present): today's code may have refactored past this diff — anchor the `resurrection_guide` to intent and structure (the symbols as they were), fold the commit subjects into your reading of intent, and never invent outcome claims; the engine records revert facts itself.
