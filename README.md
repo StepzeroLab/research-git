@@ -1,7 +1,7 @@
 <h1 align="center">research-git</h1>
 
 <p align="center">
-  <strong>Capture a code idea as a clean semantic unit — regenerate it onto today's codebase.</strong>
+  <strong>A Git tool for ambitious researchers and developers in the agentic era.</strong>
   <br />
   <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
@@ -14,16 +14,14 @@
 </p>
 
 <p align="center">
-  <strong>Git recovers history. It can't recover an entangled idea onto today's code.</strong>
+  <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
 </p>
 
-<p align="center">
-  <img src="assets/hero.png" alt="Capture a code idea as a clean semantic unit — regenerate it onto today's codebase." width="800" />
-</p>
+Git remembers commits. research-git remembers ideas.
 
-research-git captures experiments as Feature Capsules, then regenerates the one you need onto your current agent, using your existing Coding Plan subscription, no pay-per-use API.
+research-git turns experiments and features into reusable **Feature Capsules** so coding agents can reapply, adapt, or remove them safely as your code evolves.
 
-> **Think of it as Git for agentic coding experiments: not just recovering old code, but bringing old ideas back into today’s code.**
+> **Not a rollback. Not hard deletion. Bring back the idea, not the old branch.**
 
 ---
 
