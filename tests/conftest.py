@@ -61,10 +61,16 @@ def _head_sha(repo: Path) -> str:
 
 def commit_file(repo: Path, path: str, content: str, subject: str, *,
                 when: int, author: str = "t") -> str:
-    """One commit touching one file, with pinned author/date. Returns the sha."""
+    """One commit touching one file, with pinned author/date. Returns the sha.
+
+    newline="" disables newline translation so the committed blob is byte-exact
+    `content` on every platform — Windows' text mode would otherwise write \\r\\n
+    to disk and the blob (autocrlf is pinned false) would no longer match the
+    literal a test asserts against.
+    """
     p = repo / path
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content)
+    p.write_text(content, encoding="utf-8", newline="")
     _run(["git", "add", "-A"], repo)
     subprocess.run(["git", "commit", "-q", "-m", subject], cwd=repo, check=True,
                    capture_output=True, env={**os.environ, **_commit_env(when, author)})
