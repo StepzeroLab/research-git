@@ -804,7 +804,7 @@ def test_run_without_store_suggests_init_flag(git_repo, monkeypatch, capsys):
 def test_run_with_init_flag_bootstraps_store(git_repo, monkeypatch):
     monkeypatch.chdir(git_repo)
     cli._SEGMENTER = MockSegmenter([])
-    assert cli.main(["run", "--init", "--", "true"]) == 0
+    assert cli.main(["run", "--init", "--", sys.executable, "-c", "pass"]) == 0
     assert (git_repo / ".rgit" / "graph.db").exists()
     assert not (git_repo / ".git" / "hooks" / "post-commit").exists()   # --init never installs hooks
 

@@ -26,6 +26,21 @@ def fake_home(tmp_path, monkeypatch):
     return tmp_path
 
 
+@pytest.fixture
+def symlink_home(fake_home):
+    """Fake home for integration tests that require real directory symlinks."""
+    target = fake_home / "symlink-target"
+    link = fake_home / "symlink-probe"
+    target.mkdir()
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"directory symlink creation unavailable: {exc}")
+    else:
+        link.unlink()
+    return fake_home
+
+
 def guidance_path(res):
     return Path(res["guidance"]["path"])
 
@@ -134,7 +149,8 @@ def test_guidance_target_opencode_honors_xdg_config_home(tmp_path, monkeypatch):
             == xdg / "opencode" / "AGENTS.md")
 
 
-def test_install_codex_mode_none_skips_guidance_write(fake_home):
+def test_install_codex_mode_none_skips_guidance_write(symlink_home):
+    fake_home = symlink_home
     res = installer.install("codex", mode="none")
     assert res["ran"] is True
     assert (fake_home / ".agents" / "skills" / "rgit-capture").is_symlink()
@@ -158,14 +174,16 @@ def test_install_claude_code_mode_none_dry_run(fake_home):
     assert res["guidance"] == {"action": "disabled"}
 
 
-def test_install_codex_mode_manual_only_pins_mode(fake_home):
+def test_install_codex_mode_manual_only_pins_mode(symlink_home):
+    fake_home = symlink_home
     res = installer.install("codex", mode="manual-only")
     assert res["guidance"]["action"] == "created"
     text = (fake_home / ".codex" / "AGENTS.md").read_text(encoding="utf-8")
     assert "Current mode: manual-only" in text
 
 
-def test_explicit_mode_overrides_previously_pinned_mode(fake_home):
+def test_explicit_mode_overrides_previously_pinned_mode(symlink_home):
+    fake_home = symlink_home
     installer.install("codex", mode="manual-only")
     installer.install("codex", mode="default")
     text = (fake_home / ".codex" / "AGENTS.md").read_text(encoding="utf-8")
@@ -227,7 +245,8 @@ def test_uninstall_claude_code_keeps_guidance_when_cli_command_fails(
     assert agent_guidance._START_RE.search(guidance.read_text(encoding="utf-8"))
 
 
-def test_install_codex_writes_guidance_and_symlinks_under_fake_home(fake_home):
+def test_install_codex_writes_guidance_and_symlinks_under_fake_home(symlink_home):
+    fake_home = symlink_home
     res = installer.install("codex")
 
     assert res["ran"] is True
@@ -238,7 +257,8 @@ def test_install_codex_writes_guidance_and_symlinks_under_fake_home(fake_home):
     assert res["guidance"]["action"] == "created"
 
 
-def test_install_codex_is_idempotent_for_guidance(fake_home):
+def test_install_codex_is_idempotent_for_guidance(symlink_home):
+    fake_home = symlink_home
     installer.install("codex")
     res = installer.install("codex")
 
@@ -282,6 +302,7 @@ def test_guidance_write_error_is_structured_not_fatal(fake_home, monkeypatch):
         raise OSError("nope")
 
     monkeypatch.setattr(agent_guidance, "upsert_managed_block", boom)
+    monkeypatch.setattr(Path, "symlink_to", lambda *a, **k: None)
 
     res = installer.install("codex")
 
