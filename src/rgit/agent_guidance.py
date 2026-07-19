@@ -88,7 +88,14 @@ def render_global_block(mode: str = "default") -> str:
         "scan` stages a plan (plain `rgit init` offers it), then the "
         "`rgit-digest` skill drains the queue batch by batch.\n"
         "- In final feedback, mention any capsules created, approved, applied, "
-        "or skipped, plus important graph relations.\n"
+        "or skipped, plus important graph relations. If open proposals awaiting "
+        "review remain, list each proposal id and every candidate's stored name "
+        "and one-line intent; include key knobs only when they affect the choice. "
+        "A candidate count alone is not enough. Present explanations in the "
+        "language the user is currently using, regardless of the stored capsule "
+        "language. Keep proposal ids, capsule names, code symbols, configuration "
+        "keys, and file paths unchanged; translation is presentation-only and "
+        "must not modify the stored capsule.\n"
     )
     provisional = f"{START}\n{body}{END}\n"
     h = canonical_hash(provisional)

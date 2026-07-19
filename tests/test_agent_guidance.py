@@ -184,6 +184,17 @@ def test_render_global_block_tells_agents_to_skip_mechanical_changes():
     assert "Skip mechanical" in render_global_block()
 
 
+def test_render_global_block_requires_pending_review_details_in_user_language():
+    block = agent_guidance.render_global_block()
+    assert "open proposals awaiting review" in block
+    assert "every candidate's stored name and one-line intent" in block
+    assert "key knobs only when they affect the choice" in block
+    assert "A candidate count alone is not enough" in block
+    assert "language the user is currently using" in block
+    assert "Keep proposal ids, capsule names, code symbols, configuration keys, " \
+           "and file paths unchanged" in block
+
+
 def test_render_emits_fingerprinted_start_marker():
     block = agent_guidance.render_global_block()
     m = agent_guidance._START_RE.match(block)

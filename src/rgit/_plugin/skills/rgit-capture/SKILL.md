@@ -66,6 +66,8 @@ Lost the ids from step 2? Bare `rgit review` re-lists every open proposal with i
 
 4. Echo the `approved -> <feature_id>` lines back to the user, then continue to step 6.
 
+If any proposal remains open when you are about to finish a response, include a `Pending capsule review` section before finishing. List each proposal id and every candidate's stored name and one-line intent; include key knobs only when they affect the choice, then ask which capsule names to keep. Never replace this list with only a candidate count. Present the explanations and intents in the language the user is currently using, even when the stored capsule uses another language. Do not translate proposal ids, capsule names, code symbols, configuration keys, or file paths. Translation is presentation-only; never rewrite the stored candidates.
+
 ### 6. Infer graph edges (deterministic baseline + agent-judged relationships)
 
 After approval, wire the new capsules into the graph:
