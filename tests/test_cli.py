@@ -46,6 +46,71 @@ def test_install_list_and_dry_run(capsys):
     assert "marketplace" in out2 and "research-git@research-git" in out2
 
 
+def _skill_link_failure_result():
+    return {
+        "platform": "codex",
+        "links": [{"link": "/home/.agents/skills/rgit-capture",
+                   "target": "/pkg/rgit/_plugin/skills/rgit-capture"}],
+        "skills_dir": "/home/.agents/skills",
+        "errors": [{"link": "/home/.agents/skills/rgit-capture",
+                    "error": "privilege not held",
+                    "hint": "enable Developer Mode"}],
+        "guidance": {"action": "skipped_error",
+                     "path": "/home/.codex/AGENTS.md",
+                     "error": "skill symlink failed"},
+        "instructions": "Skills symlinked into /home/.agents/skills. MCP config: {}",
+        "ran": True,
+    }
+
+
+def test_install_returns_nonzero_when_skill_links_fail(monkeypatch, capsys):
+    from rgit import installer
+
+    monkeypatch.setattr(installer, "install",
+                        lambda *a, **k: _skill_link_failure_result())
+
+    assert cli.main(["install", "codex", "--guidance", "default"]) == 1
+    captured = capsys.readouterr()
+    assert "privilege not held" in captured.out
+    assert "skill symlink failed" in captured.out
+    assert "Skills symlinked into" not in captured.out
+    assert "restart your CLI/agent session" not in captured.out
+
+
+def test_install_json_returns_nonzero_when_skill_links_fail(monkeypatch, capsys):
+    from rgit import installer
+
+    monkeypatch.setattr(installer, "install",
+                        lambda *a, **k: _skill_link_failure_result())
+
+    assert cli.main(["install", "codex", "--json", "--guidance", "default"]) == 1
+    res = json.loads(capsys.readouterr().out)
+    assert res["errors"][0]["error"] == "privilege not held"
+
+
+def test_install_returns_nonzero_when_guidance_write_fails(monkeypatch, capsys):
+    from rgit import installer
+
+    monkeypatch.setattr(
+        installer, "install",
+        lambda *a, **k: {
+            "platform": "codex",
+            "links": [{"link": "/home/.agents/skills/rgit-capture",
+                       "target": "/pkg/rgit/_plugin/skills/rgit-capture"}],
+            "skills_dir": "/home/.agents/skills",
+            "guidance": {"action": "skipped_error",
+                         "path": "/home/.codex/AGENTS.md",
+                         "error": "permission denied"},
+            "ran": True,
+        },
+    )
+
+    assert cli.main(["install", "codex", "--guidance", "default"]) == 1
+    captured = capsys.readouterr()
+    assert "permission denied" in captured.out
+    assert "restart your CLI/agent session" not in captured.out
+
+
 def test_run_from_links_variant_and_refreshes_guide(git_repo, monkeypatch, tmp_path):
     from rgit.store.models import Capsule, CodeSlice
     monkeypatch.chdir(git_repo)
@@ -739,7 +804,7 @@ def test_run_without_store_suggests_init_flag(git_repo, monkeypatch, capsys):
 def test_run_with_init_flag_bootstraps_store(git_repo, monkeypatch):
     monkeypatch.chdir(git_repo)
     cli._SEGMENTER = MockSegmenter([])
-    assert cli.main(["run", "--init", "--", "true"]) == 0
+    assert cli.main(["run", "--init", "--", sys.executable, "-c", "pass"]) == 0
     assert (git_repo / ".rgit" / "graph.db").exists()
     assert not (git_repo / ".git" / "hooks" / "post-commit").exists()   # --init never installs hooks
 

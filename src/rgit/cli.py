@@ -399,7 +399,8 @@ def _render_install_result(res: dict) -> None:
         print(f"  • would run: {' '.join(cmd)}")
     if res.get("links"):
         if res.get("ran"):
-            print(f"  ✓ skills linked into {res.get('skills_dir')}")
+            mark = "✗" if res.get("errors") else "✓"
+            print(f"  {mark} skills linked into {res.get('skills_dir')}")
         else:
             print(f"  • would link {len(res['links'])} skill(s) into "
                   f"{res.get('skills_dir')}")
@@ -426,8 +427,16 @@ def _render_install_result(res: dict) -> None:
             print(f"  ✓ guidance {action}: {path}".rstrip(": "))
         if g.get("hint"):
             print(f"      hint: {g['hint']}")
-    if res.get("instructions"):
+    if res.get("instructions") and not res.get("errors"):
         print(f"  → {res['instructions']}")
+
+
+def _install_result_failed(res: dict) -> bool:
+    if res.get("errors"):
+        return True
+    if (res.get("guidance") or {}).get("action") == "skipped_error":
+        return True
+    return any(r.get("rc", 0) != 0 for r in res.get("results", []))
 
 
 def _sole_open_proposal(store: Store) -> str:
@@ -863,13 +872,14 @@ def _dispatch(args, parser) -> int:
             # installs yield one entry per detected client.
             payload = results[0] if args.platform else results
             print(json.dumps(payload, indent=2, ensure_ascii=False))
-            return 0
+            return 1 if any(_install_result_failed(r) for r in results) else 0
         for res in results:
             _render_install_result(res)
-        if not args.uninstall:
+        failed = any(_install_result_failed(r) for r in results)
+        if not args.uninstall and not failed:
             print("\nrestart your CLI/agent session to pick up the skills")
             print("note: `rgit install-hooks` enables per-commit capture (opt-in)")
-        return 0
+        return 1 if failed else 0
 
     if args.cmd == "install-hooks":
         from .hooks import install_hooks, uninstall_hooks
