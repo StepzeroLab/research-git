@@ -1,10 +1,10 @@
 """Regression tests for the PR #2 code-review findings (mine + Codex)."""
 import io
+import sys
 import tarfile
 
 import pytest
 
-from conftest import python_noop_cmd
 from rgit.ablation import ablation
 from rgit.compare import compare
 from rgit.provenance import provenance
@@ -116,7 +116,7 @@ def test_provenance_tolerates_binary_artifact_file(git_repo):
 def test_cli_run_with_unknown_capsule_returns_nonzero(git_repo, capsys, monkeypatch):
     monkeypatch.chdir(git_repo)
     Store.init(git_repo)
-    rc = main(["run", "--with", "nope", "--", "true"])
+    rc = main(["run", "--with", "nope", "--", sys.executable, "-c", "pass"])
     assert rc == 1
     assert "no capsule" in capsys.readouterr().out.lower()
 
@@ -125,7 +125,7 @@ def test_cli_run_with_resolves_name_to_active_edge(git_repo, capsys, monkeypatch
     monkeypatch.chdir(git_repo)
     store = Store.init(git_repo)
     a = _cap(store, "A")
-    rc = main(["run", "--with", "A", "--", *python_noop_cmd()])    # name, not id
+    rc = main(["run", "--with", "A", "--", sys.executable, "-c", "pass"])
     assert rc == 0
     dsts = [r["dst"] for r in
             store.conn.execute("SELECT dst FROM edges WHERE type='active'")]

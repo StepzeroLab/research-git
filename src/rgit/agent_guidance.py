@@ -84,6 +84,9 @@ def render_global_block(mode: str = "default") -> str:
         "(store only — never install hooks unless asked); in an interactive "
         "session, tell the user to run `rgit init` rather than initializing "
         "silently.\n"
+        "- To backfill a mature repo's git history into capsules: `rgit digest "
+        "scan` stages a plan (plain `rgit init` offers it), then the "
+        "`rgit-digest` skill drains the queue batch by batch.\n"
         "- In final feedback, mention any capsules created, approved, applied, "
         "or skipped, plus important graph relations.\n"
     )

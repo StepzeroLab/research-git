@@ -1,9 +1,9 @@
 <h1 align="center">research-git</h1>
 
 <p align="center">
-  <strong>Capture a code idea as a clean semantic unit — regenerate it onto today's codebase.</strong>
+  <strong>A new Git tool for ambitious researchers and developers in the agentic era.</strong>
   <br />
-  <em>Works with Claude Code, and any MCP-capable client (Codex, GPT, …).</em>
+  <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
 
 <p align="center">
@@ -14,16 +14,14 @@
 </p>
 
 <p align="center">
-  <strong>Git recovers history. It can't recover an entangled idea onto today's code.</strong>
+  <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
 </p>
 
-<p align="center">
-  <img src="assets/hero.png" alt="Capture a code idea as a clean semantic unit — regenerate it onto today's codebase." width="800" />
-</p>
+Git remembers commits. research-git remembers ideas.
 
-research-git captures experiments as Feature Capsules, then regenerates the one you need onto your current agent, using your existing Coding Plan subscription, no pay-per-use API.
+research-git turns experiments and features into reusable **Feature Capsules** so coding agents can reapply, adapt, or remove them safely as your code evolves.
 
-> **Think of it as Git for agentic coding experiments: not just recovering old code, but bringing old ideas back into today’s code.**
+> **Not a rollback. Not hard deletion. Bring back the idea, not the old branch.**
 
 ---
 
@@ -78,6 +76,8 @@ rgit init           # creates the .rgit/ store in your repo
 ```
 
 That's the whole setup. Start a new agent session afterwards so it picks everything up.
+
+Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules** — pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
 
 <details>
 <summary>Install details: choosing platforms, guidance modes, capture-on-commit</summary>
@@ -179,6 +179,7 @@ The five-step loop above is the core. These show up as your store grows — run 
 | `rgit compare <query>` | which variant won: ranked table, Δ vs baseline, ★ winner |
 | `rgit provenance <run_id>` | per-feature clean (capsule) vs agent-adapted (frozen) diff for a run |
 | `rgit mcp` | serve the graph read-only so a teammate's client can recall against it |
+| `rgit digest scan [A..B]` | cluster a mature repo's git history into a scored digestion plan (`rgit init` offers this interactively); `rgit digest status` shows progress, the **rgit-digest** skill drains the queue into `origin=backfill` capsules, and `rgit digest clear` removes them all if you change your mind |
 
 ---
 

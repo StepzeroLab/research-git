@@ -2,12 +2,12 @@ import io
 import os
 import subprocess
 import tarfile
+from pathlib import Path
 
 import pytest
 
 from rgit.gitutil import (
     MAX_UNTRACKED_DIFF_BYTES,
-    _tracked_change_disposition,
     current_commit,
     diff_since,
     freeze_worktree,
@@ -40,6 +40,35 @@ def _commit_tracked_symlink_or_skip(repo, rel: str) -> None:
         pytest.skip("git does not store symlinks as symlinks on this platform")
     subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
                    cwd=repo, check=True, capture_output=True)
+
+
+def _commit_symlink_placeholder(repo, rel: str, target: str) -> None:
+    """Commit a symlink blob while keeping a core.symlinks=false worktree file."""
+    subprocess.run(["git", "config", "core.symlinks", "false"], cwd=repo,
+                   check=True, capture_output=True)
+    sha = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"], cwd=repo, input=target,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    subprocess.run(
+        ["git", "update-index", "--add", "--cacheinfo", f"120000,{sha},{rel}"],
+        cwd=repo, check=True, capture_output=True,
+    )
+    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink blob"],
+                   cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "checkout-index", "--force", "--", rel], cwd=repo,
+                   check=True, capture_output=True)
+    assert not (repo / rel).is_symlink()
+    assert (repo / rel).read_text() == target
+
+
+def _assert_unstaged_symlink_placeholder_diff(repo, rel: str) -> None:
+    raw = subprocess.run(
+        ["git", "diff", "--raw", "--abbrev=40", "HEAD", "--", rel],
+        cwd=repo, check=True, capture_output=True, text=True,
+    ).stdout
+    assert raw.startswith(":120000 120000 ")
+    assert f"{'0' * 40} M\t{rel}" in raw
 
 
 def test_current_commit_returns_sha(git_repo):
@@ -188,27 +217,63 @@ def test_diff_since_captures_replaced_external_symlink_without_leaking(git_repo)
     assert "REPLACED_SECRET_SYMBOL_TOKEN" not in diff
 
 
-def test_disposition_captures_windows_symlink_replaced_by_regular_file(git_repo):
-    old_target = str(git_repo.parent / "windows-raw-secret-target.py")
-    old_sha = subprocess.run(
-        ["git", "hash-object", "-w", "--stdin"],
-        cwd=git_repo,
-        input=old_target,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+def test_diff_since_captures_windows_symlink_placeholder_replaced_by_file(git_repo):
+    old_target = str(git_repo.parent / "windows-old-secret-target.py")
+    _commit_symlink_placeholder(git_repo, "model.py", old_target)
     (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
-    entry = {
-        "old_mode": "120000",
-        "new_mode": "120000",
-        "old_sha": old_sha,
-        "new_sha": "0" * 40,
-        "status": "M",
-        "path": "model.py",
-    }
+    _assert_unstaged_symlink_placeholder_diff(git_repo, "model.py")
 
-    assert _tracked_change_disposition(git_repo, entry) == ("add_only", None)
+    diff = diff_since(git_repo, "HEAD")
+
+    assert "def replacement" in diff and "model.py" in diff
+    assert old_target not in diff
+    assert "windows-old-secret-target" not in diff
+
+
+@pytest.mark.parametrize("relative_target", [False, True])
+def test_diff_since_skips_changed_windows_external_symlink_placeholder(
+        git_repo, relative_target):
+    old_target = str(git_repo.parent / "windows-old-secret-target.py")
+    new_target = (str(Path("..") / "windows-new-secret-target.py")
+                  if relative_target
+                  else str(git_repo.parent / "windows-new-secret-target.py"))
+    _commit_symlink_placeholder(git_repo, "model.py", old_target)
+    (git_repo / "model.py").write_text(new_target)
+    _assert_unstaged_symlink_placeholder_diff(git_repo, "model.py")
+
+    diff = diff_since(git_repo, "HEAD")
+
+    assert ("research-git: skipped tracked file 'model.py' "
+            "(symlink points outside the repo)") in diff
+    assert old_target not in diff
+    assert new_target not in diff
+    assert "windows-old-secret-target" not in diff
+    assert "windows-new-secret-target" not in diff
+
+
+def test_diff_since_fails_closed_when_symlink_placeholder_cannot_be_read(
+        git_repo, monkeypatch):
+    old_target = str(git_repo.parent / "windows-old-secret-target.py")
+    new_target = str(git_repo.parent / "windows-new-secret-target.py")
+    model = git_repo / "model.py"
+    _commit_symlink_placeholder(git_repo, "model.py", old_target)
+    model.write_text(new_target)
+    _assert_unstaged_symlink_placeholder_diff(git_repo, "model.py")
+
+    original_open = Path.open
+
+    def fail_for_placeholder(path, *args, **kwargs):
+        if path == model:
+            raise OSError("simulated sharing violation")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", fail_for_placeholder)
+    diff = diff_since(git_repo, "HEAD")
+
+    assert ("research-git: skipped tracked file 'model.py' "
+            "(could not safely inspect symlink target)") in diff
+    assert old_target not in diff
+    assert new_target not in diff
 
 
 def test_binary_skip_reason_reports_unreadable_path():
@@ -621,3 +686,82 @@ def test_committed_sources_exclude_rgit_store(git_repo):
     assert "model.py" in diff and ".rgit" not in diff
     rdiff = RangeDiffSource(f"{base}..HEAD").diff(git_repo)
     assert "model.py" in rdiff and ".rgit" not in rdiff
+
+
+# ---- history plumbing (feat/history-digest, Task 1) -----------------------
+
+from conftest import commit_file, merge_branch, revert_head  # noqa: E402
+
+
+T0 = 1_700_000_000  # pinned base timestamp for scripted histories
+
+
+def test_mainline_commits_walks_oldest_to_newest(history_repo):
+    from rgit.gitutil import mainline_commits, mainline_count
+    a = commit_file(history_repo, "a.py", "x = 1\n", "first", when=T0)
+    b = commit_file(history_repo, "a.py", "x = 2\n", "second", when=T0 + 60)
+    commits = mainline_commits(history_repo)
+    assert [c["sha"] for c in commits] == [a, b]
+    assert commits[0]["parents"] == []            # root commit
+    assert commits[1]["parents"] == [a]
+    assert commits[0]["at"] == T0
+    assert commits[0]["subject"] == "first"
+    assert commits[0]["files"] == ["a.py"]
+    assert commits[0]["churn"] == 1
+    assert mainline_count(history_repo) == 2
+
+
+def test_mainline_commits_merge_shows_first_parent_numstat(history_repo):
+    from rgit.gitutil import mainline_commits
+    commit_file(history_repo, "a.py", "x = 1\n", "base", when=T0)
+    m = merge_branch(history_repo, [("b.py", "y = 1\ny = 2\n", "side work")],
+                     "merge side", when=T0 + 100)
+    commits = mainline_commits(history_repo)
+    merge = commits[-1]
+    assert merge["sha"] == m
+    assert len(merge["parents"]) == 2
+    assert merge["files"] == ["b.py"]             # diff vs first parent
+    assert merge["churn"] == 2
+
+
+def test_mainline_commits_limit_takes_most_recent(history_repo):
+    from rgit.gitutil import mainline_commits
+    commit_file(history_repo, "a.py", "1\n", "one", when=T0)
+    commit_file(history_repo, "a.py", "2\n", "two", when=T0 + 1)
+    c3 = commit_file(history_repo, "a.py", "3\n", "three", when=T0 + 2)
+    commits = mainline_commits(history_repo, limit=1)
+    assert [c["sha"] for c in commits] == [c3]
+
+
+def test_revert_body_carries_trailer(history_repo):
+    from rgit.gitutil import mainline_commits
+    commit_file(history_repo, "a.py", "x = 1\n", "base", when=T0)
+    exp = commit_file(history_repo, "a.py", "x = 99\n", "experiment", when=T0 + 60)
+    revert_head(history_repo, when=T0 + 120)
+    commits = mainline_commits(history_repo)
+    assert f"This reverts commit {exp}" in commits[-1]["body"]
+
+
+def test_head_files_lists_tracked_tree(history_repo):
+    from rgit.gitutil import head_files
+    commit_file(history_repo, "a.py", "x = 1\n", "one", when=T0)
+    commit_file(history_repo, "pkg/b.py", "y = 1\n", "two", when=T0 + 1)
+    assert head_files(history_repo) == {"a.py", "pkg/b.py"}
+
+
+def test_empty_tree_range_diff_source(history_repo):
+    from rgit.gitutil import EmptyTreeRangeDiffSource
+    commit_file(history_repo, "a.py", "def f():\n    return 1\n", "one", when=T0)
+    sha = commit_file(history_repo, "b.py", "def g():\n    return 2\n", "two",
+                      when=T0 + 1)
+    src = EmptyTreeRangeDiffSource(sha)
+    diff = src.diff(history_repo)
+    assert "+++ b/a.py" in diff and "+++ b/b.py" in diff
+    assert src.source_commit(history_repo) == sha
+    assert src.read_new_side(history_repo, "a.py") == "def f():\n    return 1\n"
+
+
+def test_is_shallow_false_on_full_clone(history_repo):
+    from rgit.gitutil import is_shallow
+    commit_file(history_repo, "a.py", "x\n", "one", when=T0)
+    assert is_shallow(history_repo) is False

@@ -150,7 +150,9 @@ def test_doctor_reports_structurally_malformed_feature_payload(git_repo):
     store = Store.init(git_repo)
     payload_hash = store.objects.put_json([{}])
     store.conn.execute(
-        "INSERT INTO features VALUES (?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO features (id, name, intent, status, base_commit, knobs, "
+        "data_assumptions, resurrection_guide, result_summary, payload_hash) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?)",
         (
             "feat_bad",
             "bad",

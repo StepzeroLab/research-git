@@ -4,12 +4,13 @@ from rgit.store.store import Store
 from rgit.store.models import Capsule, CodeSlice, Run
 
 
-def _cap(name):
+def _cap(name, origin="live"):
     return Capsule(id="", name=name, intent=f"{name} intent", status="approved",
                    base_commit="abc", knobs={}, data_assumptions=None,
                    resurrection_guide="reapply", result_summary=None,
                    payload_hash=None,
-                   code_slices=[CodeSlice("model.py", "forward", "L1", "x", "wrap")])
+                   code_slices=[CodeSlice("model.py", "forward", "L1", "x", "wrap")],
+                   origin=origin)
 
 
 def test_recall_tool_returns_serializable_dicts(git_repo, monkeypatch):
@@ -46,6 +47,15 @@ def test_recall_tool_exposes_score_and_overlaps(git_repo, monkeypatch):
     out = srv.recall_tool("alpha")
     assert "score" in out[0]
     assert "overlaps" in out[0]
+
+
+def test_recall_tool_exclude_backfill(git_repo, monkeypatch):
+    monkeypatch.chdir(git_repo)
+    store = Store.init(git_repo)
+    store.add_feature(_cap("bf-cache", origin="backfill"))
+    hits = srv.recall_tool("cache")
+    assert hits and hits[0]["capsule"]["origin"] == "backfill"
+    assert srv.recall_tool("cache", exclude_backfill=True) == []
 
 
 def _cap_v3(store, name):

@@ -54,6 +54,7 @@ class Capsule:
     result_summary: Optional[ResultSummary] = None
     payload_hash: Optional[str] = None
     code_slices: list[CodeSlice] = field(default_factory=list)
+    origin: str = "live"                # "live" | "backfill" (history digestion)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -105,10 +106,25 @@ class Edge:
 @dataclass
 class Proposal:
     id: str
-    trigger: str                        # "run" | "commit" | "manual"
+    trigger: str                        # "run" | "commit" | "manual" | "watch" | "backfill"
     diff_ref: str                       # object hash of the captured diff
     candidates: list[dict]
     status: str = "open"                # "open" | "resolved" | "dismissed"
     run_id: Optional[str] = None
     from_features: Optional[list[str]] = None   # source capsule(s) this run regenerated
     source_commit: Optional[str] = None  # commit whose diff was captured (None = worktree)
+
+
+@dataclass
+class DigestUnit:
+    """One clustered slice of mainline history awaiting digestion."""
+    id: str                              # digestscan.unit_id(shas) — idempotence key
+    kind: str                            # "landed" | "dead"
+    shas: list[str]                      # oldest -> newest
+    score: float
+    status: str = "pending"              # "pending" | "staged" | "done" | "skipped"
+    skip_reason: Optional[str] = None    # "infra" | "empty" | "user" | "error" | "duplicate"
+    proposal_id: Optional[str] = None
+    capsule_ids: list[str] = field(default_factory=list)
+    meta: dict = field(default_factory=dict)
+    created_at: str = ""
