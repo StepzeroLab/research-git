@@ -103,6 +103,65 @@ def test_doctor_reports_missing_feature_payload_object(git_repo):
     assert "missing_feature_payload_object" in _codes(report, level="error")
 
 
+def test_doctor_reports_corrupt_feature_payload_object(git_repo):
+    from rgit.doctor import run_doctor
+
+    store = Store.init(git_repo)
+    fid = store.add_feature(_cap())
+    payload_hash = store.conn.execute(
+        "SELECT payload_hash FROM features WHERE id=?", (fid,)
+    ).fetchone()["payload_hash"]
+    _object_path(store, payload_hash).write_bytes(b"[]")
+
+    report = run_doctor(store)
+
+    assert report["ok"] is False
+    assert "corrupt_feature_payload_object" in _codes(report, level="error")
+    assert "malformed_feature_payload_json" not in _codes(report)
+
+
+def test_doctor_hashes_the_same_feature_payload_bytes_it_parses(
+    git_repo, monkeypatch
+):
+    from rgit.doctor import run_doctor
+
+    store = Store.init(git_repo)
+    fid = store.add_feature(_cap())
+    payload_hash = store.conn.execute(
+        "SELECT payload_hash FROM features WHERE id=?", (fid,)
+    ).fetchone()["payload_hash"]
+    real_get = store.objects.get
+
+    def tamper_before_read(digest):
+        _object_path(store, payload_hash).write_bytes(b"[]")
+        return real_get(digest)
+
+    monkeypatch.setattr(store.objects, "get", tamper_before_read)
+
+    report = run_doctor(store)
+
+    assert report["ok"] is False
+    assert "corrupt_feature_payload_object" in _codes(report, level="error")
+    assert "malformed_feature_payload_json" not in _codes(report)
+
+
+def test_doctor_reports_feature_payload_read_race(git_repo, monkeypatch):
+    from rgit.doctor import run_doctor
+
+    store = Store.init(git_repo)
+    store.add_feature(_cap())
+
+    def deny_read(digest):
+        raise PermissionError("simulated read race")
+
+    monkeypatch.setattr(store.objects, "get", deny_read)
+
+    report = run_doctor(store)
+
+    assert report["ok"] is False
+    assert "unreadable_feature_payload_object" in _codes(report, level="error")
+
+
 def test_doctor_reports_missing_run_artifact_object(git_repo):
     from rgit.doctor import run_doctor
 
@@ -116,6 +175,20 @@ def test_doctor_reports_missing_run_artifact_object(git_repo):
     assert "missing_run_artifact_object" in _codes(report, level="error")
 
 
+def test_doctor_reports_corrupt_run_artifact_object(git_repo):
+    from rgit.doctor import run_doctor
+
+    store = Store.init(git_repo)
+    artifact_hash = store.objects.put(b"artifact")
+    _run(store, artifact=artifact_hash)
+    _object_path(store, artifact_hash).write_bytes(b"tampered")
+
+    report = run_doctor(store)
+
+    assert report["ok"] is False
+    assert "corrupt_run_artifact_object" in _codes(report, level="error")
+
+
 def test_doctor_reports_missing_proposal_diff_object(git_repo):
     from rgit.doctor import run_doctor
 
@@ -127,6 +200,50 @@ def test_doctor_reports_missing_proposal_diff_object(git_repo):
     report = run_doctor(store)
 
     assert "missing_proposal_diff_object" in _codes(report, level="error")
+
+
+def test_doctor_reports_corrupt_proposal_diff_object(git_repo):
+    from rgit.doctor import run_doctor
+
+    store = Store.init(git_repo)
+    diff_ref = store.objects.put(b"diff")
+    _proposal(store, diff=diff_ref)
+    _object_path(store, diff_ref).write_bytes(b"tampered")
+
+    report = run_doctor(store)
+
+    assert report["ok"] is False
+    assert "corrupt_proposal_diff_object" in _codes(report, level="error")
+
+
+def test_doctor_reports_invalid_object_reference_without_path_lookup(git_repo):
+    from rgit.doctor import run_doctor
+
+    store = Store.init(git_repo)
+    _run(store, artifact="../outside")
+
+    report = run_doctor(store)
+
+    assert report["ok"] is False
+    assert "invalid_run_artifact_reference" in _codes(report, level="error")
+
+
+def test_doctor_reports_unreadable_object(git_repo, monkeypatch):
+    from rgit.doctor import run_doctor
+
+    store = Store.init(git_repo)
+    artifact_hash = store.objects.put(b"artifact")
+    _run(store, artifact=artifact_hash)
+
+    def deny_read(digest):
+        raise PermissionError("simulated unreadable object")
+
+    monkeypatch.setattr(store.objects, "verify", deny_read)
+
+    report = run_doctor(store)
+
+    assert report["ok"] is False
+    assert "unreadable_run_artifact_object" in _codes(report, level="error")
 
 
 def test_doctor_reports_malformed_proposal_candidates_json(git_repo):
