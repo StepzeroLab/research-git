@@ -66,7 +66,9 @@ Lost the ids from step 2? Bare `rgit review` re-lists every open proposal with i
 
 4. Echo the `approved -> <feature_id>` lines back to the user, then continue to step 6.
 
-If any proposal remains open when you are about to finish a response, include a `Pending capsule review` section before finishing. List each proposal id and every candidate's stored name and one-line intent; include key knobs only when they affect the choice, then ask which capsule names to keep. Never replace this list with only a candidate count. Present the explanations and intents in the language the user is currently using, even when the stored capsule uses another language. Do not translate proposal ids, capsule names, code symbols, configuration keys, or file paths. Translation is presentation-only; never rewrite the stored candidates.
+If any proposal remains open when you are about to finish a response, include a `Pending capsule review` section before finishing. List each proposal id and every candidate's stored name and one-line intent; include key knobs only when they affect the choice. Never replace this list with only a candidate count. Present the explanations and intents in the language the user is currently using, even when the stored capsule uses another language. Do not translate proposal ids, capsule names, code symbols, configuration keys, or file paths. Translation is presentation-only; never rewrite the stored candidates.
+
+End that section with an explicit decision request. The response is incomplete unless it asks the user to choose one of: keep named capsules, keep all, or discard all. Give short reply examples in the user's language, such as `keep <capsule-name>`, `keep all`, and `discard all`. Tell the user they only need to state their choice and that you will execute the review decision for them. Explain that kept candidates will be approved and stored as capsules; candidates they do not keep will be discarded. Do not approve, discard, or otherwise make a review decision before the user confirms.
 
 ### 6. Infer graph edges (deterministic baseline + agent-judged relationships)
 
