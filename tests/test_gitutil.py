@@ -2,6 +2,7 @@ import io
 import os
 import subprocess
 import tarfile
+from pathlib import Path
 
 import pytest
 
@@ -39,6 +40,35 @@ def _commit_tracked_symlink_or_skip(repo, rel: str) -> None:
         pytest.skip("git does not store symlinks as symlinks on this platform")
     subprocess.run(["git", "commit", "-q", "-m", "tracked symlink"],
                    cwd=repo, check=True, capture_output=True)
+
+
+def _commit_symlink_placeholder(repo, rel: str, target: str) -> None:
+    """Commit a symlink blob while keeping a core.symlinks=false worktree file."""
+    subprocess.run(["git", "config", "core.symlinks", "false"], cwd=repo,
+                   check=True, capture_output=True)
+    sha = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"], cwd=repo, input=target,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    subprocess.run(
+        ["git", "update-index", "--add", "--cacheinfo", f"120000,{sha},{rel}"],
+        cwd=repo, check=True, capture_output=True,
+    )
+    subprocess.run(["git", "commit", "-q", "-m", "tracked symlink blob"],
+                   cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "checkout-index", "--force", "--", rel], cwd=repo,
+                   check=True, capture_output=True)
+    assert not (repo / rel).is_symlink()
+    assert (repo / rel).read_text() == target
+
+
+def _assert_unstaged_symlink_placeholder_diff(repo, rel: str) -> None:
+    raw = subprocess.run(
+        ["git", "diff", "--raw", "--abbrev=40", "HEAD", "--", rel],
+        cwd=repo, check=True, capture_output=True, text=True,
+    ).stdout
+    assert raw.startswith(":120000 120000 ")
+    assert f"{'0' * 40} M\t{rel}" in raw
 
 
 def test_current_commit_returns_sha(git_repo):
@@ -185,6 +215,65 @@ def test_diff_since_captures_replaced_external_symlink_without_leaking(git_repo)
     assert "def replacement" in diff and "model.py" in diff
     assert "replaced-secret-target" not in diff
     assert "REPLACED_SECRET_SYMBOL_TOKEN" not in diff
+
+
+def test_diff_since_captures_windows_symlink_placeholder_replaced_by_file(git_repo):
+    old_target = str(git_repo.parent / "windows-old-secret-target.py")
+    _commit_symlink_placeholder(git_repo, "model.py", old_target)
+    (git_repo / "model.py").write_text("def replacement():\n    return 2\n")
+    _assert_unstaged_symlink_placeholder_diff(git_repo, "model.py")
+
+    diff = diff_since(git_repo, "HEAD")
+
+    assert "def replacement" in diff and "model.py" in diff
+    assert old_target not in diff
+    assert "windows-old-secret-target" not in diff
+
+
+@pytest.mark.parametrize("relative_target", [False, True])
+def test_diff_since_skips_changed_windows_external_symlink_placeholder(
+        git_repo, relative_target):
+    old_target = str(git_repo.parent / "windows-old-secret-target.py")
+    new_target = (str(Path("..") / "windows-new-secret-target.py")
+                  if relative_target
+                  else str(git_repo.parent / "windows-new-secret-target.py"))
+    _commit_symlink_placeholder(git_repo, "model.py", old_target)
+    (git_repo / "model.py").write_text(new_target)
+    _assert_unstaged_symlink_placeholder_diff(git_repo, "model.py")
+
+    diff = diff_since(git_repo, "HEAD")
+
+    assert ("research-git: skipped tracked file 'model.py' "
+            "(symlink points outside the repo)") in diff
+    assert old_target not in diff
+    assert new_target not in diff
+    assert "windows-old-secret-target" not in diff
+    assert "windows-new-secret-target" not in diff
+
+
+def test_diff_since_fails_closed_when_symlink_placeholder_cannot_be_read(
+        git_repo, monkeypatch):
+    old_target = str(git_repo.parent / "windows-old-secret-target.py")
+    new_target = str(git_repo.parent / "windows-new-secret-target.py")
+    model = git_repo / "model.py"
+    _commit_symlink_placeholder(git_repo, "model.py", old_target)
+    model.write_text(new_target)
+    _assert_unstaged_symlink_placeholder_diff(git_repo, "model.py")
+
+    original_open = Path.open
+
+    def fail_for_placeholder(path, *args, **kwargs):
+        if path == model:
+            raise OSError("simulated sharing violation")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", fail_for_placeholder)
+    diff = diff_since(git_repo, "HEAD")
+
+    assert ("research-git: skipped tracked file 'model.py' "
+            "(could not safely inspect symlink target)") in diff
+    assert old_target not in diff
+    assert new_target not in diff
 
 
 def test_binary_skip_reason_reports_unreadable_path():

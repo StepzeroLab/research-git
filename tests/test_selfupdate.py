@@ -1,5 +1,7 @@
+import os
 import subprocess
 import sys
+from pathlib import Path
 
 from rgit import selfupdate
 
@@ -59,6 +61,24 @@ def test_run_update_success_refreshes_platforms(monkeypatch, capsys):
     assert ran[0][-1] == "research-git" or "research-git" in ran[0]
     assert ["/usr/bin/rgit", "install", "claude-code", "--from-update"] in ran
     assert ["/usr/bin/rgit", "install", "codex", "--from-update"] in ran
+
+
+def test_run_update_refresh_falls_back_to_python_module(monkeypatch, capsys):
+    ran = []
+
+    def fake_run(cmd, **kw):
+        ran.append(cmd)
+        return _completed(0, out="ok")
+
+    monkeypatch.setattr(selfupdate.subprocess, "run", fake_run)
+    monkeypatch.setattr(selfupdate.shutil, "which", lambda name: None)
+    import rgit.installer as installer
+    monkeypatch.setattr(installer, "detect_platforms", lambda: ["codex"])
+
+    assert selfupdate.run_update() == 0
+
+    assert [sys.executable, "-m", "rgit", "install", "codex",
+            "--from-update"] in ran
 
 
 def test_run_update_failure_skips_refresh(monkeypatch, capsys):
@@ -122,7 +142,11 @@ def test_run_update_missing_tool_binary(monkeypatch, capsys):
 
 
 def test_python_dash_m_rgit_entrypoint():
+    src = Path(__file__).resolve().parents[1] / "src"
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(src), *(p for p in [env.get("PYTHONPATH")] if p)])
     p = subprocess.run([sys.executable, "-m", "rgit", "install", "--list"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=env)
     assert p.returncode == 0
     assert "platforms:" in p.stdout

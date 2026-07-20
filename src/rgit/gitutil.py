@@ -215,8 +215,25 @@ def _tracked_change_disposition(
         try:
             linkname = os.readlink(path)
         except OSError:
-            linkname = ("" if set(entry["new_sha"]) == {"0"}
-                        else os.fsdecode(_git_blob(repo, entry["new_sha"])))
+            if set(entry["new_sha"]) != {"0"}:
+                linkname = os.fsdecode(_git_blob(repo, entry["new_sha"]))
+            else:
+                # With core.symlinks=false, Git checks a symlink out as a
+                # regular file containing its target.  An unstaged edit keeps
+                # new_mode=120000 and new_sha=zero, so inspect that placeholder
+                # before deciding it is an ordinary-file replacement.  Without
+                # this check, changing one external target to another would be
+                # rendered add-only and leak the new host path.
+                if path.is_symlink() or not path.is_file():
+                    return "skip", "could not safely inspect symlink target"
+                try:
+                    with path.open("rb") as f:
+                        content = f.read(MAX_UNTRACKED_DIFF_BYTES + 1)
+                except OSError:
+                    return "skip", "could not safely inspect symlink target"
+                if len(content) > MAX_UNTRACKED_DIFF_BYTES:
+                    return "skip", "could not safely inspect symlink target"
+                linkname = os.fsdecode(content)
         if linkname and not _symlink_target_within(repo, file, linkname):
             return "skip", "symlink points outside the repo"
     old_external = (
@@ -227,7 +244,8 @@ def _tracked_change_disposition(
         # Including the raw diff would emit the removed symlink target as a `-`
         # line. If the new side is a real file, capture it add-only instead of
         # losing the change; otherwise (deletion, or a new in-repo symlink) skip.
-        if entry["new_mode"] != "120000" and (repo / file).is_file():
+        path = repo / file
+        if not path.is_symlink() and path.is_file():
             return "add_only", None
         return "skip", "symlink points outside the repo"
     return "include", None
