@@ -52,11 +52,12 @@ Chinese while `prop_abc`, `reranking-retrieval`, `cache-fallback`, and
 
 ## Testing
 
-- Assert that the rendered global guidance requires pending proposal details,
-  rejects count-only summaries, and specifies user-language presentation with
-  stable identifiers.
-- Assert that the packaged capture skill contains the same final-response
-  fallback and language rule.
+- Run an isolated host-agent behavior check against a real pending proposal
+  with multiple candidates and a user language different from the stored
+  intents.
+- Verify the final response lists every candidate, translates presentation
+  text, preserves stable identifiers, requests a review decision, and leaves
+  the stored proposal unchanged.
 - Keep guidance coupling and installer packaging tests passing.
 
 ## Out of Scope

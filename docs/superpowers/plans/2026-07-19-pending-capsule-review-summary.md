@@ -6,7 +6,7 @@
 
 **Architecture:** Add matching behavioral contracts to the generated global AGENTS guidance and the packaged `rgit-capture` skill. Keep translation in the presentation layer and preserve proposal ids, capsule names, code symbols, configuration keys, file paths, and stored records.
 
-**Tech Stack:** Python string rendering, Markdown skill instructions, pytest.
+**Tech Stack:** Python string rendering, Markdown skill instructions, pytest, isolated Codex behavior validation.
 
 **Spec:** `docs/superpowers/specs/2026-07-19-pending-capsule-review-summary-design.md`
 
@@ -19,34 +19,16 @@
 
 ---
 
-### Task 1: Lock the final-feedback contract with failing tests
+### Task 1: Define the host-agent behavior check
 
-**Files:**
-- Modify: `tests/test_agent_guidance.py`
-- Modify: `tests/test_installer.py`
-
-**Interfaces:**
-- Consumes: `agent_guidance.render_global_block()` and the packaged `rgit-capture/SKILL.md`.
-- Produces: regression tests for pending-detail and user-language requirements.
-
-- [ ] **Step 1: Add a global-guidance contract test**
-
-Add a test that checks the rendered block for instructions covering open
-proposals, proposal ids, every candidate's name and one-line intent, conditional
-key knobs, the prohibition on count-only summaries, user-language presentation,
-and preservation of stable identifiers.
-
-- [ ] **Step 2: Add a capture-skill contract test**
-
-Extend the existing packaged-skill test to require a final-response fallback
-with the same candidate-detail and language behavior.
-
-- [ ] **Step 3: Run the focused tests and verify RED**
-
-Run: `python -m pytest tests/test_agent_guidance.py tests/test_installer.py -q`
-
-Expected: the new assertions fail because neither instruction layer contains
-the pending final-response contract yet.
+- [ ] Create an isolated Git repository with a real `.rgit/` store and one
+      open proposal containing multiple English-language candidates.
+- [ ] Load the branch versions of the global guidance and `rgit-capture`
+      skill, then ask an isolated Codex session to finish in another language
+      without approving, dismissing, or rewriting the proposal.
+- [ ] Verify the final response includes every candidate and key choice-relevant
+      knob, preserves stable identifiers, requests the user's decision, and
+      leaves the stored proposal unchanged.
 
 ---
 
@@ -71,11 +53,12 @@ and forbids count-only summaries.
 After the normal review instructions, require the same presentation whenever a
 proposal remains open at the end of a response.
 
-- [ ] **Step 3: Run focused tests and verify GREEN**
+- [ ] **Step 3: Run the existing focused tests**
 
 Run: `python -m pytest tests/test_agent_guidance.py tests/test_installer.py tests/test_guidance_coupling.py -q`
 
-Expected: all tests pass.
+Expected: existing guidance coupling and packaging tests pass without
+hard-coding the new prose in test assertions.
 
 - [ ] **Step 4: Run the full suite**
 

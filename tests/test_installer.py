@@ -351,18 +351,6 @@ def test_capture_skill_uses_cli_not_mcp_write_tools():
     assert "resegment(" not in skill
 
 
-def test_capture_skill_requires_pending_final_response_in_user_language():
-    from rgit import installer
-    skill = (installer.plugin_dir() / "skills" / "rgit-capture" / "SKILL.md").read_text(encoding="utf-8")
-    assert "If any proposal remains open when you are about to finish a response" in skill
-    assert "every candidate's stored name and one-line intent" in skill
-    assert "key knobs only when they affect the choice" in skill
-    assert "Never replace this list with only a candidate count" in skill
-    assert "language the user is currently using" in skill
-    assert "Do not translate proposal ids, capsule names, code symbols, " \
-           "configuration keys, or file paths" in skill
-
-
 def test_run_decodes_non_utf8_output_without_crashing():
     # A child emitting bytes the locale codec can't strict-decode (the 0x94 from
     # issue #11) must not crash _run: UTF-8 + errors="replace" keeps it robust
