@@ -49,12 +49,10 @@
       />
 
       <g class="dim">
-        <text x="0" y="0">╭──────────────────────────────────────────────────────────╮</text>
-        <text x="0" y="17"><tspan>│ &gt;_ </tspan><tspan class="bold">OpenAI Codex</tspan><tspan> (v0.144.4)                              │</tspan></text>
-        <text x="0" y="34">│                                                          │</text>
-        <text x="0" y="51"><tspan>│ model:     </tspan><tspan class="bold">gpt-5.6-sol medium</tspan><tspan>   /model to change        │</tspan></text>
-        <text x="0" y="68"><tspan>│ directory: </tspan><tspan class="bold">~/checkout-calculator</tspan><tspan>                        │</tspan></text>
-        <text x="0" y="85">╰──────────────────────────────────────────────────────────╯</text>
+        <rect x=".6" y=".6" width="498" height="100.8" rx="3" fill="none" stroke="var(--dim)" stroke-width="1.2"/>
+        <text x="16" y="17"><tspan>&gt;_ </tspan><tspan class="bold">OpenAI Codex</tspan><tspan> (v0.144.4)</tspan></text>
+        <text x="16" y="51"><tspan>model:     </tspan><tspan class="bold">gpt-5.6-sol medium</tspan><tspan>   /model to change</tspan></text>
+        <text x="16" y="68"><tspan>directory: </tspan><tspan class="bold">~/checkout-calculator</tspan></text>
       </g>
 
       <g opacity="0" transform="translate(0 119)">
