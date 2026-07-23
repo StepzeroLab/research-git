@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
+  <img src="assets/research-git-codex-demo.svg" alt="research-git capture and recall workflow in Codex" width="847" />
 </p>
 
 Git remembers commits. research-git remembers ideas.
