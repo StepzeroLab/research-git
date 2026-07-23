@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/research-git-codex-demo.svg" alt="research-git capture and recall workflow in Codex" width="847" />
+  <img src="assets/research-git-codex-demo.svg" alt="research-git capture and removal workflow in Codex" width="847" />
 </p>
 
 Git remembers commits. research-git remembers ideas.
