@@ -1,7 +1,7 @@
 <h1 align="center">research-git</h1>
 
 <p align="center">
-  <strong>A new Git tool for ambitious researchers and developers in the agentic era.</strong>
+  <strong>Record important experiment and feature decisions, then safely remove or reapply them to your current codebase.</strong>
   <br />
   <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
