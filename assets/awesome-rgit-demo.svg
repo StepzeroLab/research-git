@@ -47,13 +47,13 @@
             <text x="0" y="17" class="dim">  └ util/utils.py: decode used q_head_dim ** (-0.5)</text>
           </g>
         </svg>
-        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.065217;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited transformers.py and util/utils.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.065217;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
         <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
           <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.065217;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
           <g>
             <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.068323;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ Passed layer.self_attn.softmax_scale into decode planning</text>
-            <text x="0" y="17" class="dim">  └ Preserved Torch fallback and KV-cache semantics</text>
+            <text x="0" y="17" class="dim">  └ Preserved the Torch reference path</text>
           </g>
         </svg>
         <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran precision checks</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.071429;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
@@ -61,9 +61,9 @@
           <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.071429;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
           <g>
             <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.074120;0.076812;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
-            <text x="0" y="0" class="dim">  └ attention_ref tensor parity → passed</text>
-            <text x="0" y="17" class="dim">  └ Torch max abs diff 1.2e-5 · max rel diff 8.1e-5</text>
-            <text x="0" y="34" class="dim">  └ HumanEval pass@1 89.6</text>
+            <text x="0" y="0" class="dim">  └ Compared FlashInfer with the Torch reference</text>
+            <text x="0" y="17" class="dim">  └ Verified model-configured attention scaling</text>
+            <text x="0" y="34" class="dim">  └ HumanEval → 89.6</text>
           </g>
         </svg>
       </g>
@@ -72,10 +72,10 @@
         <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
           <g>
             <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -68;0 -68" keyTimes="0;0.083230;0.085714;0.088199;0.090683;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
-            <text x="0" y="0" class="dim">  └ rgit capture → prop_038bc30</text>
+            <text x="0" y="0" class="dim">  └ rgit capture → proposal prop_4c8fa1b2 created</text>
             <text x="0" y="17" class="dim">  └ rgit pending --json → 1 proposal</text>
             <text x="0" y="34" class="dim">  └ capsule-segmenter → 1 candidate</text>
-            <text x="0" y="51" class="dim">  └ rgit resegment prop_038bc30 --from-json -</text>
+            <text x="0" y="51" class="dim">  └ rgit resegment prop_4c8fa1b2 --from-json -</text>
             <text x="0" y="68" class="dim">  └ Candidate ready for human review</text>
           </g>
         </svg>
@@ -89,7 +89,7 @@
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep it.</text>
       </g>
       <text x="0" y="433" opacity="0"><tspan class="dim bold">•</tspan> Saved <tspan class="cyan">flashinfer-mla-model-scale</tspan> as a capsule.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.132505;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-      <text x="0" y="462" class="yellow bold" clip-path="url(#summary-reveal)">• 1,058 commits later • 352,569 lines changed since this capsule was saved.</text>
+      <text x="0" y="462" class="yellow bold" clip-path="url(#summary-reveal)">• 840 commits later • 345,104 lines changed since this capsule was saved.</text>
       <g transform="translate(704 459) scale(.66)" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0">
         <path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>
         <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.258799;0.26087;1" dur="48.3s" repeatCount="indefinite"/>
@@ -230,9 +230,9 @@
         <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
           <g>
             <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -51" keyTimes="0;0.321946;0.324431;0.326915;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
-            <text x="0" y="0" class="dim">  └ recall("FlashInfer MLA") → feat_038bc30</text>
+            <text x="0" y="0" class="dim">  └ recall("FlashInfer MLA") → feat_83ad710c</text>
             <text x="0" y="17" class="dim">  └ Resolved depends_on graph → no additional capsules</text>
-            <text x="0" y="34" class="dim">  └ compose(["feat_038bc30"]) → current attention source</text>
+            <text x="0" y="34" class="dim">  └ compose(["feat_83ad710c"]) → current archived source</text>
             <text x="0" y="51" class="dim">  └ Loaded intent, knobs, assumptions, and guide</text>
           </g>
         </svg>
@@ -243,17 +243,17 @@
         <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
           <g>
             <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.332298;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
-            <text x="0" y="0" class="dim">  └ rg -n "flashinfer|mla" ktransformers/ → 14 matches</text>
-            <text x="0" y="17" class="dim">  └ Torch fallback covers both prefill and decode</text>
+            <text x="0" y="0" class="dim">  └ rg -n "flashinfer|mla" archive/ktransformers/ → 181 matches</text>
+            <text x="0" y="17" class="dim">  └ Located the legacy Torch attention path</text>
           </g>
         </svg>
-        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334990;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited archived FlashInfer MLA paths</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334990;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
         <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
           <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334990;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
           <g>
             <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.337681;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ Removed FlashInfer MLA dispatch and imports</text>
-            <text x="0" y="17" class="dim">  └ Kept self.softmax_scale and Torch attention path</text>
+            <text x="0" y="17" class="dim">  └ Kept model scaling and the Torch attention path</text>
           </g>
         </svg>
         <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran validation</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.340373;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
@@ -262,7 +262,7 @@
           <g>
             <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.343064;0.345756;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ Torch and long-context validation → passed</text>
-            <text x="0" y="17" class="dim">  └ rg -n "flashinfer_mla" ktransformers/ → no matches</text>
+            <text x="0" y="17" class="dim">  └ rg -n "flashinfer_mla" archive/ktransformers/ → no matches</text>
             <text x="0" y="34" class="dim">  └ Long-context decode parity passed</text>
           </g>
         </svg>
