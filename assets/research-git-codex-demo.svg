@@ -14,8 +14,8 @@
   <svg x="23" y="50" width="800" height="617" viewBox="0 0 800 617" overflow="hidden">
     <g id="history">
       <animateTransform attributeName="transform" type="translate"
-        values="0 0;0 0;0 0;0 -148;0 -148"
-        keyTimes="0;0.192308;0.246154;0.323077;1"
+        values="0 0;0 0;0 0;0 0;0 -34;0 -68;0 -102;0 -136;0 -148;0 -148"
+        keyTimes="0;0.192308;0.246154;0.323077;0.357692;0.380769;0.403846;0.423077;0.434615;1"
         dur="26s" repeatCount="indefinite" calcMode="discrete"/>
       <g>
         <text x="16" y="17" class="dim"><tspan>&gt;_ </tspan><tspan class="bold">OpenAI Codex</tspan><tspan> (v0.144.4)</tspan></text>
@@ -85,7 +85,7 @@
       </g>
       <g opacity="0" transform="translate(0 731)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.423077;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0">Removed the FlashInfer MLA optimization without reverting unrelated attention work.</text>
-        <text x="0" y="17">The Torch fallback remains active; the capsule is preserved for future use.</text>
+        <text x="0" y="17" opacity="0">The Torch fallback remains active; the capsule is preserved for future use.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.434615;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/></text>
       </g>
     </g>
   </svg>
