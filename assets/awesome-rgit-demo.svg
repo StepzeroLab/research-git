@@ -57,13 +57,17 @@
       <g opacity="0" transform="translate(0 370)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.13175;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep it.</text>
       </g>
-      <text x="0" y="433" opacity="0"><tspan class="dim bold">•</tspan> Saved <tspan class="cyan">flashinfer-mla-model-scale</tspan> as a capsule.<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.138229;0.2473;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-      <text x="0" y="433" opacity="0"><tspan class="dim bold">•</tspan><tspan class="bold"> 1,058 commits later</tspan><tspan> · 352,569 lines changed since this capsule was saved.</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.2473;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="0" y="433" opacity="0"><tspan class="dim bold">•</tspan> Saved <tspan class="cyan">flashinfer-mla-model-scale</tspan> as a capsule.<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.138229;0.241901;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="0" y="433" opacity="0"><tspan class="dim bold">•</tspan><tspan class="bold"> 1,058 commits later</tspan><tspan> · 352,569 lines changed since this capsule was saved.</tspan><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.241901;0.2473;1" dur="46.3s" repeatCount="indefinite"/></text>
 
       <svg x="0" y="462" width="800" height="114" viewBox="0 0 800 114" overflow="hidden" opacity="0">
-        <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.141469;0.2473;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.139309;0.141469;0.241901;0.2473;1" dur="46.3s" repeatCount="indefinite"/>
         <g>
-          <animateTransform attributeName="transform" type="translate" values="0 0;0 -114;0 -228;0 -342;0 -342" keyTimes="0;0.167387;0.193305;0.219222;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <animateTransform attributeName="transform" type="translate"
+            values="0 0;0 0;0 -80;0 -260;0 -342;0 -342"
+            keyTimes="0;0.163067;0.184665;0.201944;0.241901;1"
+            keySplines="0 0 1 1;0.25 0.1 0.25 1;0.6 0 1 0.5;0 0.7 0.2 1;0 0 1 1"
+            dur="46.3s" repeatCount="indefinite" calcMode="spline"/>
 
           <g>
             <rect width="800" height="34" fill="var(--surface)"/>
@@ -88,20 +92,20 @@
             <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.193305;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/>
             <rect width="800" height="34" fill="var(--surface)"/>
             <text x="0" y="8"><tspan class="dim bold">› </tspan>Integrate Triton and vendor-specific attention backends.</text>
-            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored backend routing and kernel guards</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.198704;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="63" class="dim" opacity="0">  └ Compared Torch, Triton, and vendor paths<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.204104;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited backend dispatch and precision guards</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.209503;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="97" class="dim" opacity="0">  └ Reference parity checks passed<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.213823;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored backend routing and kernel guards</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.194384;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="63" class="dim" opacity="0">  └ Compared Torch, Triton, and vendor paths<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.196544;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited backend dispatch and precision guards</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.198704;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="97" class="dim" opacity="0">  └ Reference parity checks passed<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.200864;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
           </g>
 
           <g transform="translate(0 342)" opacity="0">
-            <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.219222;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.199784;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/>
             <rect width="800" height="34" fill="var(--surface)"/>
             <text x="0" y="8"><tspan class="dim bold">› </tspan>Add SGLang serving and support new model families.</text>
-            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored server, adapters, and model registry</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.224622;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="63" class="dim" opacity="0">  └ Traced runtime and configuration boundaries<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.230022;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited serving and model integration</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.235421;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="97" class="dim" opacity="0">  └ Integration suite passed; committed changes<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.239741;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored server, adapters, and model registry</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.204104;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="63" class="dim" opacity="0">  └ Traced runtime and configuration boundaries<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.208423;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited serving and model integration</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.213823;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="97" class="dim" opacity="0">  └ Integration suite passed; committed changes<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.219222;1" dur="46.3s" repeatCount="indefinite" calcMode="discrete"/></text>
           </g>
         </g>
       </svg>
