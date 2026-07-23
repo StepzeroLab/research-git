@@ -51,7 +51,7 @@
       </g>
 
       <g opacity="0" transform="translate(0 324)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.135593;1" dur="41.3s" repeatCount="indefinite" calcMode="discrete"/>
-        <text x="0" y="0" font-size="12"><tspan class="cyan">flashinfer-mla-model-scale</tspan><tspan> — Preserve quality; knob: model scale; gates: Torch parity +</tspan><tspan x="0" dy="17">HumanEval 89.6; restore scale before enabling.</tspan></text>
+        <text x="0" y="0" font-size="12"><tspan class="cyan">flashinfer-mla-model-scale</tspan><tspan> — Preserve model scale, Torch parity, and</tspan><tspan x="0" dy="17">HumanEval 89.6 when enabling FlashInfer MLA. Keep this capsule?</tspan></text>
       </g>
 
       <g opacity="0" transform="translate(0 370)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.1477;1" dur="41.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
