@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -145,17 +146,20 @@ def _check_feature_payloads(store, findings: list[dict[str, Any]]) -> None:
                 fid,
             )
             continue
-        try:
-            payload = _load_json_object(store, digest)
-        except FileNotFoundError:
-            _add(
-                findings,
-                "error",
-                "missing_feature_payload_object",
-                "feature payload_hash does not resolve to an object",
-                fid,
-            )
+        payload_ok, payload_bytes = _check_object_reference(
+            store,
+            findings,
+            digest,
+            fid,
+            kind="feature_payload",
+            reference="feature payload_hash",
+            load_bytes=True,
+        )
+        if not payload_ok:
             continue
+        assert payload_bytes is not None
+        try:
+            payload = json.loads(payload_bytes)
         except (UnicodeDecodeError, json.JSONDecodeError):
             _add(
                 findings,
@@ -203,14 +207,14 @@ def _check_run_artifacts(store, findings: list[dict[str, Any]]) -> None:
                 rid,
             )
             continue
-        if not store.objects.path_for(digest).exists():
-            _add(
-                findings,
-                "error",
-                "missing_run_artifact_object",
-                "run artifact_hash does not resolve to an object",
-                rid,
-            )
+        _check_object_reference(
+            store,
+            findings,
+            digest,
+            rid,
+            kind="run_artifact",
+            reference="run artifact_hash",
+        )
 
 
 def _check_proposals(store, findings: list[dict[str, Any]]) -> None:
@@ -225,13 +229,14 @@ def _check_proposals(store, findings: list[dict[str, Any]]) -> None:
                 "proposal has no diff_ref",
                 pid,
             )
-        elif not store.objects.path_for(diff_ref).exists():
-            _add(
+        else:
+            _check_object_reference(
+                store,
                 findings,
-                "error",
-                "missing_proposal_diff_object",
-                "proposal diff_ref does not resolve to an object",
+                diff_ref,
                 pid,
+                kind="proposal_diff",
+                reference="proposal diff_ref",
             )
         try:
             candidates = json.loads(row["candidates"])
@@ -343,8 +348,61 @@ def _expected_endpoint(edge_type: str, side: str) -> str:
     return "known"
 
 
-def _load_json_object(store, digest: str) -> Any:
-    return json.loads(store.objects.get(digest))
+def _check_object_reference(
+    store,
+    findings: list[dict[str, Any]],
+    digest: str,
+    subject: str,
+    *,
+    kind: str,
+    reference: str,
+    load_bytes: bool = False,
+) -> tuple[bool, bytes | None]:
+    """Return validity and, when requested, the exact bytes that were hashed."""
+    if not store.objects.is_valid_digest(digest):
+        _add(
+            findings,
+            "error",
+            f"invalid_{kind}_reference",
+            f"{reference} is not a canonical lowercase sha256 digest",
+            subject,
+        )
+        return False, None
+    try:
+        if load_bytes:
+            data = store.objects.get(digest)
+            matches = hashlib.sha256(data).hexdigest() == digest
+        else:
+            data = None
+            matches = store.objects.verify(digest)
+    except FileNotFoundError:
+        _add(
+            findings,
+            "error",
+            f"missing_{kind}_object",
+            f"{reference} does not resolve to an object",
+            subject,
+        )
+        return False, None
+    except OSError:
+        _add(
+            findings,
+            "error",
+            f"unreadable_{kind}_object",
+            f"{kind.replace('_', ' ')} object cannot be read",
+            subject,
+        )
+        return False, None
+    if not matches:
+        _add(
+            findings,
+            "error",
+            f"corrupt_{kind}_object",
+            f"{kind.replace('_', ' ')} object does not match sha256 {digest}",
+            subject,
+        )
+        return False, None
+    return True, data
 
 
 def _add(
