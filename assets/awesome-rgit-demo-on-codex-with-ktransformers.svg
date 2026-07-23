@@ -55,7 +55,7 @@
       </g>
 
       <g opacity="0" transform="translate(0 391)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.234615;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
-        <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep flashinfer-mla-model-scale.</text>
+        <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep it.</text>
       </g>
       <text x="0" y="459" opacity="0"><tspan class="tool bold">•</tspan> Approved <tspan class="cyan">flashinfer-mla-model-scale</tspan> → <tspan class="magenta">feat_038bc30</tspan>; rgit edges --apply<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.246154;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/></text>
 
