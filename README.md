@@ -1,7 +1,7 @@
 <h1 align="center"><img src="assets/research-git-logo.png" alt="research-git logo" height="56" align="absmiddle" />&nbsp;&nbsp;research-git</h1>
 
 <p align="center">
-  <strong>Record key experiments and feature decisions. Safely remove or reapply them to your current codebase.</strong>
+  <strong>Capture key experiments and feature decisions. Agentically remove or reapply them in your current codebase.</strong>
   <br />
   <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
