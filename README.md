@@ -9,7 +9,7 @@
 <p align="center">
   <a href="#-quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue" alt="Quick Start" /></a>
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License: MIT" />
-  <img src="https://img.shields.io/badge/Claude_Code-8A2BE2" alt="Claude Code" />
+  <img src="https://img.shields.io/badge/Claude_Code-000000" alt="Claude Code" />
   <img src="https://img.shields.io/badge/Codex-000000" alt="Codex" />
   <img src="https://img.shields.io/badge/Python-3.11+-3776AB" alt="Python 3.11+" />
 </p>
