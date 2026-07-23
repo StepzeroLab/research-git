@@ -29,85 +29,7 @@
     .yellow { fill: var(--yellow); }
     .magenta { fill: var(--magenta); }
     .bold { font-weight: 700; }
-    .scene {
-      opacity: 0;
-      animation-duration: var(--duration);
-      animation-iteration-count: infinite;
-      animation-timing-function: step-end;
-    }
-    .startup { animation-name: startup; }
-    .capture-draft { animation-name: capture-draft; }
-    .capture-run { animation-name: capture-run; }
-    .review { animation-name: review; }
-    .keep-draft { animation-name: keep-draft; }
-    .recall-draft { animation-name: recall-draft; }
-    .recall-run { animation-name: recall-run; }
-    .final { animation-name: final; }
-    .capture-reveal {
-      transform-box: fill-box;
-      transform-origin: left center;
-      animation: reveal-capture var(--duration) steps(74, end) infinite;
-    }
-    .keep-reveal {
-      transform-box: fill-box;
-      transform-origin: left center;
-      animation: reveal-keep var(--duration) steps(8, end) infinite;
-    }
-    .recall-reveal {
-      transform-box: fill-box;
-      transform-origin: left center;
-      animation: reveal-recall var(--duration) steps(57, end) infinite;
-    }
-    @keyframes startup {
-      0%, 3.9% { opacity: 1; }
-      4%, 100% { opacity: 0; }
-    }
-    @keyframes capture-draft {
-      0%, 3.9% { opacity: 0; }
-      4%, 16.9% { opacity: 1; }
-      17%, 100% { opacity: 0; }
-    }
-    @keyframes capture-run {
-      0%, 16.9% { opacity: 0; }
-      17%, 25.9% { opacity: 1; }
-      26%, 100% { opacity: 0; }
-    }
-    @keyframes review {
-      0%, 25.9% { opacity: 0; }
-      26%, 30.9% { opacity: 1; }
-      31%, 100% { opacity: 0; }
-    }
-    @keyframes keep-draft {
-      0%, 30.9% { opacity: 0; }
-      31%, 34.9% { opacity: 1; }
-      35%, 100% { opacity: 0; }
-    }
-    @keyframes recall-draft {
-      0%, 34.9% { opacity: 0; }
-      35%, 45.9% { opacity: 1; }
-      46%, 100% { opacity: 0; }
-    }
-    @keyframes recall-run {
-      0%, 45.9% { opacity: 0; }
-      46%, 49.9% { opacity: 1; }
-      50%, 100% { opacity: 0; }
-    }
-    @keyframes final {
-      0%, 49.9% { opacity: 0; }
-      50%, 100% { opacity: 1; }
-    }
-    @keyframes reveal-capture {
-      0%, 3.9% { transform: scaleX(0); }
-      16.9%, 100% { transform: scaleX(1); }
-    }
-    @keyframes reveal-keep {
-      0%, 30.9% { transform: scaleX(0); }
-      34.9%, 100% { transform: scaleX(1); }
-    }
-    @keyframes reveal-recall {
-      0%, 34.9% { transform: scaleX(0); }
-      45.9%, 100% { transform: scaleX(1); }
-    }
+    .scene { opacity: 0; }
   </style>
 
   <rect width="847" height="591" rx="5" fill="var(--bg)"/>
@@ -118,6 +40,7 @@
 
   <g transform="translate(23 50)">
     <g class="scene startup">
+      <animate attributeName="opacity" values="1;0;0" keyTimes="0;.04;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
       <text x="0" y="0" class="dim">╭──────────────────────────────────────────────────────────╮</text>
       <text x="0" y="17"><tspan class="dim">│ &gt;_ </tspan><tspan class="bold">OpenAI Codex</tspan><tspan class="dim"> (v0.144.4)</tspan></text>
       <text x="0" y="34" class="dim">│</text>
@@ -131,6 +54,7 @@
     </g>
 
     <g class="scene capture-run">
+      <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.17;.26;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
       <g transform="translate(0 34)">
         <rect width="800" height="51" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Add an optional clamp for negative totals, test it, and capture the feature.</text>
@@ -143,6 +67,7 @@
     </g>
 
     <g class="scene review">
+      <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.26;.35;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
       <g transform="translate(0 0)">
         <rect width="800" height="51" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Add an optional clamp for negative totals, test it, and capture the feature.</text>
@@ -155,6 +80,7 @@
     </g>
 
     <g class="scene recall-draft">
+      <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.35;.46;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
       <g transform="translate(0 0)">
         <rect width="800" height="51" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Add an optional clamp for negative totals, test it, and capture the feature.</text>
@@ -171,6 +97,7 @@
     </g>
 
     <g class="scene recall-run">
+      <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.46;.50;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
       <g transform="translate(0 0)">
         <rect width="800" height="51" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep it.</text>
@@ -185,6 +112,7 @@
     </g>
 
     <g class="scene final">
+      <animate attributeName="opacity" values="0;1;1" keyTimes="0;.50;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
       <text x="0" y="0"><tspan class="blue">•</tspan> Ran rgit capture  <tspan class="dim">└</tspan> <tspan class="magenta">prop_ab5097612d4d</tspan></text>
       <text x="0" y="17"><tspan class="blue">•</tspan> Proposed Capsule  <tspan class="dim">└</tspan> <tspan class="cyan">optional-negative-total-clamp</tspan></text>
       <text x="0" y="34"><tspan class="yellow">?</tspan> Keep this Capsule, or discard it?</text>
@@ -211,23 +139,26 @@
     <g transform="translate(0 425)">
       <rect width="800" height="51" fill="var(--surface)"/>
       <text x="0" y="17" class="bold">›</text>
-      <text x="16" y="17" class="dim scene startup">Ask Codex to do anything</text>
+      <text x="16" y="17" class="dim scene startup">Ask Codex to do anything<animate attributeName="opacity" values="1;0;0" keyTimes="0;.04;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/></text>
       <g class="scene capture-draft">
-        <clipPath id="capture-clip"><rect class="capture-reveal" x="16" y="17" width="620" height="17"/></clipPath>
+        <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.04;.17;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
+        <clipPath id="capture-clip"><rect x="16" y="17" width="0" height="17"><animate attributeName="width" values="0;0;620;620" keyTimes="0;.04;.17;1" dur="30s" repeatCount="indefinite"/></rect></clipPath>
         <text x="16" y="17" clip-path="url(#capture-clip)">Add an optional clamp for negative totals, test it, and capture the feature.</text>
       </g>
-      <text x="16" y="17" class="dim scene capture-run">Ask Codex to do anything</text>
-      <text x="16" y="17" class="dim scene review">Ask Codex to do anything</text>
+      <text x="16" y="17" class="dim scene capture-run">Ask Codex to do anything<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.17;.26;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="16" y="17" class="dim scene review">Ask Codex to do anything<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.26;.31;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/></text>
       <g class="scene keep-draft">
-        <clipPath id="keep-clip"><rect class="keep-reveal" x="16" y="17" width="72" height="17"/></clipPath>
+        <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.31;.35;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
+        <clipPath id="keep-clip"><rect x="16" y="17" width="0" height="17"><animate attributeName="width" values="0;0;72;72" keyTimes="0;.31;.35;1" dur="30s" repeatCount="indefinite"/></rect></clipPath>
         <text x="16" y="17" clip-path="url(#keep-clip)">Keep it.</text>
       </g>
       <g class="scene recall-draft">
-        <clipPath id="recall-clip"><rect class="recall-reveal" x="16" y="17" width="480" height="17"/></clipPath>
+        <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.35;.46;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/>
+        <clipPath id="recall-clip"><rect x="16" y="17" width="0" height="17"><animate attributeName="width" values="0;0;480;480" keyTimes="0;.35;.46;1" dur="30s" repeatCount="indefinite"/></rect></clipPath>
         <text x="16" y="17" clip-path="url(#recall-clip)">Bring back the clamp on the current tax-aware calculator.</text>
       </g>
-      <text x="16" y="17" class="dim scene recall-run">Ask Codex to do anything</text>
-      <text x="16" y="17" class="dim scene final">Ask Codex to do anything</text>
+      <text x="16" y="17" class="dim scene recall-run">Ask Codex to do anything<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;.46;.50;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="16" y="17" class="dim scene final">Ask Codex to do anything<animate attributeName="opacity" values="0;1;1" keyTimes="0;.50;1" dur="30s" repeatCount="indefinite" calcMode="discrete"/></text>
     </g>
 
     <text x="16" y="493" class="dim">gpt-5.6-sol medium · ~/checkout-calculator · Main [default]</text>
