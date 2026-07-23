@@ -42,36 +42,36 @@
         <text x="0" y="0"><tspan class="dim bold">•</tspan><tspan class="bold"> Explored</tspan></text>
         <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.067081;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.062112;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ rg -n "softmax_scale|FlashInfer" ktransformers/operators ktransformers/util</text>
             <text x="0" y="17" class="dim">  └ util/utils.py: decode used q_head_dim ** (-0.5)</text>
           </g>
         </svg>
-        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.074534;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.065217;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
         <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
-          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.074534;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.065217;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.08178;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.068323;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ Passed layer.self_attn.softmax_scale into decode planning</text>
             <text x="0" y="17" class="dim">  └ Preserved Torch fallback and KV-cache semantics</text>
           </g>
         </svg>
-        <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran precision checks</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.089026;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran precision checks</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.071429;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
         <svg x="0" y="85" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
-          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.089026;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.071429;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.094203;0.099379;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.074120;0.076812;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ attention_ref tensor parity → passed</text>
             <text x="0" y="17" class="dim">  └ Torch max abs diff 1.2e-5 · max rel diff 8.1e-5</text>
             <text x="0" y="34" class="dim">  └ HumanEval pass@1 89.6</text>
           </g>
         </svg>
       </g>
-      <g opacity="0" transform="translate(0 278)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.10352;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      <g opacity="0" transform="translate(0 278)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.080745;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="tool bold">•</tspan><tspan class="magenta bold"> $research-git:rgit-capture</tspan></text>
         <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -68;0 -68" keyTimes="0;0.10559;0.109731;0.113872;0.115942;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -68;0 -68" keyTimes="0;0.083230;0.085714;0.088199;0.090683;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ rgit capture → prop_038bc30</text>
             <text x="0" y="17" class="dim">  └ rgit pending --json → 1 proposal</text>
             <text x="0" y="34" class="dim">  └ capsule-segmenter → 1 candidate</text>
@@ -81,7 +81,7 @@
         </svg>
       </g>
 
-      <g opacity="0" transform="translate(0 324)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.115942;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      <g opacity="0" transform="translate(0 324)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.090683;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0" font-size="12"><tspan class="cyan">flashinfer-mla-model-scale</tspan><tspan> — Preserve model scale and Torch parity.</tspan><tspan x="0" dy="17">Validate with HumanEval (89.6) before enabling FlashInfer MLA. Keep this capsule?</tspan></text>
       </g>
 
@@ -225,11 +225,11 @@
       <g opacity="0" transform="translate(0 491)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.318841;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="68" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan><tspan class="magenta">$research-git:rgit-recall</tspan><tspan x="16" dy="17">Remove the FlashInfer MLA optimization but keep generation behavior unchanged.</tspan></text>
       </g>
-      <g opacity="0" transform="translate(0 571)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.325052;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      <g opacity="0" transform="translate(0 571)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.320083;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="tool bold">•</tspan><tspan class="magenta bold"> $research-git:rgit-recall</tspan></text>
         <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -51" keyTimes="0;0.327122;0.331263;0.335403;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -51" keyTimes="0;0.321946;0.324431;0.326915;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ recall("FlashInfer MLA") → feat_038bc30</text>
             <text x="0" y="17" class="dim">  └ Resolved depends_on graph → no additional capsules</text>
             <text x="0" y="34" class="dim">  └ compose(["feat_038bc30"]) → current attention source</text>
@@ -238,38 +238,38 @@
         </svg>
       </g>
       <g opacity="0" transform="translate(0 605)">
-        <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.337474;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.329400;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="dim bold">•</tspan><tspan class="bold"> Explored</tspan></text>
         <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.343685;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.332298;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ rg -n "flashinfer|mla" ktransformers/ → 14 matches</text>
             <text x="0" y="17" class="dim">  └ Torch fallback covers both prefill and decode</text>
           </g>
         </svg>
-        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.349896;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334990;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
         <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
-          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.349896;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334990;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.356108;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.337681;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ Removed FlashInfer MLA dispatch and imports</text>
             <text x="0" y="17" class="dim">  └ Kept self.softmax_scale and Torch attention path</text>
           </g>
         </svg>
-        <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran validation</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.362319;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran validation</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.340373;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
         <svg x="0" y="85" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
-          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.362319;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.340373;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
           <g>
-            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.36646;0.370601;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.343064;0.345756;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
             <text x="0" y="0" class="dim">  └ Torch and long-context validation → passed</text>
             <text x="0" y="17" class="dim">  └ rg -n "flashinfer_mla" ktransformers/ → no matches</text>
             <text x="0" y="34" class="dim">  └ Long-context decode parity passed</text>
           </g>
         </svg>
       </g>
-      <g opacity="0" transform="translate(0 719)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.372671;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      <g opacity="0" transform="translate(0 719)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.348447;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0">Removed the FlashInfer MLA optimization without reverting unrelated attention work.</text>
-        <text x="0" y="17" opacity="0">The Torch fallback remains active; the capsule is preserved for future use.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.378882;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <text x="0" y="17" opacity="0">The Torch fallback remains active; the capsule is preserved for future use.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.351139;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
       </g>
     </g>
   </svg>
