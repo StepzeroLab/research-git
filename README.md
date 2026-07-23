@@ -28,6 +28,10 @@ research-git turns experiments and features into reusable **Feature Capsules** s
 
 One loop: capture each idea into a graph, then regenerate it onto today's code. The engine (blue) is free and deterministic; intelligence happens at exactly two points (green) — subagents dispatched onto your existing subscription, never a paid API.
 
+<p align="center">
+  <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
+</p>
+
 ```mermaid
 flowchart LR
     A["edit code /<br/>rgit run -- ..."] -->|"free, deterministic"| B["raw proposal<br/>(diff staged)"]
