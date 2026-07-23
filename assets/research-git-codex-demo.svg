@@ -14,7 +14,7 @@
   <svg x="23" y="50" width="800" height="617" viewBox="0 0 800 617" overflow="hidden">
     <g id="history">
       <animateTransform attributeName="transform" type="translate"
-        values="0 0;0 0;0 0;0 -301;0 -301"
+        values="0 0;0 0;0 0;0 -182;0 -182"
         keyTimes="0;0.192308;0.246154;0.323077;1"
         dur="26s" repeatCount="indefinite" calcMode="discrete"/>
       <g>
@@ -38,33 +38,43 @@
       </g>
       <g opacity="0" transform="translate(0 306)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.192308;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="tool bold">•</tspan><tspan class="magenta bold"> $research-git:rgit-capture</tspan></text>
-        <text x="0" y="17" class="dim">  └ rgit capture → prop_038bc30</text>
-        <text x="0" y="34" class="dim">  └ rgit pending --json → 1 proposal</text>
-        <text x="0" y="51" class="dim">  └ capsule-segmenter → 1 candidate</text>
-        <text x="0" y="68" class="dim">  └ rgit resegment prop_038bc30 --from-json -</text>
-        <text x="0" y="85" class="dim">  └ Candidate ready for human review</text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -68;0 -68" keyTimes="0;0.196154;0.203846;0.211538;0.215385;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ rgit capture → prop_038bc30</text>
+            <text x="0" y="17" class="dim">  └ rgit pending --json → 1 proposal</text>
+            <text x="0" y="34" class="dim">  └ capsule-segmenter → 1 candidate</text>
+            <text x="0" y="51" class="dim">  └ rgit resegment prop_038bc30 --from-json -</text>
+            <text x="0" y="68" class="dim">  └ Candidate ready for human review</text>
+          </g>
+        </svg>
       </g>
 
-      <g opacity="0" transform="translate(0 425)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.215385;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
+      <g opacity="0" transform="translate(0 357)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.215385;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0" font-size="12"><tspan class="cyan">flashinfer-mla-model-scale</tspan><tspan> — Preserve quality; knob: model scale; gates: Torch parity +</tspan><tspan x="0" dy="17">HumanEval 89.6; restore scale before enabling.</tspan></text>
       </g>
 
-      <g opacity="0" transform="translate(0 476)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.234615;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
+      <g opacity="0" transform="translate(0 408)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.234615;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep flashinfer-mla-model-scale.</text>
       </g>
-      <text x="0" y="544" opacity="0"><tspan class="tool bold">•</tspan> Approved <tspan class="cyan">flashinfer-mla-model-scale</tspan> → <tspan class="magenta">feat_038bc30</tspan>; rgit edges --apply<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.246154;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="0" y="476" opacity="0"><tspan class="tool bold">•</tspan> Approved <tspan class="cyan">flashinfer-mla-model-scale</tspan> → <tspan class="magenta">feat_038bc30</tspan>; rgit edges --apply<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.246154;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/></text>
 
-      <g opacity="0" transform="translate(0 578)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.323077;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="68" fill="var(--surface)"/>
+      <g opacity="0" transform="translate(0 510)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.323077;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="68" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan><tspan class="magenta">$research-git:rgit-recall</tspan><tspan> Remove the FlashInfer MLA optimization,</tspan><tspan x="16" dy="17">but keep generation behavior unchanged.</tspan></text>
       </g>
-      <g opacity="0" transform="translate(0 663)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334615;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
+      <g opacity="0" transform="translate(0 595)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334615;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="tool bold">•</tspan><tspan class="magenta bold"> $research-git:rgit-recall</tspan></text>
-        <text x="0" y="17" class="dim">  └ recall("FlashInfer MLA") → feat_038bc30</text>
-        <text x="0" y="34" class="dim">  └ Resolved depends_on graph → no additional capsules</text>
-        <text x="0" y="51" class="dim">  └ compose(["feat_038bc30"]) → current attention source</text>
-        <text x="0" y="68" class="dim">  └ Loaded intent, knobs, assumptions, and guide</text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -51" keyTimes="0;0.338462;0.346154;0.353846;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ recall("FlashInfer MLA") → feat_038bc30</text>
+            <text x="0" y="17" class="dim">  └ Resolved depends_on graph → no additional capsules</text>
+            <text x="0" y="34" class="dim">  └ compose(["feat_038bc30"]) → current attention source</text>
+            <text x="0" y="51" class="dim">  └ Loaded intent, knobs, assumptions, and guide</text>
+          </g>
+        </svg>
       </g>
-      <g opacity="0" transform="translate(0 765)">
+      <g opacity="0" transform="translate(0 646)">
         <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.357692;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="dim bold">•</tspan><tspan class="bold"> Explored</tspan></text>
         <text x="0" y="17" class="dim">  └ Located FlashInfer branches; confirmed Torch fallback</text>
@@ -73,7 +83,7 @@
         <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran validation</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.403846;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/></text>
         <text x="0" y="85" class="dim" opacity="0">  └ Torch and long-context tests passed; no MLA references remain<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.403846;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/></text>
       </g>
-      <g opacity="0" transform="translate(0 884)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.423077;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
+      <g opacity="0" transform="translate(0 765)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.423077;1" dur="26s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0">Removed the FlashInfer MLA optimization without reverting unrelated attention work.</text>
         <text x="0" y="17">The Torch fallback remains active; the capsule is preserved for future use.</text>
       </g>
