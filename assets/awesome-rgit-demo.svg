@@ -57,7 +57,7 @@
       <g opacity="0" transform="translate(0 370)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.1477;1" dur="41.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep it.</text>
       </g>
-      <text x="0" y="433" opacity="0"><tspan class="tool bold">•</tspan> Approved <tspan class="cyan">flashinfer-mla-model-scale</tspan> → <tspan class="magenta">feat_038bc30</tspan>; rgit edges --apply<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.154964;1" dur="41.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="0" y="433" opacity="0"><tspan class="dim bold">•</tspan> Saved <tspan class="cyan">flashinfer-mla-model-scale</tspan> as a capsule.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.154964;1" dur="41.3s" repeatCount="indefinite" calcMode="discrete"/></text>
 
       <g opacity="0" transform="translate(0 462)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.20339;1" dur="41.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="68" fill="var(--surface)"/>
         <text x="0" y="17"><tspan class="dim bold">› </tspan><tspan class="magenta">$research-git:rgit-recall</tspan><tspan> Remove the FlashInfer MLA optimization,</tspan><tspan x="16" dy="17">but keep generation behavior unchanged.</tspan></text>
