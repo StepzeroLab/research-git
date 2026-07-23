@@ -1,7 +1,7 @@
 <h1 align="center"><img src="assets/research-git-logo.png" alt="research-git logo" height="64" align="absmiddle" />&nbsp;&nbsp;&nbsp;research-git</h1>
 
 <p align="center">
-  <strong>research-git lets you agentically remove or reapply key experiments or feature decisions in your current codebase.</strong>
+  <strong>Capture key experiments and feature decisions. Agentically remove or reapply them in your current codebase.</strong>
   <br />
   <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
