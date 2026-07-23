@@ -40,11 +40,32 @@
       <g opacity="0" transform="translate(0 176)">
         <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.060041;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="dim bold">•</tspan><tspan class="bold"> Explored</tspan></text>
-        <text x="0" y="17" class="dim">  └ Found head-dimension-derived scaling in attention.py</text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.067081;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ rg -n "softmax_scale|FlashInfer" ktransformers/operators ktransformers/util</text>
+            <text x="0" y="17" class="dim">  └ util/utils.py: decode used q_head_dim ** (-0.5)</text>
+          </g>
+        </svg>
         <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.074534;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-        <text x="0" y="51" class="dim" opacity="0">  └ Used layer.self_attn.softmax_scale; kept Torch fallback<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.074534;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.074534;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.08178;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ Passed layer.self_attn.softmax_scale into decode planning</text>
+            <text x="0" y="17" class="dim">  └ Preserved Torch fallback and KV-cache semantics</text>
+          </g>
+        </svg>
         <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran precision checks</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.089026;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-        <text x="0" y="85" class="dim" opacity="0">  └ Torch parity passed; HumanEval 89.6<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.089026;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="85" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.089026;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.094203;0.099379;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ attention_ref tensor parity → passed</text>
+            <text x="0" y="17" class="dim">  └ Torch max abs diff 1.2e-5 · max rel diff 8.1e-5</text>
+            <text x="0" y="34" class="dim">  └ HumanEval pass@1 89.6</text>
+          </g>
+        </svg>
       </g>
       <g opacity="0" transform="translate(0 278)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.10352;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="tool bold">•</tspan><tspan class="magenta bold"> $research-git:rgit-capture</tspan></text>
@@ -100,9 +121,23 @@
             <rect width="800" height="34" fill="var(--surface)"/>
             <text x="0" y="8"><tspan class="dim bold">› </tspan>Add long-context chunked prefill and decode replanning.</text>
             <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored attention and cache planning</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.140787;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="63" class="dim" opacity="0">  └ Located prefill, decode, and KV-cache paths<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.145963;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <svg x="0" y="63" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+              <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.145963;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.148551;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Traced prefill, decode, and KV-cache paths</text>
+                <text x="0" y="17" class="dim">  └ Found chunk boundaries in cache planning</text>
+              </g>
+            </svg>
             <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py and cache.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.151138;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-            <text x="0" y="97" class="dim" opacity="0">  └ Long-context tests passed; committed changes<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.156315;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <svg x="0" y="97" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+              <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.156315;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.158385;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Updated chunk planning without changing decode semantics</text>
+                <text x="0" y="17" class="dim">  └ Long-context tests passed; committed changes</text>
+              </g>
+            </svg>
           </g>
 
           <g transform="translate(0 114)" opacity="0">
@@ -166,9 +201,23 @@
             <rect width="800" height="34" fill="var(--surface)"/>
             <text x="0" y="8"><tspan class="dim bold">› </tspan>Harden quantized weight loading and release tooling.</text>
             <text x="0" y="46"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored loaders, packaging, and CI workflows</tspan></text>
-            <text x="0" y="63" class="dim">  └ Fixed quantized formats and release paths</text>
+            <svg x="0" y="63" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.204969;0.214286;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Inspected RAWINT4, Marlin, and loader mappings</text>
+                <text x="0" y="17" class="dim">  └ Traced wheel, submodule, and release workflows</text>
+                <text x="0" y="34" class="dim">  └ Fixed quantized formats and release paths</text>
+              </g>
+            </svg>
             <text x="0" y="80"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran build and compatibility checks</tspan></text>
-            <text x="0" y="97" class="dim">  └ Release validation passed; committed changes</text>
+            <svg x="0" y="97" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.220497;0.227743;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Built CPU and CUDA package variants</text>
+                <text x="0" y="17" class="dim">  └ Quantized loader compatibility checks passed</text>
+                <text x="0" y="34" class="dim">  └ Release validation passed; committed changes</text>
+              </g>
+            </svg>
           </g>
         </g>
       </svg>
@@ -191,11 +240,32 @@
       <g opacity="0" transform="translate(0 605)">
         <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.337474;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0"><tspan class="dim bold">•</tspan><tspan class="bold"> Explored</tspan></text>
-        <text x="0" y="17" class="dim">  └ Located FlashInfer branches; confirmed Torch fallback</text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.343685;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ rg -n "flashinfer|mla" ktransformers/ → 14 matches</text>
+            <text x="0" y="17" class="dim">  └ Torch fallback covers both prefill and decode</text>
+          </g>
+        </svg>
         <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.349896;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-        <text x="0" y="51" class="dim" opacity="0">  └ Removed MLA dispatch; preserved model scale<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.349896;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.349896;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.356108;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ Removed FlashInfer MLA dispatch and imports</text>
+            <text x="0" y="17" class="dim">  └ Kept self.softmax_scale and Torch attention path</text>
+          </g>
+        </svg>
         <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran validation</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.362319;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
-        <text x="0" y="85" class="dim" opacity="0">  └ Torch and long-context tests passed; no MLA references remain<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.362319;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="85" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.362319;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.36646;0.370601;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ Torch and long-context validation → passed</text>
+            <text x="0" y="17" class="dim">  └ rg -n "flashinfer_mla" ktransformers/ → no matches</text>
+            <text x="0" y="34" class="dim">  └ Long-context decode parity passed</text>
+          </g>
+        </svg>
       </g>
       <g opacity="0" transform="translate(0 719)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.372671;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
         <text x="0" y="0">Removed the FlashInfer MLA optimization without reverting unrelated attention work.</text>
