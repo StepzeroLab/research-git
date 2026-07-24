@@ -120,7 +120,9 @@ Adopting rgit on a repo that already has history? `rgit init` offers to **digest
 
 </details>
 
-### 2. Working with an agent? Just talk to it
+### 2. Use research-git
+
+#### With a coding agent
 
 After install your agent does the remembering. Work as usual — it saves each meaningful idea as a Feature Capsule (asking you before anything is kept). Weeks later, when the code has moved on, just ask:
 
@@ -128,7 +130,7 @@ After install your agent does the remembering. Work as usual — it saves each m
 
 The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. No commands to memorize — but if you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
 
-### 3. Working in the terminal? Three commands
+#### From the terminal
 
 ```bash
 rgit run -- python eval_agent.py --retrieval rerank   # run an experiment; freezes a byte-exact snapshot + metrics
@@ -140,7 +142,7 @@ rgit compare rerank                                   # which variant won?
 
 More commands as your store grows: [More commands](#more-commands).
 
-## Updating
+### 3. Update when needed
 
 ```bash
 rgit update
