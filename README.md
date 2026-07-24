@@ -165,16 +165,48 @@ The agent helps you *author*; it is never in the *replay* path. `rgit run` freez
 
 The five-step loop above is the core. These show up as your store grows — run `rgit <command> --help` for any of them:
 
-| Command | What it does |
-|---------|--------------|
-| `rgit watch` | free, deterministic background capture — stages raw material as you edit, so fleeting in-between states aren't lost |
-| `rgit capture [REV \| A..B]` | bare: auto-picks the working tree or, when clean, the last commit; pass a commit or an A..B range for precise control |
-| `rgit install-hooks` | opt-in: stage every commit's diff via a post-commit hook (not installed by `rgit install`; won't touch an existing hook) — see install details above |
-| `rgit run --from <capsule>` | run a recalled variant and link the new run as a `variant_of` the original |
-| `rgit compare <query>` | which variant won: ranked table, Δ vs baseline, ★ winner |
-| `rgit provenance <run_id>` | per-feature clean (capsule) vs agent-adapted (frozen) diff for a run |
-| `rgit mcp` | serve the graph read-only so a teammate's client can recall against it |
-| `rgit digest scan [A..B]` | cluster a mature repo's git history into a scored digestion plan (`rgit init` offers this interactively); `rgit digest status` shows progress, the **rgit-digest** skill drains the queue into `origin=backfill` capsules, and `rgit digest clear` removes them all if you change your mind |
+<table>
+  <thead>
+    <tr>
+      <th width="32%">Command</th>
+      <th>What it does</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>rgit watch</code></td>
+      <td>free, deterministic background capture — stages raw material as you edit, so fleeting in-between states aren't lost</td>
+    </tr>
+    <tr>
+      <td><code>rgit capture [REV | A..B]</code></td>
+      <td>bare: auto-picks the working tree or, when clean, the last commit; pass a commit or an A..B range for precise control</td>
+    </tr>
+    <tr>
+      <td><code>rgit install-hooks</code></td>
+      <td>opt-in: stage every commit's diff via a post-commit hook (not installed by <code>rgit install</code>; won't touch an existing hook) — see install details above</td>
+    </tr>
+    <tr>
+      <td><code>rgit run --from &lt;capsule&gt;</code></td>
+      <td>run a recalled variant and link the new run as a <code>variant_of</code> the original</td>
+    </tr>
+    <tr>
+      <td><code>rgit compare &lt;query&gt;</code></td>
+      <td>which variant won: ranked table, Δ vs baseline, ★ winner</td>
+    </tr>
+    <tr>
+      <td><code>rgit provenance &lt;run_id&gt;</code></td>
+      <td>per-feature clean (capsule) vs agent-adapted (frozen) diff for a run</td>
+    </tr>
+    <tr>
+      <td><code>rgit mcp</code></td>
+      <td>serve the graph read-only so a teammate's client can recall against it</td>
+    </tr>
+    <tr>
+      <td><code>rgit digest scan [A..B]</code></td>
+      <td>cluster a mature repo's git history into a scored digestion plan (<code>rgit init</code> offers this interactively); <code>rgit digest status</code> shows progress, the <strong>rgit-digest</strong> skill drains the queue into <code>origin=backfill</code> capsules, and <code>rgit digest clear</code> removes them all if you change your mind</td>
+    </tr>
+  </tbody>
+</table>
 
 ## License
 
