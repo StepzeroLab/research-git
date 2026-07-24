@@ -24,7 +24,7 @@ It captures important experiments and feature decisions as reusable semantic uni
 
 ## Why research-git
 
-AI coding tools can generate dozens of experiments and features in a day. A few days later, the codebase may have changed so much that an earlier idea no longer fits the current infrastructure.
+AI coding tools can generate many different experiments and features in a day. But when you try to reintroduce a previously removed experiment just a few days later, the codebase may have changed so much that the experiment no longer fits the current infrastructure.
 
 Traditional Git preserves commits and diffs, but it does not tell an agent which changes belong to one experiment, why they existed, what assumptions they depended on, or what results they produced. Reverting can discard useful work added later. Replaying an old diff can fail against a changed architecture. Asking an agent to remove a feature without that context can also damage shared infrastructure.
 
