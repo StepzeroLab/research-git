@@ -286,6 +286,14 @@
         <text x="0" y="17" opacity="0">The Torch fallback remains active; the capsule is preserved for future use.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.351139;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
       </g>
     </g>
+    <g opacity="0">
+      <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.053830;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      <rect width="800" height="646" fill="var(--bg)"/>
+      <text x="16" y="17" class="dim"><tspan>&gt;_ </tspan><tspan class="bold">OpenAI Codex</tspan><tspan> (v0.144.4)</tspan></text>
+      <text x="16" y="51" class="dim"><tspan>model:     </tspan><tspan class="bold">gpt-5.6-sol medium</tspan><tspan>   /model to change</tspan></text>
+      <text x="16" y="68" class="dim"><tspan>directory: </tspan><tspan class="bold">~/Downloads/ktransformers</tspan></text>
+      <rect x=".6" y=".6" width="540" height="100.8" rx="3" fill="none" stroke="var(--dim)" stroke-width="1.2"/>
+    </g>
   </svg>
 
   <g>
