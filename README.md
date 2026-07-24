@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="#-quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue" alt="Quick Start" /></a>
+  <a href="#quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue" alt="Quick Start" /></a>
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License: MIT" />
   <img src="https://img.shields.io/badge/Claude_Code-000000" alt="Claude Code" />
   <img src="https://img.shields.io/badge/Codex-000000" alt="Codex" />
@@ -69,7 +69,7 @@ Every idea you keep becomes one capsule — a self-contained unit a future agent
 
 Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran — so "the code behind this result" is always a perfect replay, never at the mercy of an agent.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install
 
@@ -124,21 +124,21 @@ Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes e
 
 rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off — the check is throttled, the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
 
-## 🧩 Where it fits
+## Where it fits
 
 Anywhere you try many variations of one thing and later want a single one back — cleanly, on top of how the code looks now.
 
-- 🤖 **Agent / Prompt engineering** — you tried four prompt structures, two tool-splitting schemes, and a different retrieval step. Last week's version scored better; bring *that* idea back onto the agent you've since rewritten.
-- ⚙️ **Backend / Systems** — three caching strategies, two rate-limiters, a reworked query plan. Which won? Pull the winning variant forward without reverting everything built since.
-- 🎨 **Frontend** — competing interaction flows and layout variants, half commented out. Resurrect the one that tested best onto the current component tree.
+- **Agent / Prompt engineering** — you tried four prompt structures, two tool-splitting schemes, and a different retrieval step. Last week's version scored better; bring *that* idea back onto the agent you've since rewritten.
+- **Backend / Systems** — three caching strategies, two rate-limiters, a reworked query plan. Which won? Pull the winning variant forward without reverting everything built since.
+- **Frontend** — competing interaction flows and layout variants, half commented out. Resurrect the one that tested best onto the current component tree.
 
 Also at home in ML research — different loss terms, attention blocks, augmentations. Same shape: the experiment is the idea, the metrics are the result, and you want one variant back on today's code.
 
-## 🤝 Share the memory with your team
+## Share the memory with your team
 
 The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers — then *their* session regenerates an idea onto *their* code, on *their* subscription. The memory is shared; the intelligence is local.
 
-## 🔧 Under the Hood
+## Under the Hood
 
 ### Build the memory, borrow the agent
 
