@@ -63,7 +63,9 @@ If your repository already has history, let your agent run the `rgit-digest` ski
 
 After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
 
-> *"bring back the re-ranking retrieval step"*
+<p align="center">
+  <img src="assets/rgit-recall-input.svg" alt="Ask a coding agent to bring back the re-ranking retrieval step." width="800" />
+</p>
 
 The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
 
