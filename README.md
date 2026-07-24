@@ -24,11 +24,11 @@ It captures important experiments and feature decisions as reusable semantic uni
 
 ## Why research-git
 
-AI coding tools can generate dozens of experiments and features in a day. A few days later, the codebase may have changed so much that an earlier idea no longer fits the current infrastructure.
+AI coding tools can generate dozens of experiments and features in a day. By the time you revisit one, the infrastructure may have already changed.
 
-Traditional Git preserves commits and diffs, but it does not tell an agent which changes belong to one experiment, why they existed, what assumptions they depended on, or what results they produced. Reverting can discard useful work added later. Replaying an old diff can fail against a changed architecture. Asking an agent to remove a feature without that context can also damage shared infrastructure.
+Git records commits and diffs, not an experiment's intent, boundaries, assumptions, or results. Reverts can discard later work, stale diffs can break, and context-free removal can damage shared code.
 
-research-git records experiments and feature decisions as reusable **Feature Capsules**, including their intent, relevant code, dependencies, configuration, results, and restoration guidance. This gives coding agents the context to safely reapply or remove an idea on today's codebase without blindly restoring an old snapshot or deleting code piece by piece.
+research-git saves that context in reusable **Feature Capsules**, helping coding agents safely reapply or remove ideas on today's codebase.
 
 ## How it works
 
