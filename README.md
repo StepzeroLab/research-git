@@ -166,7 +166,8 @@ Also at home in ML research, including different loss terms, attention blocks, a
 
 The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers. Their session then regenerates an idea onto their code using their subscription. The memory is shared; the intelligence is local.
 
-## Under the Hood
+<details>
+<summary><h2>Under the Hood</h2></summary>
 
 ### Build the memory, borrow the agent
 
@@ -188,6 +189,8 @@ Recall scores every approved capsule against your query in plain Python, without
 ### Reproducibility contract
 
 The agent helps you *author*; it is never in the *replay* path. `rgit run` freezes the exact bytes that ran, content-addressed and immutable. "The code behind run X" is a byte-identical re-materialization of a stored blob.
+
+</details>
 
 ## More commands
 
