@@ -54,6 +54,32 @@ flowchart LR
     class C,F agent;
 ```
 
+<details>
+<summary>Learn more</summary>
+
+#### Build the memory, borrow the agent
+
+The engine owns the durable, deterministic parts: the graph, content-addressed object store, git diffing, and the byte-exact run freeze. The agentic parts are delegated to subagents the host already provides. We don't reimplement an agent loop, and we never call a paid API.
+
+#### Two-phase capture
+
+A free, deterministic Phase 1 (`libcst` maps diff hunks to the functions/classes they touch) produces a rough candidate for every change. Phase 2 is a dispatched `capsule-segmenter` subagent that clusters the diff into coherent features, drops infrastructure noise, and writes the real intent, knobs, assumptions, and resurrection guide. Once a capsule is approved, the engine deterministically links same-region edges and over-produces `depends_on` candidates from name overlap, which an `edge-judge` subagent confirms or rejects.
+
+#### Ranked, edge-aware recall
+
+Recall scores every approved capsule against your query in plain Python, without embeddings or SQL `LIKE` traps. It boosts a hit when a connected capsule also matches, so related work surfaces together. Each result carries its related subgraph.
+
+#### Two planes
+
+- **MCP: shared memory (query-only).** Returns graph snippets; safe to expose so a team shares one memory. Carries no intelligence.
+- **Plugin: local intelligence.** Three subagents (`capsule-segmenter`, `capsule-regenerator`, `edge-judge`) and two skills (`rgit-capture`, `rgit-recall`) define *how* a session acts on those snippets, natively, on its own subscription.
+
+#### Reproducibility contract
+
+The agent helps you *author*; it is never in the *replay* path. `rgit run` freezes the exact bytes that ran, content-addressed and immutable. "The code behind run X" is a byte-identical re-materialization of a stored blob.
+
+</details>
+
 ## What a Capsule Contains
 
 Every idea you keep becomes a self-contained Capsule that a future agent can use to bring the idea back:
@@ -165,32 +191,6 @@ Also at home in ML research, including different loss terms, attention blocks, a
 ## Share the memory with your team
 
 The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers. Their session then regenerates an idea onto their code using their subscription. The memory is shared; the intelligence is local.
-
-<details>
-<summary><h2>Under the Hood</h2></summary>
-
-### Build the memory, borrow the agent
-
-The engine owns the durable, deterministic parts: the graph, content-addressed object store, git diffing, and the byte-exact run freeze. The agentic parts are delegated to subagents the host already provides. We don't reimplement an agent loop, and we never call a paid API.
-
-### Two-phase capture
-
-A free, deterministic Phase 1 (`libcst` maps diff hunks to the functions/classes they touch) produces a rough candidate for every change. Phase 2 is a dispatched `capsule-segmenter` subagent that clusters the diff into coherent features, drops infrastructure noise, and writes the real intent, knobs, assumptions, and resurrection guide. Once a capsule is approved, the engine deterministically links same-region edges and over-produces `depends_on` candidates from name overlap, which an `edge-judge` subagent confirms or rejects.
-
-### Ranked, edge-aware recall
-
-Recall scores every approved capsule against your query in plain Python, without embeddings or SQL `LIKE` traps. It boosts a hit when a connected capsule also matches, so related work surfaces together. Each result carries its related subgraph.
-
-### Two planes
-
-- **MCP: shared memory (query-only).** Returns graph snippets; safe to expose so a team shares one memory. Carries no intelligence.
-- **Plugin: local intelligence.** Three subagents (`capsule-segmenter`, `capsule-regenerator`, `edge-judge`) and two skills (`rgit-capture`, `rgit-recall`) define *how* a session acts on those snippets, natively, on its own subscription.
-
-### Reproducibility contract
-
-The agent helps you *author*; it is never in the *replay* path. `rgit run` freezes the exact bytes that ran, content-addressed and immutable. "The code behind run X" is a byte-identical re-materialization of a stored blob.
-
-</details>
 
 ## More commands
 
