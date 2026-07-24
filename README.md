@@ -85,20 +85,8 @@ rgit compare rerank                                   # which variant won?
 
 More commands as your store grows: [More commands](#more-commands).
 
-### 4. Update when needed
-
-```bash
-rgit update
-```
-
-<details>
-<summary>Learn more</summary>
-
-Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone. The command tells you how to restore them instead.
-
-rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off. The check is throttled, but the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
-
-</details>
+> [!TIP]
+> We publish a new research-git release for major updates. [Keep research-git updated](#updating).
 
 ## How it works
 
@@ -190,6 +178,21 @@ Every idea you keep becomes a self-contained Capsule that a future agent can use
 </table>
 
 Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran. This ensures "the code behind this result" is always a perfect replay, never at the mercy of an agent.
+
+## Updating
+
+```bash
+rgit update
+```
+
+<details>
+<summary>Learn more</summary>
+
+Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone. The command tells you how to restore them instead.
+
+rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off. The check is throttled, but the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
+
+</details>
 
 ## Where it fits
 
