@@ -163,7 +163,7 @@ The agent helps you *author*; it is never in the *replay* path. `rgit run` freez
 
 ## More commands
 
-The five-step loop above is the core. These show up as your store grows — run `rgit <command> --help` for any of them:
+The five-step loop above is the core. As your store grows, these additional commands become useful. Run `rgit <command> --help` to learn more about any of them:
 
 <table>
   <thead>
