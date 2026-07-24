@@ -41,8 +41,10 @@ cd your-project
 rgit init                   # creates the .rgit/ store in your repo
 ```
 
+Installation takes less than 30 seconds. Restart your coding agent afterwards so it loads research-git.
+
 <details>
-<summary>Installation takes less than 30 seconds. Restart your coding agent afterwards so it loads research-git. Install details: choosing platforms, guidance modes, capture-on-commit</summary>
+<summary>Install details: choosing platforms, guidance modes, capture-on-commit</summary>
 
 - `rgit install claude-code` (or `codex` / `gemini` / `opencode` / `generic`) targets one client; `--list` shows all; `--uninstall` removes.
 - The installer also writes a short guidance block into your client's global file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, …) so the agent knows when to save ideas. On an interactive terminal you pick how proactive that should be (`default` / `manual-only` / `none`); pass `--guidance <mode>` to choose non-interactively.
