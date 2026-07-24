@@ -32,6 +32,9 @@ research-git records experiments and feature decisions as reusable Capsules, cap
 
 ## Quick Start
 
+> [!NOTE]
+> We publish a new research-git release for major updates. [Keep research-git updated](#updating).
+
 ### 1. Install
 
 ```bash
@@ -84,9 +87,6 @@ rgit compare rerank                                   # which variant won?
 `rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session because that's where the intelligence lives. From the terminal, you can always browse the memory with `rgit features` and `rgit graph`.
 
 More commands as your store grows: [More commands](#more-commands).
-
-> [!NOTE]
-> We publish a new research-git release for major updates. [Keep research-git updated](#updating).
 
 ## How it works
 
