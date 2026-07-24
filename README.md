@@ -185,13 +185,12 @@ Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git
 
 ## Where it fits
 
-Anywhere you try many variations of one thing and later want a single one back cleanly on top of how the code looks now.
+Anywhere you try many variations of one thing and later want to bring one back or safely remove one from today's codebase.
 
 - **Agent / Prompt engineering:** You tried four prompt structures, two tool-splitting schemes, and a different retrieval step. Last week's version scored better; bring *that* idea back onto the agent you've since rewritten.
 - **Backend / Systems:** Three caching strategies, two rate-limiters, a reworked query plan. Which won? Pull the winning variant forward without reverting everything built since.
 - **Frontend:** Competing interaction flows and layout variants, half commented out. Resurrect the one that tested best onto the current component tree.
-
-Also at home in ML research, including different loss terms, attention blocks, and augmentations. The shape is the same: the experiment is the idea, the metrics are the result, and you want one variant back on today's code.
+- **ML research:** Different loss terms, attention blocks, and augmentations. The experiment is the idea, the metrics are the result, and you want one variant back on today's code.
 
 ## Share the memory with your team
 
