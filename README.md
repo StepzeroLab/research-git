@@ -54,7 +54,7 @@ flowchart LR
     class C,F agent;
 ```
 
-## The Feature Capsule
+## What a Capsule Contains
 
 Every idea you keep becomes one capsule — a self-contained unit a future agent can read and bring back:
 
