@@ -76,7 +76,7 @@ The agent finds the capsule and **re-implements the idea onto today's code**, le
   <img src="assets/rgit-recall-skill-input.svg" alt="Explicitly ask a coding agent to recall the re-ranking retrieval step." width="847" />
 </p>
 
-### 3. From the terminal
+### 3. Working in the terminal? Three commands
 
 ```bash
 rgit run -- python eval_agent.py --retrieval rerank   # run an experiment; freezes a byte-exact snapshot + metrics
