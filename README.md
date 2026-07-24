@@ -26,7 +26,7 @@ It captures important experiments and feature decisions as reusable semantic uni
 
 AI coding tools can generate many different experiments and features in a day. But when you try to reintroduce a previously removed experiment just a few days later, the codebase may have changed so much that the experiment no longer fits the current infrastructure.
 
-Traditional Git preserves commits and diffs, but it does not tell an agent which changes belong to one experiment, why they existed, what assumptions they depended on, or what results they produced. Reverting can discard useful work added later. Replaying an old diff can fail against a changed architecture. Asking an agent to remove a feature without that context can also damage shared infrastructure.
+Traditional Git preserves commits and diffs, but it does not preserve the context behind them. It cannot tell an agent which changes belong to an experiment, why they were made, what assumptions they depended on, or what results they produced. Without that context, reverting may erase later work, replaying an old diff may fail against a changed architecture, and removing a feature may damage shared infrastructure.
 
 research-git records experiments and feature decisions as reusable **Feature Capsules**, including their intent, relevant code, dependencies, configuration, results, and restoration guidance. This gives coding agents the context to safely reapply or remove an idea on today's codebase without blindly restoring an old snapshot or deleting code piece by piece.
 
