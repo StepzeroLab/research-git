@@ -18,6 +18,10 @@
   <img src="assets/awesome-rgit-demo.svg" alt="research-git capture and removal workflow in Codex" width="847" />
 </p>
 
+research-git is a Git tool for researchers and developers that captures key experiments and feature decisions as reusable semantic units, enabling coding agents to reapply, adapt, or safely remove them on today's codebase.
+
+## Why research-git
+
 Git remembers commits. research-git remembers ideas.
 
 research-git turns experiments and features into reusable **Feature Capsules** so coding agents can reapply, adapt, or remove them safely as your code evolves.
