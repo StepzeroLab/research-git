@@ -2,7 +2,7 @@
   <title id="title">research-git capture and removal workflow in Codex</title>
   <desc id="desc">Codex fixes and automatically captures a real KTransformers FlashInfer MLA precision invariant, then uses the saved capsule to safely remove that optimization while preserving the Torch fallback.</desc>
   <style>
-    :root { --bg:#272822; --surface:#383830; --fg:#f8f8f2; --dim:#a59f85; --cyan:#5fd7ff; --green:#a6e22e; --yellow:#f4bf75; --magenta:#d7afff; }
+    :root { --bg:#272822; --surface:#41413a; --fg:#f8f8f2; --dim:#a59f85; --cyan:#5fd7ff; --green:#a6e22e; --yellow:#f4bf75; --magenta:#d7afff; }
     text { font-family:ui-monospace,"SFMono-Regular",Menlo,Monaco,Consolas,monospace; font-size:14px; letter-spacing:0; fill:var(--fg); dominant-baseline:text-before-edge; white-space:pre; }
     .dim{fill:var(--dim)} .tool{fill:var(--green)} .cyan{fill:var(--cyan)} .green{fill:var(--green)} .yellow{fill:var(--yellow)} .magenta{fill:var(--magenta)} .bold{font-weight:700}
   </style>
