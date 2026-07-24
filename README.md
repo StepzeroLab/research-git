@@ -53,7 +53,7 @@ Installation takes less than 30 seconds. Restart your coding agent afterwards so
 
 </details>
 
-### 2. With a coding agent
+### 2. Working with an agent? Just talk to it
 
 If your repository already has history, run `rgit digest scan`, then let your agent run the `rgit-digest` skill. This turns earlier work into Capsules so recall has something to find from day one.
 
