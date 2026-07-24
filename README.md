@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/awesome-rgit-demo.svg" alt="research-git capture and removal workflow in Codex" width="847" />
+  <img src="assets/awesome-rgit-demo.svg" alt="research-git capture and removal workflow in Codex" width="678" />
 </p>
 
 research-git is a new Git tool for researchers and developers, built for the agentic coding era.
