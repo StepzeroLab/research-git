@@ -33,7 +33,7 @@ research-git records experiments and feature decisions as reusable Capsules, cap
 ## Quick Start
 
 > [!NOTE]
-> We publish a new research-git release for major updates. [Keep research-git updated](#updating).
+> We publish a new research-git release after major iterations. [Keep research-git updated](#updating).
 
 ### 1. Install
 
