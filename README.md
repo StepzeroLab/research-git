@@ -55,7 +55,7 @@ flowchart LR
 ```
 
 <details>
-<summary>Learn more</summary>
+<summary>Learn more (under the hood)</summary>
 
 ### Build the memory, borrow the agent
 
