@@ -101,9 +101,9 @@ Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git
 
 ```bash
 pip install research-git
-rgit install        # wires research-git into every agent client on this machine
+rgit install                # wires research-git into every agent client on this machine
 cd your-project
-rgit init           # creates the .rgit/ store in your repo
+rgit init                   # creates the .rgit/ store in your repo
 ```
 
 That's the whole setup. Start a new agent session afterwards so it picks everything up.
