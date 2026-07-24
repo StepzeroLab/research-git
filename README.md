@@ -60,12 +60,12 @@ Every idea you keep becomes one capsule — a self-contained unit a future agent
 
 | Field | What it holds |
 |-------|---------------|
-| **intent** | why this change existed — the hypothesis, not a diff restatement |
-| **code slices** | the relevant snippets / files / symbols |
-| **knobs** | parameters / flags / configs |
-| **dependencies** | other capsules it needs + silent assumptions |
-| **result** | metrics / notes / why it worked or didn't, linked to the runs it produced |
-| **resurrection guide** | how to regenerate it onto a changed codebase |
+| **intent** | Why this change existed: the hypothesis, not a restatement of the diff. |
+| **code slices** | The relevant snippets, files, and symbols. |
+| **knobs** | The parameters, flags, and configuration. |
+| **dependencies** | The other Capsules it needs, including silent assumptions. |
+| **result** | The metrics, notes, and reasons it worked or did not work, linked to the runs it produced. |
+| **resurrection guide** | How to regenerate it onto a changed codebase. |
 
 Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran — so "the code behind this result" is always a perfect replay, never at the mercy of an agent.
 
