@@ -55,7 +55,7 @@ Installation takes less than 30 seconds. Restart your coding agent afterwards so
 
 ### 2. Working with an agent? Just talk to it
 
-If your repository already has history, run `rgit digest scan`, then let your agent run the `rgit-digest` skill. This turns earlier work into Capsules so recall has something to find from day one.
+If your repository already has history, let your agent run the `rgit-digest` skill. It turns earlier work into Capsules, giving recall something to find from day one.
 
 After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
 
