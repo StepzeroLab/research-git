@@ -58,13 +58,13 @@ Installation takes less than 30 seconds. Restart your coding agent afterwards so
 If your repository already has history, let your agent run the `rgit-digest` skill. It turns earlier work into Capsules, giving recall something to find from day one.
 
 <p align="center">
-  <img src="assets/rgit-digest-input.svg" alt="Run the research-git digest skill from a coding agent input." width="800" />
+  <img src="assets/rgit-digest-skill-input.svg" alt="Run the research-git digest skill from a coding agent input." width="800" />
 </p>
 
 After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
 
 <p align="center">
-  <img src="assets/rgit-recall-input.svg" alt="Ask a coding agent to bring back the re-ranking retrieval step." width="800" />
+  <img src="assets/rgit-recall-plain-text-input.svg" alt="Ask a coding agent to bring back the re-ranking retrieval step." width="800" />
 </p>
 
 The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
