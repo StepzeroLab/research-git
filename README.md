@@ -32,7 +32,7 @@ research-git records experiments and feature decisions as reusable Capsules, cap
 
 ## How it works
 
-One loop: capture each idea into a graph, then regenerate it onto today's code. The engine (blue) is free and deterministic; intelligence happens at exactly two points (green) — subagents dispatched onto your existing subscription, never a paid API.
+One loop: capture each idea into a graph, then regenerate it onto today's code. The engine (blue) is free and deterministic. Intelligence happens at exactly two points (green), where subagents run on your existing subscription without a paid API.
 
 <p align="center">
   <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
@@ -46,7 +46,7 @@ flowchart LR
     D -->|"/rgit-recall «query»"| E["compose brief vs<br/>today's code"]
     E --> F{{"capsule-<br/>regenerator"}}
     F --> G["reviewable diff<br/>on today's code"]
-    G -.->|"rgit run — freeze + link variant"| D
+    G -.->|"rgit run: freeze + link variant"| D
 
     classDef engine fill:#eef2ff,stroke:#5b6cff,color:#1e2a78;
     classDef agent fill:#eafff0,stroke:#36a85f,color:#0f5132;
@@ -93,7 +93,7 @@ Every idea you keep becomes a self-contained Capsule that a future agent can use
   </tbody>
 </table>
 
-Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran — so "the code behind this result" is always a perfect replay, never at the mercy of an agent.
+Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran. This ensures "the code behind this result" is always a perfect replay, never at the mercy of an agent.
 
 ## Quick Start
 
@@ -108,7 +108,7 @@ rgit init           # creates the .rgit/ store in your repo
 
 That's the whole setup. Start a new agent session afterwards so it picks everything up.
 
-Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules** — pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
+Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules**. Pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
 
 <details>
 <summary>Install details: choosing platforms, guidance modes, capture-on-commit</summary>
@@ -124,11 +124,11 @@ Adopting rgit on a repo that already has history? `rgit init` offers to **digest
 
 #### With a coding agent
 
-After install your agent does the remembering. Work as usual — it saves each meaningful idea as a Feature Capsule (asking you before anything is kept). Weeks later, when the code has moved on, just ask:
+After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
 
 > *"bring back the re-ranking retrieval step"*
 
-The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. No commands to memorize — but if you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
+The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
 
 #### From the terminal
 
@@ -138,7 +138,7 @@ rgit review                                           # see what's been captured
 rgit compare rerank                                   # which variant won?
 ```
 
-`rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session — that's where the intelligence lives; from the terminal you can always browse the memory with `rgit features` and `rgit graph`.
+`rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session because that's where the intelligence lives. From the terminal, you can always browse the memory with `rgit features` and `rgit graph`.
 
 More commands as your store grows: [More commands](#more-commands).
 
@@ -148,29 +148,29 @@ More commands as your store grows: [More commands](#more-commands).
 rgit update
 ```
 
-Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone — the command tells you how to restore them instead.
+Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone. The command tells you how to restore them instead.
 
-rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off — the check is throttled, the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
+rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off. The check is throttled, but the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
 
 ## Where it fits
 
-Anywhere you try many variations of one thing and later want a single one back — cleanly, on top of how the code looks now.
+Anywhere you try many variations of one thing and later want a single one back cleanly on top of how the code looks now.
 
-- **Agent / Prompt engineering** — you tried four prompt structures, two tool-splitting schemes, and a different retrieval step. Last week's version scored better; bring *that* idea back onto the agent you've since rewritten.
-- **Backend / Systems** — three caching strategies, two rate-limiters, a reworked query plan. Which won? Pull the winning variant forward without reverting everything built since.
-- **Frontend** — competing interaction flows and layout variants, half commented out. Resurrect the one that tested best onto the current component tree.
+- **Agent / Prompt engineering:** You tried four prompt structures, two tool-splitting schemes, and a different retrieval step. Last week's version scored better; bring *that* idea back onto the agent you've since rewritten.
+- **Backend / Systems:** Three caching strategies, two rate-limiters, a reworked query plan. Which won? Pull the winning variant forward without reverting everything built since.
+- **Frontend:** Competing interaction flows and layout variants, half commented out. Resurrect the one that tested best onto the current component tree.
 
-Also at home in ML research — different loss terms, attention blocks, augmentations. Same shape: the experiment is the idea, the metrics are the result, and you want one variant back on today's code.
+Also at home in ML research, including different loss terms, attention blocks, and augmentations. The shape is the same: the experiment is the idea, the metrics are the result, and you want one variant back on today's code.
 
 ## Share the memory with your team
 
-The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers — then *their* session regenerates an idea onto *their* code, on *their* subscription. The memory is shared; the intelligence is local.
+The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers. Their session then regenerates an idea onto their code using their subscription. The memory is shared; the intelligence is local.
 
 ## Under the Hood
 
 ### Build the memory, borrow the agent
 
-The engine owns the durable, deterministic parts — the graph, content-addressed object store, git diffing, and the byte-exact run freeze. The agentic parts are delegated to subagents the host already provides. We don't reimplement an agent loop, and we never call a paid API.
+The engine owns the durable, deterministic parts: the graph, content-addressed object store, git diffing, and the byte-exact run freeze. The agentic parts are delegated to subagents the host already provides. We don't reimplement an agent loop, and we never call a paid API.
 
 ### Two-phase capture
 
@@ -178,12 +178,12 @@ A free, deterministic Phase 1 (`libcst` maps diff hunks to the functions/classes
 
 ### Ranked, edge-aware recall
 
-Recall scores every approved capsule against your query in plain Python — no embeddings, no SQL `LIKE` traps — and boosts a hit when a connected capsule also matches, so related work surfaces together. Each result carries its related subgraph.
+Recall scores every approved capsule against your query in plain Python, without embeddings or SQL `LIKE` traps. It boosts a hit when a connected capsule also matches, so related work surfaces together. Each result carries its related subgraph.
 
 ### Two planes
 
-- **MCP — shared memory (query-only).** Returns graph snippets; safe to expose so a team shares one memory. Carries no intelligence.
-- **Plugin — local intelligence.** Three subagents (`capsule-segmenter`, `capsule-regenerator`, `edge-judge`) and two skills (`rgit-capture`, `rgit-recall`) define *how* a session acts on those snippets, natively, on its own subscription.
+- **MCP: shared memory (query-only).** Returns graph snippets; safe to expose so a team shares one memory. Carries no intelligence.
+- **Plugin: local intelligence.** Three subagents (`capsule-segmenter`, `capsule-regenerator`, `edge-judge`) and two skills (`rgit-capture`, `rgit-recall`) define *how* a session acts on those snippets, natively, on its own subscription.
 
 ### Reproducibility contract
 
@@ -203,7 +203,7 @@ The five-step loop above is the core. As your store grows, these additional comm
   <tbody>
     <tr>
       <td><code>rgit watch</code></td>
-      <td>free, deterministic background capture — stages raw material as you edit, so fleeting in-between states aren't lost</td>
+      <td>free, deterministic background capture that stages raw material as you edit, so fleeting in-between states aren't lost</td>
     </tr>
     <tr>
       <td><code>rgit capture [REV | A..B]</code></td>
@@ -211,7 +211,7 @@ The five-step loop above is the core. As your store grows, these additional comm
     </tr>
     <tr>
       <td><code>rgit install-hooks</code></td>
-      <td>opt-in: stage every commit's diff via a post-commit hook (not installed by <code>rgit install</code>; won't touch an existing hook) — see install details above</td>
+      <td>opt-in: stage every commit's diff via a post-commit hook (not installed by <code>rgit install</code>; won't touch an existing hook). See install details above</td>
     </tr>
     <tr>
       <td><code>rgit run --from &lt;capsule&gt;</code></td>
