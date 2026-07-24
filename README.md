@@ -58,14 +58,40 @@ flowchart LR
 
 Every idea you keep becomes one capsule — a self-contained unit a future agent can read and bring back:
 
-| Field | What it holds |
-|-------|---------------|
-| **intent** | Why this change existed: the hypothesis, not a restatement of the diff. |
-| **code slices** | The relevant snippets, files, and symbols. |
-| **knobs** | The parameters, flags, and configuration. |
-| **dependencies** | The other Capsules it needs, including silent assumptions. |
-| **result** | The metrics, notes, and reasons it worked or did not work, linked to the runs it produced. |
-| **resurrection guide** | How to regenerate it onto a changed codebase. |
+<table>
+  <thead>
+    <tr>
+      <th width="24%">Field</th>
+      <th>What it holds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>intent</strong></td>
+      <td>Why this change existed: the hypothesis, not a restatement of the diff.</td>
+    </tr>
+    <tr>
+      <td><strong>code slices</strong></td>
+      <td>The relevant snippets, files, and symbols.</td>
+    </tr>
+    <tr>
+      <td><strong>knobs</strong></td>
+      <td>The parameters, flags, and configuration.</td>
+    </tr>
+    <tr>
+      <td><strong>dependencies</strong></td>
+      <td>The other Capsules it needs, including silent assumptions.</td>
+    </tr>
+    <tr>
+      <td><strong>result</strong></td>
+      <td>The metrics, notes, and reasons it worked or did not work, linked to the runs it produced.</td>
+    </tr>
+    <tr>
+      <td><strong>resurrection guide</strong></td>
+      <td>How to regenerate it onto a changed codebase.</td>
+    </tr>
+  </tbody>
+</table>
 
 Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran — so "the code behind this result" is always a perfect replay, never at the mercy of an agent.
 
