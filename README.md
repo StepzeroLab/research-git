@@ -178,8 +178,4 @@ The five-step loop above is the core. These show up as your store grows — run 
 
 ## License
 
-<p align="center">
-  <strong>MIT</strong> © Stepzero Lab
-  <br />
-  <sub>Core contributors: Yuxiang Lin · Fengrong Wan · Jiajun Sun</sub>
-</p>
+MIT
