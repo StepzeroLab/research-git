@@ -56,7 +56,7 @@ flowchart LR
 
 ## What a Capsule Contains
 
-Every idea you keep becomes one capsule — a self-contained unit a future agent can read and bring back:
+Every idea you keep becomes a self-contained Capsule that a future agent can use to bring the idea back:
 
 <table>
   <thead>
