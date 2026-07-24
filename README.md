@@ -53,11 +53,9 @@ Installation takes less than 30 seconds. Restart your coding agent afterwards so
 
 </details>
 
-### 2. Use research-git
+### 2. With a coding agent
 
-> Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules**. Pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
-
-#### With a coding agent
+If your repository already has history, run `rgit digest scan`, then let your agent run the `rgit-digest` skill. This turns earlier work into Capsules so recall has something to find from day one.
 
 After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
 
@@ -65,7 +63,7 @@ After install your agent does the remembering. Work as usual. It saves each mean
 
 The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
 
-#### From the terminal
+### 3. From the terminal
 
 ```bash
 rgit run -- python eval_agent.py --retrieval rerank   # run an experiment; freezes a byte-exact snapshot + metrics
@@ -77,7 +75,7 @@ rgit compare rerank                                   # which variant won?
 
 More commands as your store grows: [More commands](#more-commands).
 
-### 3. Update when needed
+### 4. Update when needed
 
 ```bash
 rgit update
