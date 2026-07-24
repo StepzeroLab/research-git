@@ -144,7 +144,7 @@ rgit init                   # creates the .rgit/ store in your repo
 
 ### 2. Use research-git
 
-Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules**. Pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
+> Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules**. Pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
 
 #### With a coding agent
 
