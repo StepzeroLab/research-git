@@ -321,7 +321,7 @@
         <text x="16" y="21" class="magenta">$research-git:rgit-recall</text>
         <text x="16" y="38" clip-path="url(#recall-input-type)">Remove the FlashInfer MLA optimization but keep generation behavior unchanged.</text>
       </g>
-      <rect y="-14" width="8.43" height="17" fill="var(--fg)" opacity="0">
+      <rect y="-2" width="8.43" height="16" fill="var(--fg)" opacity="0">
         <animate attributeName="opacity"
           values=".9;.9;0;0;.9;.9;0;0;.9;.9;0;0"
           keyTimes="0;0.053830;0.053831;0.109730;0.109731;0.126294;0.126295;0.283642;0.283643;0.318840;0.318841;1"
