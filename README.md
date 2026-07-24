@@ -125,15 +125,15 @@ Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git
 
 ### 1. Install
 
+> [!TIP]
+> Installation takes less than 30 seconds. Restart your coding agent afterwards so it loads research-git.
+
 ```bash
 pip install research-git
 rgit install                # wires research-git into every agent client on this machine
 cd your-project
 rgit init                   # creates the .rgit/ store in your repo
 ```
-
-> [!TIP]
-> Installation takes less than 30 seconds. Restart your coding agent afterwards so it loads research-git.
 
 <details>
 <summary>Install details: choosing platforms, guidance modes, capture-on-commit</summary>
