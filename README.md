@@ -24,11 +24,11 @@ It captures important experiments and feature decisions as reusable semantic uni
 
 ## Why research-git
 
-Git remembers commits. research-git remembers ideas.
+AI coding tools can generate dozens of experiments and features in a day. A few days later, the codebase may have changed so much that an earlier idea no longer fits the current infrastructure.
 
-research-git turns experiments and features into reusable **Feature Capsules** so coding agents can reapply, adapt, or remove them safely as your code evolves.
+Traditional Git preserves commits and diffs, but it does not tell an agent which changes belong to one experiment, why they existed, what assumptions they depended on, or what results they produced. Reverting can discard useful work added later. Replaying an old diff can fail against a changed architecture. Asking an agent to remove a feature without that context can also damage shared infrastructure.
 
-> **Not a rollback. Not hard deletion. Bring back the idea, not the old branch.**
+research-git records experiments and feature decisions as reusable **Feature Capsules**, including their intent, relevant code, dependencies, configuration, results, and restoration guidance. This gives coding agents the context to reapply or remove an idea on today's codebase without blindly restoring an old snapshot or deleting code piece by piece.
 
 ## How it works
 
