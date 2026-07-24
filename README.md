@@ -30,6 +30,62 @@ Traditional Git preserves commits and diffs, but it does not preserve the contex
 
 research-git records experiments and feature decisions as reusable Capsules, capturing their intent, relevant code, dependencies, configuration, results, and restoration guidance. This gives coding agents the context to safely reapply or remove them on today’s codebase without restoring an old snapshot or deleting code piece by piece.
 
+## Quick Start
+
+### 1. Install
+
+```bash
+pip install research-git
+rgit install                # wires research-git into every agent client on this machine
+cd your-project
+rgit init                   # creates the .rgit/ store in your repo
+```
+
+<details>
+<summary>Installation takes less than 30 seconds. Restart your coding agent afterwards so it loads research-git. Install details: choosing platforms, guidance modes, capture-on-commit</summary>
+
+- `rgit install claude-code` (or `codex` / `gemini` / `opencode` / `generic`) targets one client; `--list` shows all; `--uninstall` removes.
+- The installer also writes a short guidance block into your client's global file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, …) so the agent knows when to save ideas. On an interactive terminal you pick how proactive that should be (`default` / `manual-only` / `none`); pass `--guidance <mode>` to choose non-interactively.
+- **Optional:** `rgit install-hooks` (per repo) makes every `git commit` stage its own snapshot automatically, so nothing slips through even when you forget. It never touches an existing hook, hooks never approve anything, and `rgit install-hooks --uninstall` removes it. Skip it in CI or shared clones.
+- Manual route on Claude Code: `/plugin marketplace add StepzeroLab/research-git` then `/plugin install research-git@research-git`.
+
+</details>
+
+### 2. Use research-git
+
+> Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules**. Pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
+
+#### With a coding agent
+
+After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
+
+> *"bring back the re-ranking retrieval step"*
+
+The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
+
+#### From the terminal
+
+```bash
+rgit run -- python eval_agent.py --retrieval rerank   # run an experiment; freezes a byte-exact snapshot + metrics
+rgit review                                           # see what's been captured, approve what's worth keeping
+rgit compare rerank                                   # which variant won?
+```
+
+`rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session because that's where the intelligence lives. From the terminal, you can always browse the memory with `rgit features` and `rgit graph`.
+
+More commands as your store grows: [More commands](#more-commands).
+
+### 3. Update when needed
+
+```bash
+rgit update
+```
+
+> [!NOTE]
+> Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone. The command tells you how to restore them instead.
+>
+> rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off. The check is throttled, but the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
+
 ## How it works
 
 One loop: capture each idea into a graph, then regenerate it onto today's code. The engine (blue) is free and deterministic. Intelligence happens at exactly two points (green), where subagents run on your existing subscription without a paid API.
@@ -120,62 +176,6 @@ Every idea you keep becomes a self-contained Capsule that a future agent can use
 </table>
 
 Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran. This ensures "the code behind this result" is always a perfect replay, never at the mercy of an agent.
-
-## Quick Start
-
-### 1. Install
-
-```bash
-pip install research-git
-rgit install                # wires research-git into every agent client on this machine
-cd your-project
-rgit init                   # creates the .rgit/ store in your repo
-```
-
-<details>
-<summary>Installation takes less than 30 seconds. Restart your coding agent afterwards so it loads research-git. Install details: choosing platforms, guidance modes, capture-on-commit</summary>
-
-- `rgit install claude-code` (or `codex` / `gemini` / `opencode` / `generic`) targets one client; `--list` shows all; `--uninstall` removes.
-- The installer also writes a short guidance block into your client's global file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, …) so the agent knows when to save ideas. On an interactive terminal you pick how proactive that should be (`default` / `manual-only` / `none`); pass `--guidance <mode>` to choose non-interactively.
-- **Optional:** `rgit install-hooks` (per repo) makes every `git commit` stage its own snapshot automatically, so nothing slips through even when you forget. It never touches an existing hook, hooks never approve anything, and `rgit install-hooks --uninstall` removes it. Skip it in CI or shared clones.
-- Manual route on Claude Code: `/plugin marketplace add StepzeroLab/research-git` then `/plugin install research-git@research-git`.
-
-</details>
-
-### 2. Use research-git
-
-> Adopting rgit on a repo that already has history? `rgit init` offers to **digest that history into capsules**. Pick a mode in the prompt, then let your agent run the `rgit-digest` skill so recall has something to find from day one.
-
-#### With a coding agent
-
-After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
-
-> *"bring back the re-ranking retrieval step"*
-
-The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
-
-#### From the terminal
-
-```bash
-rgit run -- python eval_agent.py --retrieval rerank   # run an experiment; freezes a byte-exact snapshot + metrics
-rgit review                                           # see what's been captured, approve what's worth keeping
-rgit compare rerank                                   # which variant won?
-```
-
-`rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session because that's where the intelligence lives. From the terminal, you can always browse the memory with `rgit features` and `rgit graph`.
-
-More commands as your store grows: [More commands](#more-commands).
-
-### 3. Update when needed
-
-```bash
-rgit update
-```
-
-> [!NOTE]
-> Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone. The command tells you how to restore them instead.
->
-> rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off. The check is throttled, but the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
 
 ## Where it fits
 
