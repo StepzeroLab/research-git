@@ -32,7 +32,7 @@
   </defs>
 
   <rect width="847" height="799" rx="5" fill="var(--bg)"/>
-  <circle cx="24" cy="23" r="7" fill="#ff5f57"/><circle cx="44" cy="23" r="7" fill="#febc2e"/><circle cx="64" cy="23" r="7" fill="#28c840"/>
+  <circle cx="24" cy="23" r="6" fill="#ff5f57"/><circle cx="44" cy="23" r="6" fill="#febc2e"/><circle cx="64" cy="23" r="6" fill="#28c840"/>
   <text x="423.5" y="15" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12" font-weight="700" opacity=".72">ktransformers — codex — 100×30</text>
 
   <svg x="23" y="50" width="800" height="646" viewBox="0 0 800 646" overflow="hidden">
