@@ -214,7 +214,7 @@ The five-step loop above is the core. As your store grows, these additional comm
 <table>
   <thead>
     <tr>
-      <th width="29%">Command</th>
+      <th width="40%">Command</th>
       <th>What it does</th>
     </tr>
   </thead>
@@ -232,8 +232,8 @@ The five-step loop above is the core. As your store grows, these additional comm
       <td>opt-in: stage every commit's diff via a post-commit hook (not installed by <code>rgit install</code>; won't touch an existing hook). See install details above</td>
     </tr>
     <tr>
-      <td><code>rgit run --from &lt;capsule&gt;</code></td>
-      <td>run a recalled variant and link the new run as a <code>variant_of</code> the original</td>
+      <td><code>rgit run --from &lt;capsule&gt; -- &lt;command&gt;</code></td>
+      <td>run and record a recalled implementation, for example <code>rgit run --from feat_ab12 -- python eval.py</code>; after its proposal is approved, the new Capsule is linked as a <code>variant_of</code> the original</td>
     </tr>
     <tr>
       <td><code>rgit compare &lt;query&gt;</code></td>
