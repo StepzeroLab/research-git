@@ -123,11 +123,11 @@
       </circle>
 
       <svg x="0" y="462" width="800" height="114" viewBox="0 0 800 114" overflow="hidden" opacity="0">
-        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.133541;0.135611;0.231884;0.23706;1" dur="48.3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.162526;0.164596;0.231884;0.23706;1" dur="48.3s" repeatCount="indefinite"/>
         <g>
           <animateTransform attributeName="transform" type="translate"
             values="0 0;0 0;0 -100;0 -650;0 -798;0 -798"
-            keyTimes="0;0.156315;0.177018;0.193582;0.231884;1"
+            keyTimes="0;0.164596;0.177018;0.193582;0.231884;1"
             keySplines="0 0 1 1;0.25 0.1 0.25 1;0.6 0 1 0.5;0 0.7 0.2 1;0 0 1 1"
             dur="48.3s" repeatCount="indefinite" calcMode="spline"/>
 
