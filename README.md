@@ -85,7 +85,7 @@ rgit compare rerank                                   # which variant won?
 
 More commands as your store grows: [More commands](#more-commands).
 
-> [!TIP]
+> [!NOTE]
 > We publish a new research-git release for major updates. [Keep research-git updated](#updating).
 
 ## How it works
