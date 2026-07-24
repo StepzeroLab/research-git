@@ -69,6 +69,10 @@ After install your agent does the remembering. Work as usual. It saves each mean
 
 The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
 
+<p align="center">
+  <img src="assets/rgit-capture-input.svg" alt="Explicitly ask a coding agent to capture recent work." width="800" />
+</p>
+
 ### 3. From the terminal
 
 ```bash

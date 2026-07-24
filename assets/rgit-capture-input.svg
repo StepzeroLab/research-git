@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="847" height="118" viewBox="0 0 847 118" role="img" aria-labelledby="title desc">
+  <title id="title">Capture recent work in Codex</title>
+  <desc id="desc">A compact Codex terminal input referencing the research-git capture skill to save recent work.</desc>
+  <style>
+    :root { --bg:#272822; --surface:#41413a; --fg:#f8f8f2; --dim:#a59f85; --magenta:#d7afff; }
+    text { font-family:ui-monospace,"SFMono-Regular",Menlo,Monaco,Consolas,monospace; font-size:14px; letter-spacing:0; fill:var(--fg); dominant-baseline:text-before-edge; }
+    .dim { fill:var(--dim); }
+    .magenta { fill:var(--magenta); }
+  </style>
+
+  <rect width="847" height="118" rx="5" fill="var(--bg)"/>
+  <circle cx="24" cy="20" r="7" fill="#ff5f57"/>
+  <circle cx="44" cy="20" r="7" fill="#febc2e"/>
+  <circle cx="64" cy="20" r="7" fill="#28c840"/>
+  <text x="423.5" y="12" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12" font-weight="700" opacity=".72">your-project — codex</text>
+
+  <rect x="23" y="50" width="801" height="45" rx="2" fill="var(--surface)"/>
+  <text x="39" y="64" class="dim">›</text>
+  <text x="59" y="64" class="magenta">@research-git:rgit-capture</text>
+  <text x="294" y="64"> Save my recent work.</text>
+</svg>
