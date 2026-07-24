@@ -133,7 +133,7 @@ rgit init                   # creates the .rgit/ store in your repo
 ```
 
 > [!TIP]
-> Installation takes less than 30 seconds. Start a new agent session afterwards so it picks everything up.
+> Installation takes less than 30 seconds. Restart your coding agent afterwards so it loads research-git.
 
 <details>
 <summary>Install details: choosing platforms, guidance modes, capture-on-commit</summary>
