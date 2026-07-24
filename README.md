@@ -168,7 +168,7 @@ The five-step loop above is the core. These show up as your store grows — run 
 <table>
   <thead>
     <tr>
-      <th width="32%">Command</th>
+      <th width="29%">Command</th>
       <th>What it does</th>
     </tr>
   </thead>
