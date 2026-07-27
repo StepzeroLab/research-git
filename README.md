@@ -105,27 +105,25 @@ Anywhere you try many variations of one thing and later want to bring one back o
 
 ## How it works
 
-One loop: capture each idea into a graph, then regenerate it onto today's code. The engine (blue) is free and deterministic. Intelligence happens at exactly two points (green), where subagents run on your existing subscription without a paid API.
+Figure 1 shows how code changes become Capsules. After you edit code or complete an `rgit run`, research-git's local engine reads the Git diff, maps changed hunks to code symbols, stores the captured change, and stages a raw Proposal. This processing is deterministic and does not call a model or API. The experiment executed by `rgit run` still uses whatever compute it requires.
+
+The agentic phase begins with the `/rgit-capture` skill. In the default mode, your coding agent starts this flow automatically after meaningful changes; you can also invoke the skill explicitly. A `capsule-segmenter` sub-agent turns the raw Proposal into focused Capsule candidates and asks which ones you want to keep. After approval, an `edge-judge` sub-agent identifies relationships with the existing graph. These sub-agents run on your existing coding-agent subscription without using a paid API.
 
 <p align="center">
-  <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
+  <img src="assets/rgit-capsule-capture-workflow.svg" alt="research-git Capsule capture workflow" width="100%" />
+  <br />
+  <em>Figure 1. Capturing code changes into the Capsule graph.</em>
 </p>
 
-```mermaid
-flowchart LR
-    A["edit code /<br/>rgit run -- ..."] -->|"free, deterministic"| B["raw proposal<br/>(diff staged)"]
-    B -->|"/rgit-capture"| C{{"capsule-<br/>segmenter"}}
-    C --> D[("Feature Capsule<br/>graph (.rgit/)")]
-    D -->|"/rgit-recall «query»"| E["compose brief vs<br/>today's code"]
-    E --> F{{"capsule-<br/>regenerator"}}
-    F --> G["reviewable diff<br/>on today's code"]
-    G -.->|"rgit run: freeze + link variant"| D
+Figure 2 shows how a stored Capsule is used on today's code. The `/rgit-recall` skill searches the graph and retrieves the relevant intent, code context, assumptions, dependencies, and restoration guidance. A coding agent uses this context to reapply or remove the idea against the current code, leaving a reviewable diff instead of restoring an old snapshot or replaying an outdated patch.
 
-    classDef engine fill:#eef2ff,stroke:#5b6cff,color:#1e2a78;
-    classDef agent fill:#eafff0,stroke:#36a85f,color:#0f5132;
-    class A,B,D,E,G engine;
-    class C,F agent;
-```
+After you review the diff, `rgit run` can evaluate the implementation, freeze the exact code that ran, and record its metrics. If the resulting Proposal is approved, the new Capsule is linked to the recalled Capsule as a variant. `rgit run` records the result and lineage; it does not perform recall or create the variant before approval.
+
+<p align="center">
+  <img src="assets/rgit-capsule-recall-workflow.svg" alt="research-git Capsule recall workflow" width="100%" />
+  <br />
+  <em>Figure 2. Recalling Capsules and recording new variants.</em>
+</p>
 
 <details>
 <summary>Learn more (under the hood)</summary>
