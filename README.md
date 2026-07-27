@@ -1,4 +1,4 @@
-<h1 align="center"><img src="assets/research-git-logo.png" alt="research-git logo" height="64" align="absmiddle" />&nbsp;&nbsp;&nbsp;research-git</h1>
+<h1 align="center"><img src="assets/logo.png" alt="research-git logo" height="64" align="absmiddle" />&nbsp;&nbsp;&nbsp;research-git</h1>
 
 <p align="center">
   <strong>Capture key experiments and feature decisions. Agentically remove or reapply them in your current codebase.</strong>
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
+  <img src="assets/awesome-rgit-demo.svg" alt="research-git capture and removal workflow in Codex" width="847" />
 </p>
 
 Git remembers commits. research-git remembers ideas.
@@ -27,6 +27,10 @@ research-git turns experiments and features into reusable **Feature Capsules** s
 ## How it works
 
 One loop: capture each idea into a graph, then regenerate it onto today's code. The engine (blue) is free and deterministic; intelligence happens at exactly two points (green) — subagents dispatched onto your existing subscription, never a paid API.
+
+<p align="center">
+  <img src="assets/hero.png" alt="A Git tool for ambitious researchers and developers in the agentic era." width="800" />
+</p>
 
 ```mermaid
 flowchart LR

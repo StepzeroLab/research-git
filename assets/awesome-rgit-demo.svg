@@ -1,0 +1,337 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 847 799" width="847" height="799" role="img" aria-labelledby="title desc">
+  <title id="title">research-git capture and removal workflow in Codex</title>
+  <desc id="desc">Codex fixes and automatically captures a real KTransformers FlashInfer MLA precision invariant, then uses the saved capsule to safely remove that optimization while preserving the Torch fallback.</desc>
+  <style>
+    :root { --bg:#272822; --surface:#383830; --fg:#f8f8f2; --dim:#a59f85; --cyan:#5fd7ff; --green:#a6e22e; --yellow:#f4bf75; --magenta:#d7afff; }
+    text { font-family:ui-monospace,"SFMono-Regular",Menlo,Monaco,Consolas,monospace; font-size:14px; letter-spacing:0; fill:var(--fg); dominant-baseline:text-before-edge; white-space:pre; }
+    .dim{fill:var(--dim)} .tool{fill:var(--green)} .cyan{fill:var(--cyan)} .green{fill:var(--green)} .yellow{fill:var(--yellow)} .magenta{fill:var(--magenta)} .bold{font-weight:700}
+  </style>
+  <defs>
+    <clipPath id="summary-reveal" clipPathUnits="userSpaceOnUse">
+      <rect x="0" y="459" width="0" height="24">
+        <animate attributeName="width" values="0;0;676;676"
+          keyTimes="0;0.23706;0.258799;1"
+          keySplines="0 0 1 1;0.4 0 0.2 1;0 0 1 1"
+          dur="48.3s" repeatCount="indefinite" calcMode="spline"/>
+      </rect>
+    </clipPath>
+    <clipPath id="keep-input-type" clipPathUnits="userSpaceOnUse">
+      <rect x="16" y="18" width="0" height="18">
+        <animate attributeName="width" values="0;0;8.43;16.86;25.29;33.72;42.15;50.58;59.01;67.44;67.44"
+          keyTimes="0;0.109731;0.110702;0.111673;0.112644;0.113615;0.114587;0.115558;0.116529;0.117500;1"
+          dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      </rect>
+    </clipPath>
+    <clipPath id="recall-input-type" clipPathUnits="userSpaceOnUse">
+      <rect x="16" y="35" width="0" height="18">
+        <animate attributeName="width" values="0;0;8.43;16.86;25.29;33.72;42.15;50.58;59.01;67.44;75.87;84.30;92.73;101.16;109.59;118.02;126.45;134.88;143.31;151.74;160.17;168.60;177.03;185.46;193.89;202.32;210.75;219.18;227.61;236.04;244.47;252.90;261.33;269.76;278.19;286.62;295.05;303.48;311.91;320.34;328.77;337.20;345.63;354.06;362.49;370.92;379.35;387.78;396.21;404.64;413.07;421.50;429.93;438.36;446.79;455.22;463.65;472.08;480.51;488.94;497.37;505.80;514.23;522.66;531.09;539.52;547.95;556.38;564.81;573.24;581.67;590.10;598.53;606.96;615.39;623.82;632.25;640.68;649.11;657.54;657.54"
+          keyTimes="0;0.299171;0.299397;0.299622;0.299848;0.300074;0.300299;0.300525;0.300750;0.300976;0.301202;0.301427;0.301653;0.301879;0.302104;0.302330;0.302555;0.302781;0.303007;0.303232;0.303458;0.303684;0.303909;0.304135;0.304360;0.304586;0.304812;0.305037;0.305263;0.305489;0.305714;0.305940;0.306165;0.306391;0.306617;0.306842;0.307068;0.307294;0.307519;0.307745;0.307971;0.308196;0.308422;0.308647;0.308873;0.309099;0.309324;0.309550;0.309776;0.310001;0.310227;0.310452;0.310678;0.310904;0.311129;0.311355;0.311581;0.311806;0.312032;0.312257;0.312483;0.312709;0.312934;0.313160;0.313386;0.313611;0.313837;0.314062;0.314288;0.314514;0.314739;0.314965;0.315191;0.315416;0.315642;0.315867;0.316093;0.316319;0.316544;0.316770;1"
+          dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      </rect>
+    </clipPath>
+  </defs>
+
+  <rect width="847" height="799" rx="5" fill="var(--bg)"/>
+  <circle cx="24" cy="23" r="7" fill="#ff5f57"/><circle cx="44" cy="23" r="7" fill="#febc2e"/><circle cx="64" cy="23" r="7" fill="#28c840"/>
+  <text x="423.5" y="15" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12" font-weight="700" opacity=".72">ktransformers — codex — 100×30</text>
+
+  <svg x="23" y="50" width="800" height="646" viewBox="0 0 800 646" overflow="hidden">
+    <g id="history">
+      <animateTransform attributeName="transform" type="translate"
+        values="0 0;0 0;0 0;0 0;0 0;0 -27;0 -61;0 -90;0 -107;0 -107"
+        keyTimes="0;0.10352;0.132505;0.318841;0.337474;0.349896;0.362319;0.372671;0.378882;1"
+        dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      <g>
+        <text x="16" y="17" class="dim"><tspan>&gt;_ </tspan><tspan class="bold">OpenAI Codex</tspan><tspan> (v0.144.4)</tspan></text>
+        <text x="16" y="51" class="dim"><tspan>model:     </tspan><tspan class="bold">gpt-5.6-sol medium</tspan><tspan>   /model to change</tspan></text>
+        <text x="16" y="68" class="dim"><tspan>directory: </tspan><tspan class="bold">~/Downloads/ktransformers</tspan></text>
+        <rect x=".6" y=".6" width="540" height="100.8" rx="3" fill="none" stroke="var(--dim)" stroke-width="1.2"/>
+      </g>
+
+      <g opacity="0" transform="translate(0 113)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
+        <text x="0" y="17"><tspan class="dim bold">› </tspan>Fix FlashInfer MLA precision and validate it against the Torch reference.</text>
+      </g>
+      <g opacity="0" transform="translate(0 176)">
+        <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.060041;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <text x="0" y="0"><tspan class="dim bold">•</tspan><tspan class="bold"> Explored</tspan></text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.062112;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ rg -n "softmax_scale|FlashInfer" ktransformers/operators ktransformers/util</text>
+            <text x="0" y="17" class="dim">  └ util/utils.py: decode used q_head_dim ** (-0.5)</text>
+          </g>
+        </svg>
+        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited transformers.py and util/utils.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.065217;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.065217;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.068323;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ Passed layer.self_attn.softmax_scale into decode planning</text>
+            <text x="0" y="17" class="dim">  └ Preserved the Torch reference path</text>
+          </g>
+        </svg>
+        <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran precision checks</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.071429;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="85" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.071429;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.074120;0.076812;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ Compared FlashInfer with the Torch reference</text>
+            <text x="0" y="17" class="dim">  └ Verified model-configured attention scaling</text>
+            <text x="0" y="34" class="dim">  └ HumanEval → 89.6</text>
+          </g>
+        </svg>
+      </g>
+      <g opacity="0" transform="translate(0 278)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.080745;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <text x="0" y="0"><tspan class="tool bold">•</tspan><tspan class="magenta bold"> $research-git:rgit-capture</tspan></text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -68;0 -68" keyTimes="0;0.083230;0.085714;0.088199;0.090683;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ rgit capture → proposal prop_4c8fa1b2 created</text>
+            <text x="0" y="17" class="dim">  └ rgit pending --json → 1 proposal</text>
+            <text x="0" y="34" class="dim">  └ capsule-segmenter → 1 candidate</text>
+            <text x="0" y="51" class="dim">  └ rgit resegment prop_4c8fa1b2 --from-json -</text>
+            <text x="0" y="68" class="dim">  └ Candidate ready for human review</text>
+          </g>
+        </svg>
+      </g>
+
+      <g opacity="0" transform="translate(0 324)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.090683;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <text x="0" y="0" font-size="12"><tspan class="cyan">flashinfer-mla-model-scale</tspan><tspan> — Preserve model scale and Torch parity.</tspan><tspan x="0" dy="17">Validate with HumanEval (89.6) before enabling FlashInfer MLA. Keep this capsule?</tspan></text>
+      </g>
+
+      <g opacity="0" transform="translate(0 370)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="51" fill="var(--surface)"/>
+        <text x="0" y="17"><tspan class="dim bold">› </tspan>Keep it.</text>
+      </g>
+      <text x="0" y="433" opacity="0"><tspan class="dim bold">•</tspan> Saved <tspan class="cyan">flashinfer-mla-model-scale</tspan> as a capsule.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.132505;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="0" y="462" class="yellow bold" clip-path="url(#summary-reveal)">• 840 commits later • 345,104 lines changed since this capsule was saved.</text>
+      <g transform="translate(704 459) scale(.66)" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0">
+        <path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>
+        <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.258799;0.26087;1" dur="48.3s" repeatCount="indefinite"/>
+      </g>
+      <circle cy="519" r="0" fill="var(--yellow)">
+        <animate attributeName="cx" values="400;400;6;676;676;676"
+          keyTimes="0;0.231884;0.23706;0.258799;0.26087;1"
+          keySplines="0 0 1 1;0.22 1 0.36 1;0.4 0 0.2 1;0 0 1 1;0 0 1 1"
+          dur="48.3s" repeatCount="indefinite" calcMode="spline"/>
+        <animate attributeName="cy" values="519;519;470;470;470;470"
+          keyTimes="0;0.231884;0.23706;0.258799;0.26087;1"
+          keySplines="0 0 1 1;0.22 1 0.36 1;0 0 1 1;0 0 1 1;0 0 1 1"
+          dur="48.3s" repeatCount="indefinite" calcMode="spline"/>
+        <animate attributeName="r" values="0;0;6;6;0;0"
+          keyTimes="0;0.231884;0.23706;0.258799;0.26087;1"
+          dur="48.3s" repeatCount="indefinite"/>
+      </circle>
+
+      <svg x="0" y="462" width="800" height="114" viewBox="0 0 800 114" overflow="hidden" opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.133541;0.135611;0.231884;0.23706;1" dur="48.3s" repeatCount="indefinite"/>
+        <g>
+          <animateTransform attributeName="transform" type="translate"
+            values="0 0;0 0;0 -100;0 -650;0 -798;0 -798"
+            keyTimes="0;0.156315;0.177018;0.193582;0.231884;1"
+            keySplines="0 0 1 1;0.25 0.1 0.25 1;0.6 0 1 0.5;0 0.7 0.2 1;0 0 1 1"
+            dur="48.3s" repeatCount="indefinite" calcMode="spline"/>
+
+          <g>
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Add long-context chunked prefill and decode replanning.</text>
+            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored attention and cache planning</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.140787;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <svg x="0" y="63" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+              <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.145963;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.148551;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Traced prefill, decode, and KV-cache paths</text>
+                <text x="0" y="17" class="dim">  └ Found chunk boundaries in cache planning</text>
+              </g>
+            </svg>
+            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited attention.py and cache.py</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.151138;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <svg x="0" y="97" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+              <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.156315;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.158385;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Updated chunk planning without changing decode semantics</text>
+                <text x="0" y="17" class="dim">  └ Long-context tests passed; committed changes</text>
+              </g>
+            </svg>
+          </g>
+
+          <g transform="translate(0 114)" opacity="0">
+            <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.160456;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Keep complete Transformer layers available for CPU offload.</text>
+            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored transfer maps and device dispatch</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.165631;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="63" class="dim" opacity="0">  └ Found GPU-only assumptions in attention routing<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.170808;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited dispatch and mixed-device configs</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.175983;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="97" class="dim" opacity="0">  └ GPU-only and GPU+CPU tests passed<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.180124;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+          </g>
+
+          <g transform="translate(0 228)" opacity="0">
+            <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.185301;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Integrate Triton and vendor-specific attention backends.</text>
+            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored backend routing and kernel guards</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.186335;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="63" class="dim" opacity="0">  └ Compared Torch, Triton, and vendor paths<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.188406;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited backend dispatch and precision guards</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.190476;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="97" class="dim" opacity="0">  └ Reference parity checks passed<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.192547;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+          </g>
+
+          <g transform="translate(0 342)" opacity="0">
+            <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.191511;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Add SGLang serving and support new model families.</text>
+            <text x="0" y="46" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored server, adapters, and model registry</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.195652;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="63" class="dim" opacity="0">  └ Traced runtime and configuration boundaries<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.199793;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="80" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited serving and model integration</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.204969;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+            <text x="0" y="97" class="dim" opacity="0">  └ Integration suite passed; committed changes<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.210144;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+          </g>
+
+          <g transform="translate(0 456)">
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Add AMX and AVX kernel variants for MoE inference.</text>
+            <text x="0" y="46"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored CPU kernels and quantized layouts</tspan></text>
+            <text x="0" y="63" class="dim">  └ Added vectorized expert execution paths</text>
+            <text x="0" y="80"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran kernel benchmarks and correctness tests</tspan></text>
+            <text x="0" y="97" class="dim">  └ Performance checks passed; committed changes</text>
+          </g>
+
+          <g transform="translate(0 570)">
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Support Qwen, DeepSeek, and multimodal model families.</text>
+            <text x="0" y="46"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored model loaders and architecture adapters</tspan></text>
+            <text x="0" y="63" class="dim">  └ Added configs, mappings, and runtime guards</text>
+            <text x="0" y="80"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran model integration suites</tspan></text>
+            <text x="0" y="97" class="dim">  └ Supported families passed smoke tests</text>
+          </g>
+
+          <g transform="translate(0 684)">
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Add distributed serving and scheduler improvements.</text>
+            <text x="0" y="46"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored workers, queues, and request routing</tspan></text>
+            <text x="0" y="63" class="dim">  └ Updated scheduler and distributed execution</text>
+            <text x="0" y="80"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran multi-worker integration tests</tspan></text>
+            <text x="0" y="97" class="dim">  └ Serving checks passed; committed changes</text>
+          </g>
+
+          <g transform="translate(0 798)">
+            <rect width="800" height="34" fill="var(--surface)"/>
+            <text x="0" y="8"><tspan class="dim bold">› </tspan>Harden quantized weight loading and release tooling.</text>
+            <text x="0" y="46"><tspan class="tool bold">•</tspan><tspan class="bold"> Explored loaders, packaging, and CI workflows</tspan></text>
+            <svg x="0" y="63" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.204969;0.214286;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Inspected RAWINT4, Marlin, and loader mappings</text>
+                <text x="0" y="17" class="dim">  └ Traced wheel, submodule, and release workflows</text>
+                <text x="0" y="34" class="dim">  └ Fixed quantized formats and release paths</text>
+              </g>
+            </svg>
+            <text x="0" y="80"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran build and compatibility checks</tspan></text>
+            <svg x="0" y="97" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.220497;0.227743;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+                <text x="0" y="0" class="dim">  └ Built CPU and CUDA package variants</text>
+                <text x="0" y="17" class="dim">  └ Quantized loader compatibility checks passed</text>
+                <text x="0" y="34" class="dim">  └ Release validation passed; committed changes</text>
+              </g>
+            </svg>
+          </g>
+        </g>
+      </svg>
+
+      <g opacity="0" transform="translate(0 491)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.318841;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/><rect width="800" height="68" fill="var(--surface)"/>
+        <text x="0" y="17"><tspan class="dim bold">› </tspan><tspan class="magenta">$research-git:rgit-recall</tspan><tspan x="16" dy="17">Remove the FlashInfer MLA optimization but keep generation behavior unchanged.</tspan></text>
+      </g>
+      <g opacity="0" transform="translate(0 571)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.320083;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <text x="0" y="0"><tspan class="tool bold">•</tspan><tspan class="magenta bold"> $research-git:rgit-recall</tspan></text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -51;0 -51" keyTimes="0;0.321946;0.324431;0.326915;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ recall("FlashInfer MLA") → feat_83ad710c</text>
+            <text x="0" y="17" class="dim">  └ Resolved depends_on graph → no additional capsules</text>
+            <text x="0" y="34" class="dim">  └ compose(["feat_83ad710c"]) → current archived source</text>
+            <text x="0" y="51" class="dim">  └ Loaded intent, knobs, assumptions, and guide</text>
+          </g>
+        </svg>
+      </g>
+      <g opacity="0" transform="translate(0 605)">
+        <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.329400;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <text x="0" y="0"><tspan class="dim bold">•</tspan><tspan class="bold"> Explored</tspan></text>
+        <svg x="0" y="17" width="800" height="17" viewBox="0 0 800 17" overflow="hidden">
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.332298;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ rg -n "flashinfer|mla" archive/ktransformers/ → 181 matches</text>
+            <text x="0" y="17" class="dim">  └ Located the legacy Torch attention path</text>
+          </g>
+        </svg>
+        <text x="0" y="34" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Edited archived FlashInfer MLA paths</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334990;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="51" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.334990;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -17" keyTimes="0;0.337681;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ Removed FlashInfer MLA dispatch and imports</text>
+            <text x="0" y="17" class="dim">  └ Kept model scaling and the Torch attention path</text>
+          </g>
+        </svg>
+        <text x="0" y="68" opacity="0"><tspan class="tool bold">•</tspan><tspan class="bold"> Ran validation</tspan><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.340373;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+        <svg x="0" y="85" width="800" height="17" viewBox="0 0 800 17" overflow="hidden" opacity="0">
+          <animate attributeName="opacity" values="0;1;1" keyTimes="0;0.340373;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+          <g>
+            <animateTransform attributeName="transform" type="translate" values="0 0;0 -17;0 -34;0 -34" keyTimes="0;0.343064;0.345756;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+            <text x="0" y="0" class="dim">  └ Torch and long-context validation → passed</text>
+            <text x="0" y="17" class="dim">  └ rg -n "flashinfer_mla" archive/ktransformers/ → no matches</text>
+            <text x="0" y="34" class="dim">  └ Long-context decode parity passed</text>
+          </g>
+        </svg>
+      </g>
+      <g opacity="0" transform="translate(0 719)"><animate attributeName="opacity" values="0;1;1" keyTimes="0;0.348447;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <text x="0" y="0">Removed the FlashInfer MLA optimization without reverting unrelated attention work.</text>
+        <text x="0" y="17" opacity="0">The Torch fallback remains active; the capsule is preserved for future use.<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.351139;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      </g>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.053830;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      <rect width="800" height="646" fill="var(--bg)"/>
+      <text x="16" y="17" class="dim"><tspan>&gt;_ </tspan><tspan class="bold">OpenAI Codex</tspan><tspan> (v0.144.4)</tspan></text>
+      <text x="16" y="51" class="dim"><tspan>model:     </tspan><tspan class="bold">gpt-5.6-sol medium</tspan><tspan>   /model to change</tspan></text>
+      <text x="16" y="68" class="dim"><tspan>directory: </tspan><tspan class="bold">~/Downloads/ktransformers</tspan></text>
+      <rect x=".6" y=".6" width="540" height="100.8" rx="3" fill="none" stroke="var(--dim)" stroke-width="1.2"/>
+    </g>
+  </svg>
+
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="23 713;23 696;23 713;23 713" keyTimes="0;0.299171;0.318841;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+    <rect width="800" height="51" fill="var(--surface)">
+      <animate attributeName="height" values="51;68;51;51" keyTimes="0;0.299171;0.318841;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+    </rect>
+    <g transform="translate(0 -2.5)"><text x="0" y="21" class="bold">›</text>
+      <text x="16" y="21" class="dim" opacity="0">Ask Codex to do anything<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0;0.014493;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="16" y="21"><tspan opacity="0">F<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.014493;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.014975;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">x<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.015457;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.015939;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">F<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.016422;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.016903;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.017385;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">s<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.017867;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">h<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.01835;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">I<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.018833;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">n<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.019315;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">f<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.019797;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.020278;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.02076;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.021243;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">M<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.021725;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">L<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.022207;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">A<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.022689;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.023172;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">p<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.023654;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.024136;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.024618;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.0251;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.025582;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">s<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.026064;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.026546;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">o<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.027028;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">n<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.027511;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.027993;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.028475;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">n<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.028957;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">d<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.029439;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.029921;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">v<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.030404;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.030885;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.031368;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.03185;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">d<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.032332;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.032815;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">t<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.033297;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.033779;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.034261;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.034743;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">t<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.035224;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.035707;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.036189;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">g<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.036672;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.037154;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.037636;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">n<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.038117;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">s<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.0386;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">t<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.039082;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.039564;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">t<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.040046;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">h<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.040528;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.041011;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.041494;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">T<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.041976;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">o<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.042457;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.042939;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.043421;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">h<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.043904;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.044386;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.044868;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.04535;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">f<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.045832;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.046314;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.046797;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.047279;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">n<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.047761;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.048243;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.048724;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">.<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.049207;0.053831;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan></text>
+      <text x="16" y="21" class="dim" opacity="0">Ask Codex to do anything<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.053831;0.109731;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="16" y="21"><tspan opacity="0">K<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.109731;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.110119;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.110507;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">p<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.110896;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0"> <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.111283;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">f<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.111671;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.112059;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.112448;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">s<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.112836;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">h<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.113225;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.113612;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">n<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.114001;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">f<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.114389;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.114777;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.115165;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">-<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.115553;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">m<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.115942;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.11633;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.116718;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">-<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.117106;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">m<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.117495;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">o<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.117883;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">d<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.118271;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.118659;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.119048;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">-<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.119436;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">s<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.119824;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.120212;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.1206;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.120989;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.121377;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">.<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.121765;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan></text>
+      <text x="16" y="21" class="dim" opacity="0">Ask Codex to do anything<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.126295;0.283643;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <text x="16" y="21"><tspan opacity="0">@<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.283643;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.284223;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.284803;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">s<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.285383;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.285962;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.286542;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.287122;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.287703;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">h<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.288282;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">-<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.288862;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">g<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.289442;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.290021;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">t<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.290601;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">:<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.29118;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.29176;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">g<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.292339;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.292919;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">t<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.293499;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">-<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.294078;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">r<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.294658;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">e<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.295238;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.295818;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.296397;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.296977;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan><tspan opacity="0">l<animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.297556;0.299171;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></tspan></text>
+      <text x="16" y="21" opacity="0"><animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.299171;0.318841;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/><tspan class="magenta">$research-git:rgit-recall</tspan><tspan x="16" dy="17">Remove the FlashInfer MLA optimization but keep generation behavior unchanged.</tspan></text>
+      <text x="16" y="21" class="dim" opacity="0">Ask Codex to do anything<animate attributeName="opacity" values="0;1;1" keyTimes="0;0.318841;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/></text>
+      <g opacity="0">
+        <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.109731;0.126295;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <rect x="15" y="15" width="785" height="23" fill="var(--surface)"/>
+        <text x="16" y="21" clip-path="url(#keep-input-type)">Keep it.</text>
+      </g>
+      <g opacity="0">
+        <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.299171;0.318841;1" dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <rect x="15" y="15" width="785" height="42" fill="var(--surface)"/>
+        <text x="16" y="21" class="magenta">$research-git:rgit-recall</text>
+        <text x="16" y="38" clip-path="url(#recall-input-type)">Remove the FlashInfer MLA optimization but keep generation behavior unchanged.</text>
+      </g>
+      <rect y="-2" width="8.43" height="16" fill="var(--fg)" opacity="0">
+        <animate attributeName="opacity"
+          values=".9;.9;0;0;.9;.9;0;0;.9;.9;0;0"
+          keyTimes="0;0.053830;0.053831;0.109730;0.109731;0.126294;0.126295;0.283642;0.283643;0.318840;0.318841;1"
+          dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+        <animateTransform attributeName="transform" type="translate"
+          values="16.00 20;16.00 20;24.43 20;32.86 20;41.29 20;49.72 20;58.15 20;66.58 20;75.01 20;83.44 20;91.87 20;100.30 20;108.73 20;117.16 20;125.59 20;134.02 20;142.45 20;150.88 20;159.31 20;167.74 20;176.17 20;184.60 20;193.03 20;201.46 20;209.89 20;218.32 20;226.75 20;235.18 20;243.61 20;252.04 20;260.47 20;268.90 20;277.33 20;285.76 20;294.19 20;302.62 20;311.05 20;319.48 20;327.91 20;336.34 20;344.77 20;353.20 20;361.63 20;370.06 20;378.49 20;386.92 20;395.35 20;403.78 20;412.21 20;420.64 20;429.07 20;437.50 20;445.93 20;454.36 20;462.79 20;471.22 20;479.65 20;488.08 20;496.51 20;504.94 20;513.37 20;521.80 20;530.23 20;538.66 20;547.09 20;555.52 20;563.95 20;572.38 20;580.81 20;589.24 20;597.67 20;606.10 20;614.53 20;622.96 20;631.39 20;16.00 20;16.00 20;24.43 20;32.86 20;41.29 20;49.72 20;58.15 20;66.58 20;75.01 20;83.44 20;16.00 20;16.00 20;24.43 20;32.86 20;41.29 20;49.72 20;58.15 20;66.58 20;75.01 20;83.44 20;91.87 20;100.30 20;108.73 20;117.16 20;125.59 20;134.02 20;142.45 20;150.88 20;159.31 20;167.74 20;176.17 20;184.60 20;193.03 20;201.46 20;209.89 20;218.32 20;226.75 20;16.00 37;16.00 37;24.43 37;32.86 37;41.29 37;49.72 37;58.15 37;66.58 37;75.01 37;83.44 37;91.87 37;100.30 37;108.73 37;117.16 37;125.59 37;134.02 37;142.45 37;150.88 37;159.31 37;167.74 37;176.17 37;184.60 37;193.03 37;201.46 37;209.89 37;218.32 37;226.75 37;235.18 37;243.61 37;252.04 37;260.47 37;268.90 37;277.33 37;285.76 37;294.19 37;302.62 37;311.91 37;320.34 37;328.77 37;337.20 37;345.63 37;354.06 37;362.49 37;370.92 37;379.35 37;387.78 37;396.21 37;404.64 37;413.07 37;421.50 37;429.93 37;438.36 37;446.79 37;455.22 37;463.65 37;472.08 37;480.51 37;488.94 37;497.37 37;505.80 37;514.23 37;522.66 37;531.09 37;539.52 37;547.95 37;556.38 37;564.81 37;573.24 37;581.67 37;590.10 37;598.53 37;606.96 37;615.39 37;623.82 37;632.25 37;640.68 37;649.11 37;657.54 37;665.97 37;674.40 37;16.00 20;16.00 20"
+          keyTimes="0;0.014493;0.014969;0.015444;0.01592;0.016395;0.016871;0.017346;0.017822;0.018297;0.018773;0.019248;0.019724;0.020199;0.020675;0.02115;0.021626;0.022102;0.022577;0.023053;0.023528;0.024004;0.024479;0.024955;0.02543;0.025906;0.026381;0.026857;0.027332;0.027808;0.028283;0.028759;0.029235;0.02971;0.030186;0.030661;0.031137;0.031612;0.032088;0.032563;0.033039;0.033514;0.03399;0.034465;0.034941;0.035417;0.035892;0.036368;0.036843;0.037319;0.037794;0.03827;0.038745;0.039221;0.039696;0.040172;0.040647;0.041123;0.041598;0.042074;0.04255;0.043025;0.043501;0.043976;0.044452;0.044927;0.045403;0.045878;0.046354;0.046829;0.047305;0.04778;0.048256;0.048731;0.049207;0.053831;0.109731;0.110702;0.111673;0.112644;0.113615;0.114587;0.115558;0.116529;0.1175;0.126295;0.283643;0.2842;0.284756;0.285313;0.285869;0.286426;0.286982;0.287539;0.288095;0.288652;0.289208;0.289765;0.290321;0.290878;0.291434;0.291991;0.292547;0.293104;0.29366;0.294217;0.294773;0.29533;0.295886;0.296443;0.296999;0.297556;0.299171;0.299171;0.299397;0.299622;0.299848;0.300074;0.300299;0.300525;0.30075;0.300976;0.301202;0.301427;0.301653;0.301879;0.302104;0.30233;0.302555;0.302781;0.303007;0.303232;0.303458;0.303684;0.303909;0.304135;0.30436;0.304586;0.304812;0.305037;0.305263;0.305489;0.305714;0.30594;0.306165;0.306391;0.306617;0.306842;0.307068;0.307294;0.307519;0.307745;0.307971;0.308196;0.308422;0.308647;0.308873;0.309099;0.309324;0.30955;0.309776;0.310001;0.310227;0.310452;0.310678;0.310904;0.311129;0.311355;0.311581;0.311806;0.312032;0.312257;0.312483;0.312709;0.312934;0.31316;0.313386;0.313611;0.313837;0.314062;0.314288;0.314514;0.314739;0.314965;0.315191;0.315416;0.315642;0.315867;0.316093;0.316319;0.316544;0.31677;0.318841;1"
+          dur="48.3s" repeatCount="indefinite" calcMode="discrete"/>
+      </rect>
+    </g>
+  </g>
+  <text x="39" y="773" class="dim">gpt-5.6-sol medium · ~/Downloads/ktransformers · Main [default]</text>
+</svg>
