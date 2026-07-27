@@ -1,7 +1,7 @@
-<h1 align="center">research-git</h1>
+<h1 align="center"><img src="assets/research-git-logo.png" alt="research-git logo" height="64" align="absmiddle" />&nbsp;&nbsp;&nbsp;research-git</h1>
 
 <p align="center">
-  <strong>A new Git tool for ambitious researchers and developers in the agentic era.</strong>
+  <strong>Capture key experiments and feature decisions. Agentically remove or reapply them in your current codebase.</strong>
   <br />
   <em>Works with Claude Code, Codex, Gemini CLI, and opencode.</em>
 </p>
@@ -9,7 +9,8 @@
 <p align="center">
   <a href="#-quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue" alt="Quick Start" /></a>
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License: MIT" />
-  <img src="https://img.shields.io/badge/Claude_Code-8A2BE2" alt="Claude Code" />
+  <img src="https://img.shields.io/badge/Claude_Code-000000" alt="Claude Code" />
+  <img src="https://img.shields.io/badge/Codex-000000" alt="Codex" />
   <img src="https://img.shields.io/badge/Python-3.11+-3776AB" alt="Python 3.11+" />
 </p>
 
@@ -22,8 +23,6 @@ Git remembers commits. research-git remembers ideas.
 research-git turns experiments and features into reusable **Feature Capsules** so coding agents can reapply, adapt, or remove them safely as your code evolves.
 
 > **Not a rollback. Not hard deletion. Bring back the idea, not the old branch.**
-
----
 
 ## How it works
 
@@ -45,8 +44,6 @@ flowchart LR
     class C,F agent;
 ```
 
----
-
 ## The Feature Capsule
 
 Every idea you keep becomes one capsule — a self-contained unit a future agent can read and bring back:
@@ -61,8 +58,6 @@ Every idea you keep becomes one capsule — a self-contained unit a future agent
 | **resurrection guide** | how to regenerate it onto a changed codebase |
 
 Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran — so "the code behind this result" is always a perfect replay, never at the mercy of an agent.
-
----
 
 ## 🚀 Quick Start
 
@@ -109,8 +104,6 @@ rgit compare rerank                                   # which variant won?
 
 More commands as your store grows: [More commands](#more-commands).
 
----
-
 ## Updating
 
 ```bash
@@ -120,8 +113,6 @@ rgit update
 Upgrades the package (via whichever of uv/pipx/pip installed it) and refreshes every installed platform surface: the Claude Code plugin copy, MCP config, and the managed guidance blocks. Guidance blocks you have customized or removed are left alone — the command tells you how to restore them instead.
 
 rgit checks PyPI for a newer release at most once a day (in the background, terminal sessions only). Once one is found, it prints a one-line upgrade notice after every qualifying command until you upgrade or turn the notice off — the check is throttled, the reminder is not. Silence it for good with `rgit update --off`, or per-environment with `RGIT_UPDATE_CHECK=0`.
-
----
 
 ## 🧩 Where it fits
 
@@ -133,13 +124,9 @@ Anywhere you try many variations of one thing and later want a single one back �
 
 Also at home in ML research — different loss terms, attention blocks, augmentations. Same shape: the experiment is the idea, the metrics are the result, and you want one variant back on today's code.
 
----
-
 ## 🤝 Share the memory with your team
 
 The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers — then *their* session regenerates an idea onto *their* code, on *their* subscription. The memory is shared; the intelligence is local.
-
----
 
 ## 🔧 Under the Hood
 
@@ -164,8 +151,6 @@ Recall scores every approved capsule against your query in plain Python — no e
 
 The agent helps you *author*; it is never in the *replay* path. `rgit run` freezes the exact bytes that ran, content-addressed and immutable. "The code behind run X" is a byte-identical re-materialization of a stored blob.
 
----
-
 ## More commands
 
 The five-step loop above is the core. These show up as your store grows — run `rgit <command> --help` for any of them:
@@ -180,8 +165,6 @@ The five-step loop above is the core. These show up as your store grows — run 
 | `rgit provenance <run_id>` | per-feature clean (capsule) vs agent-adapted (frozen) diff for a run |
 | `rgit mcp` | serve the graph read-only so a teammate's client can recall against it |
 | `rgit digest scan [A..B]` | cluster a mature repo's git history into a scored digestion plan (`rgit init` offers this interactively); `rgit digest status` shows progress, the **rgit-digest** skill drains the queue into `origin=backfill` capsules, and `rgit digest clear` removes them all if you change your mind |
-
----
 
 ## License
 
