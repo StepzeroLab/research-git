@@ -61,19 +61,25 @@ Installation takes less than 30 seconds. Restart your coding agent afterwards so
 If your repository already has history, let your agent run the `rgit-digest` skill. It turns earlier work into Capsules, giving recall something to find from day one.
 
 <p align="center">
-  <img src="assets/rgit-digest-skill-input.svg" alt="Run the research-git digest skill from a coding agent input." width="847" />
+  <img src="assets/rgit-digest-skill-input.svg" alt="Agent prompt: @research-git:rgit-digest Digest this repository's history." width="847" />
 </p>
 
 After install your agent does the remembering. Work as usual. It saves each meaningful idea as a Feature Capsule and asks you before anything is kept. Weeks later, when the code has moved on, just ask:
 
 <p align="center">
-  <img src="assets/rgit-recall-plain-text-input.svg" alt="Ask a coding agent to bring back the re-ranking retrieval step." width="847" />
+  <img src="assets/rgit-recall-plain-text-input.svg" alt="Agent prompt: Bring back the re-ranking retrieval step." width="847" />
 </p>
 
 The agent finds the capsule and **re-implements the idea onto today's code**, leaving you a reviewable diff. There are no commands to memorize. If you like being explicit, `/rgit-capture` saves recent work and `/rgit-recall <what you want back>` brings an idea home.
 
 <p align="center">
-  <img src="assets/rgit-recall-skill-input.svg" alt="Explicitly ask a coding agent to recall the re-ranking retrieval step." width="847" />
+  <img src="assets/rgit-recall-skill-input.svg" alt="Agent prompt: @research-git:rgit-recall Bring back the re-ranking retrieval step." width="847" />
+</p>
+
+After the idea is brought back, ask your agent to run the evaluation through research-git. The run keeps the code snapshot and metrics together, then stages the regenerated code for review:
+
+<p align="center">
+  <img src="assets/rgit-run-experiment.svg" alt="Agent prompt: Run the recalled re-ranking evaluation and record its results with research-git." width="847" />
 </p>
 
 ### 3. Working in the terminal? Three commands
@@ -87,6 +93,15 @@ rgit compare rerank                                   # which variant won?
 `rgit capture` saves the current changes (or the last commit) when you're not using `rgit run`. Bringing an idea *back* needs an agent session because that's where the intelligence lives. From the terminal, you can always browse the memory with `rgit features` and `rgit graph`.
 
 More commands as your store grows: [More commands](#more-commands).
+
+## Where it fits
+
+Anywhere you try many variations of one thing and later want to bring one back or safely remove one from today's codebase.
+
+- **Agent / Prompt engineering:** You tried four prompt structures, two tool-splitting schemes, and a different retrieval step. Last week's version scored better; bring *that* idea back onto the agent you've since rewritten.
+- **Backend / Systems:** Three caching strategies, two rate-limiters, a reworked query plan. Which won? Pull the winning variant forward without reverting everything built since.
+- **Frontend:** Competing interaction flows and layout variants, half commented out. Resurrect the one that tested best onto the current component tree.
+- **ML research:** Different loss terms, attention blocks, and augmentations. The experiment is the idea, the metrics are the result, and you want one variant back on today's code.
 
 ## How it works
 
@@ -179,6 +194,29 @@ Every idea you keep becomes a self-contained Capsule that a future agent can use
 
 Capsules live in a small graph beside your repo (`.rgit/`), on top of normal git. Every run you launch through research-git also freezes a **byte-exact, content-addressed snapshot** of the code that ran. This ensures "the code behind this result" is always a perfect replay, never at the mercy of an agent.
 
+## Additional Capabilities
+
+### 1. Run Experiments and Record Results
+
+```bash
+rgit run -- python eval.py                           # run an experiment; freeze code, record metrics
+rgit run --from feat_ab12 -- python eval.py          # record a recalled variant + lineage
+```
+
+`rgit run` records the command, base commit, exit status, content-addressed code
+snapshot, and metrics from `rgit_metrics.json` or stdout. Any code diff is
+staged as a Proposal for review.
+
+Capsules remember intent; Runs preserve execution and measurements. Together,
+they give auto-research agents a durable history for comparing variants and
+deciding what to try next. `--from` records lineage but does not run recall;
+after approval, the new Capsule becomes a variant of the source. Use
+`--with <capsule>` to record approved Capsules active in the Run.
+
+### 2. Share Memory with Your Team
+
+The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers. Their session then regenerates an idea onto their code using their subscription. The memory is shared; the intelligence is local.
+
 ## Updating
 
 ```bash
@@ -194,27 +232,14 @@ rgit checks PyPI for a newer release at most once a day (in the background, term
 
 </details>
 
-## Where it fits
-
-Anywhere you try many variations of one thing and later want to bring one back or safely remove one from today's codebase.
-
-- **Agent / Prompt engineering:** You tried four prompt structures, two tool-splitting schemes, and a different retrieval step. Last week's version scored better; bring *that* idea back onto the agent you've since rewritten.
-- **Backend / Systems:** Three caching strategies, two rate-limiters, a reworked query plan. Which won? Pull the winning variant forward without reverting everything built since.
-- **Frontend:** Competing interaction flows and layout variants, half commented out. Resurrect the one that tested best onto the current component tree.
-- **ML research:** Different loss terms, attention blocks, and augmentations. The experiment is the idea, the metrics are the result, and you want one variant back on today's code.
-
-## Share the memory with your team
-
-The graph is served over MCP **read-only** (`recall` / `compose` / `get`, plus the query commands `compare` / `ablation` / `provenance`). Point a teammate's client at your `rgit mcp` server and they get the same Feature Capsules and the same answers. Their session then regenerates an idea onto their code using their subscription. The memory is shared; the intelligence is local.
-
 ## More commands
 
-The five-step loop above is the core. As your store grows, these additional commands become useful. Run `rgit <command> --help` to learn more about any of them:
+As your store grows, these additional commands become useful. Run `rgit <command> --help` to learn more about any of them:
 
 <table>
   <thead>
     <tr>
-      <th width="40%">Command</th>
+      <th width="43%">Command</th>
       <th>What it does</th>
     </tr>
   </thead>
@@ -233,7 +258,7 @@ The five-step loop above is the core. As your store grows, these additional comm
     </tr>
     <tr>
       <td><code>rgit run --from &lt;capsule&gt; -- &lt;command&gt;</code></td>
-      <td>run and record a recalled implementation, for example <code>rgit run --from feat_ab12 -- python eval.py</code>; after its proposal is approved, the new Capsule is linked as a <code>variant_of</code> the original</td>
+      <td>run and record an experiment for an implementation regenerated from a Capsule; after its Proposal is approved, the resulting Capsule is saved as a <code>variant_of</code> the source</td>
     </tr>
     <tr>
       <td><code>rgit compare &lt;query&gt;</code></td>
@@ -253,6 +278,9 @@ The five-step loop above is the core. As your store grows, these additional comm
     </tr>
   </tbody>
 </table>
+
+See the [command-line guide](https://github.com/StepzeroLab/research-git/wiki)
+for every command and option.
 
 ## License
 
