@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="847" height="118" viewBox="0 0 847 118" role="img" aria-labelledby="title desc">
   <title id="title">Ask Codex to run and record a recalled experiment</title>
-  <desc id="desc">A compact Codex terminal input asking the agent to run the recalled re-ranking evaluation and record its results with research-git.</desc>
+  <desc id="desc">A compact Codex terminal input telling the agent that the re-ranking step is ready and asking it to run the evaluation and record the results with research-git.</desc>
   <style>
     :root { --bg:#272822; --surface:#41413a; --fg:#f8f8f2; --dim:#a59f85; }
     text { font-family:ui-monospace,"SFMono-Regular",Menlo,Monaco,Consolas,monospace; font-size:14px; letter-spacing:0; fill:var(--fg); dominant-baseline:text-before-edge; }
@@ -14,6 +14,6 @@
   <text x="423.5" y="12" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12" font-weight="700" opacity=".72">your-project — codex</text>
 
   <rect x="23" y="50" width="801" height="45" rx="2" fill="var(--surface)"/>
-  <text x="39" y="64" class="dim">›</text>
-  <text x="59" y="64">Run the recalled re-ranking evaluation and record its results with research-git.</text>
+  <text x="27" y="64" class="dim">›</text>
+  <text x="47" y="64">The re-ranking step is ready. Run its evaluation and record the results with research-git.</text>
 </svg>

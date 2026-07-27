@@ -20,7 +20,7 @@
 
 research-git is a new Git tool for researchers and developers, built for the agentic coding era.
 
-It captures important experiments and feature decisions as reusable semantic units, so coding agents can reapply, adapt, or safely remove them on today’s codebase.
+It captures important experiments and feature decisions as reusable semantic units, links experimental results to the code that produced them, and helps coding agents reapply, adapt, or safely remove earlier ideas on today’s codebase.
 
 ## Why research-git
 
@@ -28,7 +28,7 @@ AI coding tools can generate many different experiments and features in a day. B
 
 Traditional Git preserves commits and diffs, but it does not preserve the context behind them. It cannot tell an agent which changes belong to an experiment, why they were made, what assumptions they depended on, or what results they produced. Without that context, reverting may erase later work, replaying an old diff may fail against a changed architecture, and removing a feature may damage shared infrastructure.
 
-research-git records experiments and feature decisions as reusable Capsules, capturing their intent, relevant code, dependencies, configuration, results, and restoration guidance. This gives coding agents the context to safely reapply or remove them on today’s codebase without restoring an old snapshot or deleting code piece by piece.
+research-git records experiments and feature decisions as reusable Capsules, capturing their intent, relevant code, dependencies, configuration, and restoration guidance. It also links experimental results to the exact code that produced them. This gives coding agents the context to safely reapply or remove earlier ideas on today’s codebase without restoring an old snapshot or deleting code piece by piece.
 
 ## Quick Start
 
@@ -76,10 +76,10 @@ The agent finds the capsule and **re-implements the idea onto today's code**, le
   <img src="assets/rgit-recall-skill-input.svg" alt="Agent prompt: @research-git:rgit-recall Bring back the re-ranking retrieval step." width="847" />
 </p>
 
-After the idea is brought back, ask your agent to run the evaluation through research-git. The run keeps the code snapshot and metrics together, then stages the regenerated code for review:
+After the idea is brought back, ask your agent to run its evaluation with research-git. The Run keeps the exact code snapshot and metrics together. If the implementation includes code changes, research-git also stages them as a Capsule Proposal for you to decide whether to keep.
 
 <p align="center">
-  <img src="assets/rgit-run-experiment.svg" alt="Agent prompt: Run the recalled re-ranking evaluation and record its results with research-git." width="847" />
+  <img src="assets/rgit-run-experiment.svg" alt="Agent prompt: The re-ranking step is ready. Run its evaluation and record the results with research-git." width="847" />
 </p>
 
 ### 3. Working in the terminal? Three commands
