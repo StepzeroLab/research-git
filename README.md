@@ -28,7 +28,11 @@ AI coding tools can generate many different experiments and features in a day. B
 
 Traditional Git preserves commits and diffs, but it does not preserve the context behind them. It cannot tell an agent which changes belong to an experiment, why they were made, what assumptions they depended on, or what results they produced. Without that context, reverting may erase later work, replaying an old diff may fail against a changed architecture, and removing a feature may damage shared infrastructure.
 
-research-git records experiments and feature decisions as reusable Capsules, capturing their intent, relevant code, dependencies, configuration, and restoration guidance. It also links experimental results to the exact code that produced them. This gives coding agents the context to safely reapply or remove earlier ideas on today’s codebase without restoring an old snapshot or deleting code piece by piece.
+research-git records experiments and feature decisions as reusable Capsules, capturing their intent, relevant code, dependencies, configuration, and restoration guidance. It also links experimental results to the exact code that produced them. This gives coding agents the context to safely reapply or remove earlier ideas on today's codebase without restoring an old snapshot or deleting code piece by piece.
+
+<p align="center">
+  <img src="assets/traditional-git-context-problem.jpg" alt="The context problem of traditional Git" width="560" />
+</p>
 
 ## Quick Start
 
